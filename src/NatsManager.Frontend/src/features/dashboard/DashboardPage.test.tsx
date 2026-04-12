@@ -48,6 +48,7 @@ describe('DashboardPage', () => {
 
     const { container } = renderWithProviders(<DashboardPage />);
     expect(container.querySelector('.mantine-Loader-root')).toBeInTheDocument();
+    expect(screen.getByText('Loading dashboard…')).toBeInTheDocument();
   });
 
   it('renders dashboard with data', () => {

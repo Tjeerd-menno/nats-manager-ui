@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { TextInput, PasswordInput, Button, Paper, Title, Stack, Alert } from '@mantine/core';
+import { TextInput, PasswordInput, Button, Paper, Title, Stack, Alert, Center, Text } from '@mantine/core';
+import { IconAlertCircle, IconLogin } from '@tabler/icons-react';
 import { useAuth } from './useAuth';
 import { extractProblemDetails } from '../../api/client';
 
@@ -29,12 +30,19 @@ export function LoginPage() {
   };
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
-      <Paper shadow="md" p="xl" radius="md" w={400}>
-        <Title order={2} mb="lg">NATS Manager</Title>
+    <Center mih="100vh" bg="gray.0" px="md">
+      <Paper shadow="lg" p="xl" radius="md" w="100%" maw={420} withBorder>
+        <Stack align="center" mb="lg">
+          <Title order={2} c="indigo">NATS Manager</Title>
+          <Text size="sm" c="dimmed">Sign in to manage your NATS infrastructure</Text>
+        </Stack>
         <form onSubmit={handleSubmit}>
           <Stack>
-            {error && <Alert color="red">{error}</Alert>}
+            {error && (
+              <Alert color="red" icon={<IconAlertCircle size={16} />}>
+                {error}
+              </Alert>
+            )}
             <TextInput
               label="Username"
               value={username}
@@ -48,12 +56,17 @@ export function LoginPage() {
               onChange={(e) => setPassword(e.currentTarget.value)}
               required
             />
-            <Button type="submit" loading={isSubmitting} fullWidth>
+            <Button
+              type="submit"
+              loading={isSubmitting}
+              fullWidth
+              leftSection={<IconLogin size={16} />}
+            >
               Sign in
             </Button>
           </Stack>
         </form>
       </Paper>
-    </div>
+    </Center>
   );
 }
