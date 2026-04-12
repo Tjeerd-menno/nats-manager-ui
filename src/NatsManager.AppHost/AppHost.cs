@@ -18,9 +18,8 @@ var backend = builder.AddProject<Projects.NatsManager_Web>("backend")
     .WithEnvironment("Encryption__Key", encryptionKey)
     .WaitFor(nats);
 
-builder.AddNpmApp("frontend", "../NatsManager.Frontend", "dev")
+builder.AddViteApp("frontend", "../NatsManager.Frontend", "dev")
     .WithReference(backend)
-    .WaitFor(backend)
-    .WithHttpEndpoint(env: "PORT");
+    .WaitFor(backend);
 
 builder.Build().Run();
