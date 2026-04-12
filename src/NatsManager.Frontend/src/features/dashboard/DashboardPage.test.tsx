@@ -46,7 +46,8 @@ describe('DashboardPage', () => {
       error: null,
     } as unknown as ReturnType<typeof useDashboard>);
 
-    renderWithProviders(<DashboardPage />);
+    const { container } = renderWithProviders(<DashboardPage />);
+    expect(container.querySelector('.mantine-Loader-root')).toBeInTheDocument();
     expect(screen.getByText('Loading dashboard…')).toBeInTheDocument();
   });
 
