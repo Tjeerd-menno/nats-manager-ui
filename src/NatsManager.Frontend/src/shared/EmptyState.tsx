@@ -1,17 +1,22 @@
 import type { ReactNode } from 'react';
-import { Center, Text, Stack } from '@mantine/core';
+import { Center, Text, Stack, ThemeIcon } from '@mantine/core';
+import { IconInbox } from '@tabler/icons-react';
+import type { Icon } from '@tabler/icons-react';
 
 interface EmptyStateProps {
   message?: string;
   action?: ReactNode;
+  icon?: Icon;
 }
 
-export function EmptyState({ message = 'No items found', action }: EmptyStateProps) {
+export function EmptyState({ message = 'No items found', action, icon: IconComponent = IconInbox }: EmptyStateProps) {
   return (
     <Center h={200}>
-      <Stack align="center">
-        <Text size="xl">📭</Text>
-        <Text c="dimmed">{message}</Text>
+      <Stack align="center" gap="sm">
+        <ThemeIcon variant="light" color="gray" size={48} radius="xl">
+          <IconComponent size={24} />
+        </ThemeIcon>
+        <Text c="dimmed" size="sm">{message}</Text>
         {action}
       </Stack>
     </Center>

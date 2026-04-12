@@ -9,13 +9,14 @@ import { EnvironmentProvider } from './features/environments/EnvironmentProvider
 import { queryClient } from './api/queryClient'
 import { ErrorBoundary } from './shared/ErrorBoundary'
 import { NotificationProvider } from './shared/NotificationProvider'
+import { theme } from './theme'
 import App from './App'
 import '@mantine/core/styles.css'
 import '@mantine/notifications/styles.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-      <MantineProvider>
+      <MantineProvider theme={theme}>
         <ModalsProvider>
           <NotificationProvider />
           <QueryClientProvider client={queryClient}>
