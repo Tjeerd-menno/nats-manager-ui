@@ -1,0 +1,18 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/NatsManager.AppHost/NatsManager.AppHost.csproj" />
+    <Project Path="src/NatsManager.Application/NatsManager.Application.csproj" />
+    <Project Path="src/NatsManager.Domain/NatsManager.Domain.csproj" />
+    <Project Path="src/NatsManager.Infrastructure/NatsManager.Infrastructure.csproj" />
+    <Project Path="src/NatsManager.ServiceDefaults/NatsManager.ServiceDefaults.csproj" />
+    <Project Path="src/NatsManager.Web/NatsManager.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/NatsManager.Application.Tests/NatsManager.Application.Tests.csproj" />
+    <Project Path="tests/NatsManager.Domain.Tests/NatsManager.Domain.Tests.csproj" />
+    <Project Path="tests/NatsManager.E2E.Tests/NatsManager.E2E.Tests.csproj" />
+    <Project Path="tests/NatsManager.Infrastructure.Tests/NatsManager.Infrastructure.Tests.csproj" />
+    <Project Path="tests/NatsManager.Integration.Tests/NatsManager.Integration.Tests.csproj" />
+    <Project Path="tests/NatsManager.Web.Tests/NatsManager.Web.Tests.csproj" />
+  </Folder>
+</Solution>

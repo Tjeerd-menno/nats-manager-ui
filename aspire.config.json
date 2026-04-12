@@ -1,0 +1,6 @@
+{
+  "appHost": {
+    "path": "src/NatsManager.AppHost/NatsManager.AppHost.csproj",
+    "language": "csharp"
+  }
+}
