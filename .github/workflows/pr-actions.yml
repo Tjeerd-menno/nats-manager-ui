@@ -35,7 +35,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: /home/runner/work/nats-manager-ui/nats-manager-ui/src/NatsManager.Frontend/package-lock.json
+          cache-dependency-path: src/NatsManager.Frontend/package-lock.json
 
       - name: Restore Aspire workload
         run: dotnet workload restore NatsManager.slnx
