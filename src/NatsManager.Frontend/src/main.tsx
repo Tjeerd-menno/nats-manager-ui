@@ -16,7 +16,7 @@ import '@mantine/notifications/styles.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <MantineProvider theme={theme}>
+    <MantineProvider theme={theme} defaultColorScheme="auto">
       <ModalsProvider>
         <NotificationProvider />
         <QueryClientProvider client={queryClient}>
