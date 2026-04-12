@@ -1,0 +1,20 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.2.2">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UserSecretsId>ba979e0b-88f6-41aa-bb3c-bc22b676c158</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.JavaScript" />
+    <PackageReference Include="Aspire.Hosting.Nats" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NatsManager.Web\NatsManager.Web.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\NatsManager.Application\NatsManager.Application.csproj" />
+    <ProjectReference Include="..\NatsManager.Infrastructure\NatsManager.Infrastructure.csproj" />
+    <ProjectReference Include="..\NatsManager.Domain\NatsManager.Domain.csproj" />
+    <ProjectReference Include="..\NatsManager.ServiceDefaults\NatsManager.ServiceDefaults.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.NATS.Net" />
+    <PackageReference Include="Serilog.AspNetCore" />
+    <PackageReference Include="Serilog.Sinks.Console" />
+    <PackageReference Include="Serilog.Sinks.File" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+</Project>

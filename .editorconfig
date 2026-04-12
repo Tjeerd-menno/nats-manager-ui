@@ -1,0 +1,56 @@
+root = true
+
+[*]
+indent_style = space
+indent_size = 4
+end_of_line = crlf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+[*.{cs,vb}]
+# Namespace preferences
+dotnet_style_namespace_match_folder = false:suggestion
+
+# var preferences - use var when type is apparent
+csharp_style_var_for_built_in_types = true:suggestion
+csharp_style_var_when_type_is_apparent = true:suggestion
+csharp_style_var_elsewhere = true:suggestion
+
+# Namespace style - file scoped
+csharp_style_namespace_declarations = file_scoped:warning
+
+# IDE0130 - namespace must match folder - relax for ServiceDefaults
+dotnet_diagnostic.IDE0130.severity = suggestion
+
+# IDE0008 - use explicit type - relax
+dotnet_diagnostic.IDE0008.severity = suggestion
+
+# IDE0160 - namespace style 
+dotnet_diagnostic.IDE0160.severity = none
+
+# IDE0022 - use block body for methods
+csharp_style_expression_bodied_methods = true:suggestion
+
+# IDE0011 - add braces
+csharp_prefer_braces = when_multiline:suggestion
+
+# IDE0046 - simplify if statement
+dotnet_style_prefer_simplified_boolean_expressions = true:suggestion
+dotnet_diagnostic.IDE0046.severity = suggestion
+
+[**/Migrations/*.cs]
+# Generated migration code — suppress all style diagnostics
+generated_code = true
+
+# Documentation
+dotnet_diagnostic.EnableGenerateDocumentationFile.severity = none
+
+[*.{json,yml,yaml}]
+indent_size = 2
+
+[*.{ts,tsx,js,jsx}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false

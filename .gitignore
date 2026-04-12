@@ -1,0 +1,49 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.dll
+*.pdb
+packages/
+*.nupkg
+project.lock.json
+
+# Node.js / Frontend
+node_modules/
+dist/
+build/
+*.log
+.env*
+!.env.example
+coverage/
+.vitest/
+
+# SQLite
+*.db
+*.db-wal
+*.db-shm
+
+# IDE
+.vs/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+*.tmp
+
+# Squad: ignore runtime state (logs, inbox, sessions)
+.squad/orchestration-log/
+.squad/log/
+.squad/decisions/inbox/
+.squad/sessions/
+# Squad: SubSquad activation file (local to this machine)
+.squad-workstream
+
+.playwright-cli
+.playwright-mcp
+e2e-results.txt
