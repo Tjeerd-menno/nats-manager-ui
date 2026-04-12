@@ -30,8 +30,8 @@ export function LoginPage() {
   };
 
   return (
-    <Center mih="100vh" bg="gray.0">
-      <Paper shadow="lg" p="xl" radius="md" w={420} withBorder>
+    <Center mih="100vh" bg="gray.0" px="md">
+      <Paper shadow="lg" p="xl" radius="md" w="100%" maw={420} withBorder>
         <Stack align="center" mb="lg">
           <Title order={2} c="indigo">NATS Manager</Title>
           <Text size="sm" c="dimmed">Sign in to manage your NATS infrastructure</Text>
