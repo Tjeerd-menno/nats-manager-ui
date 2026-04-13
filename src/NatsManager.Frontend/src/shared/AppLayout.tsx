@@ -41,6 +41,9 @@ export function AppLayout() {
   const { user, logout, hasRole } = useAuth();
   const { selectedEnvironmentId, selectEnvironment } = useEnvironmentContext();
   const { setColorScheme } = useMantineColorScheme();
+  // getInitialValueInEffect: false resolves the scheme synchronously from the DOM attribute
+  // (set by Mantine's ColorSchemeScript before React mounts), avoiding an icon/theme flicker
+  // on first render in this SPA (no SSR).
   const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: false });
   const [opened, { toggle, close }] = useDisclosure();
   const canViewAudit = hasRole('Administrator') || hasRole('Auditor');
