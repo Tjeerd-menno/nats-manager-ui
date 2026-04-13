@@ -1,4 +1,4 @@
-import { AppShell, NavLink, Group, Text, ActionIcon, Divider, Burger, Box } from '@mantine/core';
+import { AppShell, NavLink, Group, Text, ActionIcon, Divider, Burger, Box, useMantineColorScheme, useComputedColorScheme } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -12,6 +12,8 @@ import {
   IconFileText,
   IconUser,
   IconLogout,
+  IconSun,
+  IconMoon,
 } from '@tabler/icons-react';
 import { useAuth } from '../features/auth/useAuth';
 import { EnvironmentSelector } from '../features/environments/components/EnvironmentSelector';
@@ -38,6 +40,11 @@ export function AppLayout() {
   const location = useLocation();
   const { user, logout, hasRole } = useAuth();
   const { selectedEnvironmentId, selectEnvironment } = useEnvironmentContext();
+  const { setColorScheme } = useMantineColorScheme();
+  // getInitialValueInEffect: false resolves the scheme synchronously from the DOM attribute
+  // (set by Mantine's ColorSchemeScript before React mounts), avoiding an icon/theme flicker
+  // on first render in this SPA (no SSR).
+  const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: false });
   const [opened, { toggle, close }] = useDisclosure();
   const canViewAudit = hasRole('Administrator') || hasRole('Auditor');
   const visibleNavItems = canViewAudit ? navItems : navItems.filter((item) => item.path !== '/audit');
@@ -62,6 +69,14 @@ export function AppLayout() {
           <Group>
             <GlobalSearch />
             <Text size="sm" c="dimmed">{user?.displayName}</Text>
+            <ActionIcon
+              variant="subtle"
+              color="gray"
+              aria-label="Toggle color scheme"
+              onClick={() => setColorScheme(computedColorScheme === 'light' ? 'dark' : 'light')}
+            >
+              {computedColorScheme === 'dark' ? <IconSun size={18} data-testid="icon-sun" /> : <IconMoon size={18} data-testid="icon-moon" />}
+            </ActionIcon>
             <ActionIcon variant="subtle" color="gray" aria-label="Logout" onClick={() => void logout()}>
               <IconLogout size={18} />
             </ActionIcon>
