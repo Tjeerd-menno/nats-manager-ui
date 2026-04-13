@@ -3,6 +3,22 @@ import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../test-utils';
 import { AppLayout } from './AppLayout';
 
+const mockSetColorScheme = vi.fn();
+const mockUseComputedColorScheme = vi.fn(() => 'light' as 'light' | 'dark');
+
+vi.mock('@mantine/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@mantine/core')>();
+  return {
+    ...actual,
+    useMantineColorScheme: vi.fn(() => ({
+      setColorScheme: mockSetColorScheme,
+      colorScheme: 'auto' as const,
+      toggleColorScheme: vi.fn(),
+    })),
+    useComputedColorScheme: () => mockUseComputedColorScheme(),
+  };
+});
+
 vi.mock('../features/auth/useAuth', () => ({
   useAuth: vi.fn(() => ({
     user: { displayName: 'Test User' },
@@ -33,19 +49,33 @@ describe('AppLayout color scheme toggle', () => {
     vi.clearAllMocks();
   });
 
-  it('renders the color scheme toggle button', () => {
+  it('shows moon icon and calls setColorScheme("dark") when current scheme is light', async () => {
+    mockUseComputedColorScheme.mockReturnValue('light');
+    const user = userEvent.setup();
+
     renderWithProviders(<AppLayout />);
-    expect(screen.getByRole('button', { name: /toggle color scheme/i })).toBeInTheDocument();
+
+    expect(screen.getByTestId('icon-moon')).toBeInTheDocument();
+    expect(screen.queryByTestId('icon-sun')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /toggle color scheme/i }));
+
+    expect(mockSetColorScheme).toHaveBeenCalledOnce();
+    expect(mockSetColorScheme).toHaveBeenCalledWith('dark');
   });
 
-  it('calls setColorScheme when the toggle button is clicked', async () => {
+  it('shows sun icon and calls setColorScheme("light") when current scheme is dark', async () => {
+    mockUseComputedColorScheme.mockReturnValue('dark');
     const user = userEvent.setup();
+
     renderWithProviders(<AppLayout />);
 
-    const toggleButton = screen.getByRole('button', { name: /toggle color scheme/i });
-    await user.click(toggleButton);
+    expect(screen.getByTestId('icon-sun')).toBeInTheDocument();
+    expect(screen.queryByTestId('icon-moon')).not.toBeInTheDocument();
 
-    // After clicking, the button should still be present (toggle is functional)
-    expect(toggleButton).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /toggle color scheme/i }));
+
+    expect(mockSetColorScheme).toHaveBeenCalledOnce();
+    expect(mockSetColorScheme).toHaveBeenCalledWith('light');
   });
 });

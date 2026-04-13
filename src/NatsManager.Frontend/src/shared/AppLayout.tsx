@@ -72,7 +72,7 @@ export function AppLayout() {
               aria-label="Toggle color scheme"
               onClick={() => setColorScheme(computedColorScheme === 'light' ? 'dark' : 'light')}
             >
-              {computedColorScheme === 'dark' ? <IconSun size={18} /> : <IconMoon size={18} />}
+              {computedColorScheme === 'dark' ? <IconSun size={18} data-testid="icon-sun" /> : <IconMoon size={18} data-testid="icon-moon" />}
             </ActionIcon>
             <ActionIcon variant="subtle" color="gray" aria-label="Logout" onClick={() => void logout()}>
               <IconLogout size={18} />
