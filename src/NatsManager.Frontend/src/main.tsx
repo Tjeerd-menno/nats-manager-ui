@@ -14,15 +14,33 @@ import App from './App'
 import '@mantine/core/styles.css'
 import '@mantine/notifications/styles.css'
 
-const storedColorScheme = window.localStorage.getItem('mantine-color-scheme-value')
-const resolvedColorScheme =
-  storedColorScheme === 'light' || storedColorScheme === 'dark'
-    ? storedColorScheme
-    : window.matchMedia('(prefers-color-scheme: dark)').matches
-      ? 'dark'
-      : 'light'
+const getResolvedColorScheme = (): 'light' | 'dark' => {
+  if (typeof window === 'undefined') {
+    return 'light'
+  }
 
-document.documentElement.setAttribute('data-mantine-color-scheme', resolvedColorScheme)
+  try {
+    const storedColorScheme = window.localStorage.getItem('mantine-color-scheme-value')
+
+    if (storedColorScheme === 'light' || storedColorScheme === 'dark') {
+      return storedColorScheme
+    }
+  } catch {
+    // Ignore storage access failures in privacy-restricted contexts.
+  }
+
+  try {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  } catch {
+    return 'light'
+  }
+}
+
+const resolvedColorScheme = getResolvedColorScheme()
+
+if (typeof document !== 'undefined') {
+  document.documentElement.setAttribute('data-mantine-color-scheme', resolvedColorScheme)
+}
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <MantineProvider theme={theme} defaultColorScheme="auto">
