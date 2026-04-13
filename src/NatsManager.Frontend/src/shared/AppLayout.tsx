@@ -41,7 +41,7 @@ export function AppLayout() {
   const { user, logout, hasRole } = useAuth();
   const { selectedEnvironmentId, selectEnvironment } = useEnvironmentContext();
   const { setColorScheme } = useMantineColorScheme();
-  const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
+  const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: false });
   const [opened, { toggle, close }] = useDisclosure();
   const canViewAudit = hasRole('Administrator') || hasRole('Auditor');
   const visibleNavItems = canViewAudit ? navItems : navItems.filter((item) => item.path !== '/audit');
