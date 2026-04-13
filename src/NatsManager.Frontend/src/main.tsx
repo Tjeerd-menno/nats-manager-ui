@@ -14,6 +14,15 @@ import App from './App'
 import '@mantine/core/styles.css'
 import '@mantine/notifications/styles.css'
 
+const storedColorScheme = window.localStorage.getItem('mantine-color-scheme-value')
+const resolvedColorScheme =
+  storedColorScheme === 'light' || storedColorScheme === 'dark'
+    ? storedColorScheme
+    : window.matchMedia('(prefers-color-scheme: dark)').matches
+      ? 'dark'
+      : 'light'
+
+document.documentElement.setAttribute('data-mantine-color-scheme', resolvedColorScheme)
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <MantineProvider theme={theme} defaultColorScheme="auto">
