@@ -157,6 +157,38 @@ public sealed class RegisterEnvironmentCommandValidatorTests
 
         result.IsValid.Should().BeFalse();
     }
+
+    [Theory]
+    [InlineData("nats://localhost:4222")]
+    [InlineData("tls://broker.example.com:4443")]
+    [InlineData("ws://localhost:8080")]
+    [InlineData("wss://broker.example.com:443")]
+    [InlineData("nats://a:4222,nats://b:4222")]
+    public void Validate_WithAllowedScheme_ShouldPass(string url)
+    {
+        var command = new RegisterEnvironmentCommand { Name = "env", ServerUrl = url };
+
+        var result = _validator.Validate(command);
+
+        result.IsValid.Should().BeTrue(because: string.Join("; ", result.Errors.Select(e => e.ErrorMessage)));
+    }
+
+    [Theory]
+    [InlineData("http://localhost:4222")]
+    [InlineData("https://localhost:4222")]
+    [InlineData("file:///etc/passwd")]
+    [InlineData("gopher://example.com")]
+    [InlineData("javascript:alert(1)")]
+    [InlineData("not-a-url")]
+    public void Validate_WithDisallowedOrMalformedUrl_ShouldFail(string url)
+    {
+        var command = new RegisterEnvironmentCommand { Name = "env", ServerUrl = url };
+
+        var result = _validator.Validate(command);
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.PropertyName == nameof(RegisterEnvironmentCommand.ServerUrl));
+    }
 }
 
 public sealed class UpdateEnvironmentCommandTests

@@ -123,6 +123,34 @@ builder.Services.AddAuthorization(options =>
             .RequireRole(Role.PredefinedNames.Administrator, Role.PredefinedNames.Operator));
 });
 
+// CORS — by default the frontend is served from the same origin as the API
+// and CORS is not required. For deployments where the SPA is hosted separately
+// (e.g. a CDN), populate `Cors:AllowedOrigins` with the explicit list of trusted
+// origins. The policy is opt-in: with no allowed origins configured the
+// middleware is effectively a no-op for cross-origin requests.
+var allowedOrigins = builder.Configuration
+    .GetSection("Cors:AllowedOrigins")
+    .Get<string[]>() ?? [];
+
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        if (allowedOrigins.Length == 0)
+        {
+            // Deny-by-default: no origins allowed means no CORS response headers
+            // will be emitted, leaving browsers' same-origin policy in force.
+            return;
+        }
+
+        policy
+            .WithOrigins(allowedOrigins)
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
+    });
+});
+
 // Rate limiting — protects authentication and other sensitive endpoints from
 // brute-force and abusive traffic. Keyed by authenticated user when available,
 // otherwise by remote IP.
@@ -198,6 +226,7 @@ if (!app.Environment.IsDevelopment())
 app.UseMiddleware<SecurityHeadersMiddleware>();
 
 app.UseSerilogRequestLogging();
+app.UseCors();
 app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
