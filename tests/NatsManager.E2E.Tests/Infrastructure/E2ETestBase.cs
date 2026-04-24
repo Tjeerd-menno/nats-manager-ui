@@ -201,11 +201,15 @@ public abstract class E2ETestBase : IAsyncLifetime
         var meResponse = await httpClient.GetAsync("/api/auth/me");
         meResponse.EnsureSuccessStatusCode();
 
-        var xsrfCookie = cookieContainer.GetCookies(new Uri(Fixture.BackendUrl))["XSRF-TOKEN"]
-            ?? throw new Exception("No XSRF-TOKEN cookie returned from backend.");
+        // In the Testing environment the backend disables antiforgery middleware and never
+        // issues the XSRF-TOKEN cookie, so we skip the header setup gracefully.
+        var xsrfCookie = cookieContainer.GetCookies(new Uri(Fixture.BackendUrl))["XSRF-TOKEN"];
+        if (xsrfCookie is not null)
+        {
+            httpClient.DefaultRequestHeaders.Remove("X-XSRF-TOKEN");
+            httpClient.DefaultRequestHeaders.Add("X-XSRF-TOKEN", xsrfCookie.Value);
+        }
 
-        httpClient.DefaultRequestHeaders.Remove("X-XSRF-TOKEN");
-        httpClient.DefaultRequestHeaders.Add("X-XSRF-TOKEN", xsrfCookie.Value);
         httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
     }
 
