@@ -17,7 +17,7 @@ public sealed class ObjectStoreAdapterTests(NatsFixture fixture) : NatsIntegrati
 
         var buckets = await adapter.ListBucketsAsync(EnvironmentId);
 
-        buckets.Should().Contain(b => b.BucketName == bucketName);
+        buckets.ShouldContain(b => b.BucketName == bucketName);
     }
 
     [Fact]
@@ -29,9 +29,9 @@ public sealed class ObjectStoreAdapterTests(NatsFixture fixture) : NatsIntegrati
 
         var info = await adapter.GetBucketAsync(EnvironmentId, bucketName);
 
-        info.Should().NotBeNull();
-        info!.BucketName.Should().Be(bucketName);
-        info.Description.Should().Be("desc");
+        info.ShouldNotBeNull();
+        info!.BucketName.ShouldBe(bucketName);
+        info.Description.ShouldBe("desc");
     }
 
     [Fact]
@@ -41,7 +41,7 @@ public sealed class ObjectStoreAdapterTests(NatsFixture fixture) : NatsIntegrati
 
         var result = await adapter.GetBucketAsync(EnvironmentId, "nonexistent-bucket");
 
-        result.Should().BeNull();
+        result.ShouldBeNull();
     }
 
     [Fact]
@@ -56,7 +56,7 @@ public sealed class ObjectStoreAdapterTests(NatsFixture fixture) : NatsIntegrati
 
         var downloaded = await adapter.DownloadObjectAsync(EnvironmentId, bucketName, "greeting.txt");
 
-        downloaded.Should().BeEquivalentTo(data);
+        downloaded.ShouldBe(data);
     }
 
     [Fact]
@@ -70,8 +70,8 @@ public sealed class ObjectStoreAdapterTests(NatsFixture fixture) : NatsIntegrati
 
         var objects = await adapter.ListObjectsAsync(EnvironmentId, bucketName);
 
-        objects.Should().HaveCount(2);
-        objects.Select(o => o.Name).Should().Contain(["file1.txt", "file2.txt"]);
+        objects.Count().ShouldBe(2);
+        objects.Select(o => o.Name).ShouldContain(["file1.txt", "file2.txt"]);
     }
 
     [Fact]
@@ -84,9 +84,9 @@ public sealed class ObjectStoreAdapterTests(NatsFixture fixture) : NatsIntegrati
 
         var info = await adapter.GetObjectInfoAsync(EnvironmentId, bucketName, "info-test.bin");
 
-        info.Should().NotBeNull();
-        info!.Name.Should().Be("info-test.bin");
-        info.Size.Should().Be(4);
+        info.ShouldNotBeNull();
+        info!.Name.ShouldBe("info-test.bin");
+        info.Size.ShouldBe(4);
     }
 
     [Fact]
@@ -100,7 +100,7 @@ public sealed class ObjectStoreAdapterTests(NatsFixture fixture) : NatsIntegrati
         await adapter.DeleteObjectAsync(EnvironmentId, bucketName, "to-delete.txt");
 
         var info = await adapter.GetObjectInfoAsync(EnvironmentId, bucketName, "to-delete.txt");
-        info.Should().BeNull();
+        info.ShouldBeNull();
     }
 
     [Fact]
@@ -113,6 +113,6 @@ public sealed class ObjectStoreAdapterTests(NatsFixture fixture) : NatsIntegrati
         await adapter.DeleteBucketAsync(EnvironmentId, bucketName);
 
         var info = await adapter.GetBucketAsync(EnvironmentId, bucketName);
-        info.Should().BeNull();
+        info.ShouldBeNull();
     }
 }

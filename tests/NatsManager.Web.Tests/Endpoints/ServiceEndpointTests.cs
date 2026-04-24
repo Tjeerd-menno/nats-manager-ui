@@ -1,6 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
-using FluentAssertions;
+using Shouldly;
 using NSubstitute;
 using NatsManager.Application.Modules.Services.Models;
 
@@ -26,7 +26,7 @@ public sealed class ServiceEndpointTests : IClassFixture<NatsManagerWebAppFactor
 
         var response = await _client.GetAsync($"/api/environments/{envId}/services");
 
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
     [Fact]
@@ -38,7 +38,7 @@ public sealed class ServiceEndpointTests : IClassFixture<NatsManagerWebAppFactor
 
         var response = await _client.GetAsync($"/api/environments/{envId}/services/missing");
 
-        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
     [Fact]
@@ -51,6 +51,6 @@ public sealed class ServiceEndpointTests : IClassFixture<NatsManagerWebAppFactor
         var payload = new { Subject = "test.subject" };
         var response = await _client.PostAsJsonAsync($"/api/environments/{envId}/services/svc/test", payload);
 
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 }

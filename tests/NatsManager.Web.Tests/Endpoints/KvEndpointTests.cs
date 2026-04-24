@@ -1,6 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
-using FluentAssertions;
+using Shouldly;
 using NSubstitute;
 using NatsManager.Application.Modules.KeyValue.Models;
 
@@ -26,7 +26,7 @@ public sealed class KvEndpointTests : IClassFixture<NatsManagerWebAppFactory>
 
         var response = await _client.GetAsync($"/api/environments/{envId}/kv/buckets");
 
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
     [Fact]
@@ -35,7 +35,7 @@ public sealed class KvEndpointTests : IClassFixture<NatsManagerWebAppFactory>
         var envId = Guid.NewGuid();
         var response = await _client.DeleteAsync($"/api/environments/{envId}/kv/buckets/test");
 
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
     [Fact]
@@ -48,7 +48,7 @@ public sealed class KvEndpointTests : IClassFixture<NatsManagerWebAppFactory>
         var payload = new { Value = "dGVzdA==" };
         var response = await _client.PutAsJsonAsync($"/api/environments/{envId}/kv/buckets/bucket/keys/key", payload);
 
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
     [Fact]
@@ -57,6 +57,6 @@ public sealed class KvEndpointTests : IClassFixture<NatsManagerWebAppFactory>
         var envId = Guid.NewGuid();
         var response = await _client.DeleteAsync($"/api/environments/{envId}/kv/buckets/bucket/keys/key");
 
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 }

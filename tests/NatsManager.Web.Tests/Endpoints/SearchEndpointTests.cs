@@ -1,5 +1,5 @@
 using System.Net;
-using FluentAssertions;
+using Shouldly;
 
 namespace NatsManager.Web.Tests.Endpoints;
 
@@ -17,7 +17,7 @@ public sealed class SearchEndpointTests : IClassFixture<NatsManagerWebAppFactory
     {
         var response = await _client.GetAsync("/api/bookmarks");
 
-        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
@@ -25,6 +25,6 @@ public sealed class SearchEndpointTests : IClassFixture<NatsManagerWebAppFactory
     {
         var response = await _client.GetAsync("/api/preferences");
 
-        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
 }

@@ -1,5 +1,5 @@
 using System.Net;
-using FluentAssertions;
+using Shouldly;
 using NSubstitute;
 using NatsManager.Domain.Modules.Auth;
 using NatsManager.Domain.Modules.Audit;
@@ -31,7 +31,7 @@ public sealed class AuditEndpointTests : IClassFixture<NatsManagerWebAppFactory>
     {
         var response = await _client.GetAsync("/api/audit/events");
 
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
     [Fact]
@@ -39,7 +39,7 @@ public sealed class AuditEndpointTests : IClassFixture<NatsManagerWebAppFactory>
     {
         var response = await _client.GetAsync("/api/audit/events?page=1&pageSize=10&actionType=Create");
 
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
     [Fact]
@@ -49,7 +49,7 @@ public sealed class AuditEndpointTests : IClassFixture<NatsManagerWebAppFactory>
 
         var response = await client.GetAsync("/api/audit/events");
 
-        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
@@ -59,6 +59,6 @@ public sealed class AuditEndpointTests : IClassFixture<NatsManagerWebAppFactory>
 
         var response = await client.GetAsync("/api/audit/events");
 
-        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 }

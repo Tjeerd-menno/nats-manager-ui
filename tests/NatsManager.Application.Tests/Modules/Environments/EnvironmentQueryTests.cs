@@ -1,4 +1,4 @@
-using FluentAssertions;
+using Shouldly;
 using NSubstitute;
 using NatsManager.Application.Common;
 using NatsManager.Application.Modules.Environments.Ports;
@@ -34,11 +34,11 @@ public sealed class GetEnvironmentsQueryTests
         var outputPort = new TestOutputPort<PaginatedResult<EnvironmentListItem>>();
         await _handler.ExecuteAsync(query, outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        outputPort.Value!.Items.Should().HaveCount(2);
-        outputPort.Value!.TotalCount.Should().Be(2);
-        outputPort.Value!.Page.Should().Be(1);
-        outputPort.Value!.PageSize.Should().Be(25);
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value!.Items.Count().ShouldBe(2);
+        outputPort.Value!.TotalCount.ShouldBe(2);
+        outputPort.Value!.Page.ShouldBe(1);
+        outputPort.Value!.PageSize.ShouldBe(25);
     }
 
     [Fact]
@@ -53,14 +53,14 @@ public sealed class GetEnvironmentsQueryTests
         var outputPort = new TestOutputPort<PaginatedResult<EnvironmentListItem>>();
         await _handler.ExecuteAsync(new GetEnvironmentsQuery(), outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
+        outputPort.IsSuccess.ShouldBeTrue();
         var item = outputPort.Value!.Items.Single();
-        item.Name.Should().Be("Test Env");
-        item.Description.Should().Be("Desc");
-        item.IsProduction.Should().BeTrue();
-        item.IsEnabled.Should().BeTrue();
-        item.ConnectionStatus.Should().Be("Available");
-        item.LastSuccessfulContact.Should().NotBeNull();
+        item.Name.ShouldBe("Test Env");
+        item.Description.ShouldBe("Desc");
+        item.IsProduction.ShouldBeTrue();
+        item.IsEnabled.ShouldBeTrue();
+        item.ConnectionStatus.ShouldBe("Available");
+        item.LastSuccessfulContact.ShouldNotBeNull();
     }
 }
 
@@ -85,10 +85,10 @@ public sealed class GetEnvironmentDetailQueryTests
         var outputPort = new TestOutputPort<EnvironmentDetailResult>();
         await _handler.ExecuteAsync(new GetEnvironmentDetailQuery(envId), outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        outputPort.Value!.Name.Should().Be("Test");
-        outputPort.Value!.ServerUrl.Should().Be("nats://host:4222");
-        outputPort.Value!.Description.Should().Be("Desc");
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value!.Name.ShouldBe("Test");
+        outputPort.Value!.ServerUrl.ShouldBe("nats://host:4222");
+        outputPort.Value!.Description.ShouldBe("Desc");
     }
 
     [Fact]
@@ -100,6 +100,6 @@ public sealed class GetEnvironmentDetailQueryTests
         var outputPort = new TestOutputPort<EnvironmentDetailResult>();
         await _handler.ExecuteAsync(new GetEnvironmentDetailQuery(envId), outputPort, CancellationToken.None);
 
-        outputPort.IsNotFound.Should().BeTrue();
+        outputPort.IsNotFound.ShouldBeTrue();
     }
 }

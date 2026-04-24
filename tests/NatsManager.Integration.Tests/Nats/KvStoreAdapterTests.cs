@@ -18,8 +18,8 @@ public sealed class KvStoreAdapterTests(NatsFixture fixture) : NatsIntegrationTe
 
         var bucket = await adapter.GetBucketAsync(EnvironmentId, bucketName);
 
-        bucket.Should().NotBeNull();
-        bucket!.BucketName.Should().Be(bucketName);
+        bucket.ShouldNotBeNull();
+        bucket!.BucketName.ShouldBe(bucketName);
     }
 
     [Fact]
@@ -31,9 +31,9 @@ public sealed class KvStoreAdapterTests(NatsFixture fixture) : NatsIntegrationTe
 
         var info = await adapter.GetBucketAsync(EnvironmentId, bucketName);
 
-        info.Should().NotBeNull();
-        info!.BucketName.Should().Be(bucketName);
-        info.History.Should().Be(5);
+        info.ShouldNotBeNull();
+        info!.BucketName.ShouldBe(bucketName);
+        info.History.ShouldBe(5);
     }
 
     [Fact]
@@ -43,7 +43,7 @@ public sealed class KvStoreAdapterTests(NatsFixture fixture) : NatsIntegrationTe
 
         var result = await adapter.GetBucketAsync(EnvironmentId, "nonexistent-bucket");
 
-        result.Should().BeNull();
+        result.ShouldBeNull();
     }
 
     [Fact]
@@ -56,13 +56,13 @@ public sealed class KvStoreAdapterTests(NatsFixture fixture) : NatsIntegrationTe
         var value = Encoding.UTF8.GetBytes("test-value");
         var revision = await adapter.PutKeyAsync(EnvironmentId, bucketName, "my-key", value, null);
 
-        revision.Should().BeGreaterThan(0);
+        revision.ShouldBeGreaterThan(0);
 
         var entry = await adapter.GetKeyAsync(EnvironmentId, bucketName, "my-key");
 
-        entry.Should().NotBeNull();
-        entry!.Key.Should().Be("my-key");
-        entry.Revision.Should().Be(revision);
+        entry.ShouldNotBeNull();
+        entry!.Key.ShouldBe("my-key");
+        entry.Revision.ShouldBe(revision);
     }
 
     [Fact]
@@ -74,7 +74,7 @@ public sealed class KvStoreAdapterTests(NatsFixture fixture) : NatsIntegrationTe
 
         var result = await adapter.GetKeyAsync(EnvironmentId, bucketName, "nonexistent-key");
 
-        result.Should().BeNull();
+        result.ShouldBeNull();
     }
 
     [Fact]
@@ -88,8 +88,8 @@ public sealed class KvStoreAdapterTests(NatsFixture fixture) : NatsIntegrationTe
 
         var keys = await adapter.ListKeysAsync(EnvironmentId, bucketName, null);
 
-        keys.Should().HaveCount(2);
-        keys.Select(k => k.Key).Should().Contain(["key-a", "key-b"]);
+        keys.Count().ShouldBe(2);
+        keys.Select(k => k.Key).ShouldContain(["key-a", "key-b"]);
     }
 
     [Fact]
@@ -103,7 +103,7 @@ public sealed class KvStoreAdapterTests(NatsFixture fixture) : NatsIntegrationTe
 
         var keys = await adapter.ListKeysAsync(EnvironmentId, bucketName, "user");
 
-        keys.Should().ContainSingle(k => k.Key == "user.name");
+        keys.Count(k => k.Key == "user.name").ShouldBe(1);
     }
 
     [Fact]
@@ -117,7 +117,7 @@ public sealed class KvStoreAdapterTests(NatsFixture fixture) : NatsIntegrationTe
         await adapter.DeleteKeyAsync(EnvironmentId, bucketName, "to-delete");
 
         var entry = await adapter.GetKeyAsync(EnvironmentId, bucketName, "to-delete");
-        entry.Should().BeNull();
+        entry.ShouldBeNull();
     }
 
     [Fact]
@@ -132,8 +132,8 @@ public sealed class KvStoreAdapterTests(NatsFixture fixture) : NatsIntegrationTe
 
         var history = await adapter.GetKeyHistoryAsync(EnvironmentId, bucketName, "versioned");
 
-        history.Should().HaveCount(3);
-        history.Select(h => h.Revision).Should().BeInAscendingOrder();
+        history.Count().ShouldBe(3);
+        history.Select(h => h.Revision).ToList().ShouldBe(history.Select(h => h.Revision).OrderBy(r => r).ToList());
     }
 
     [Fact]
@@ -146,6 +146,6 @@ public sealed class KvStoreAdapterTests(NatsFixture fixture) : NatsIntegrationTe
         await adapter.DeleteBucketAsync(EnvironmentId, bucketName);
 
         var info = await adapter.GetBucketAsync(EnvironmentId, bucketName);
-        info.Should().BeNull();
+        info.ShouldBeNull();
     }
 }

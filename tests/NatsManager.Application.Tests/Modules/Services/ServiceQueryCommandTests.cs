@@ -1,4 +1,4 @@
-using FluentAssertions;
+using Shouldly;
 using NSubstitute;
 using NatsManager.Application.Common;
 using NatsManager.Application.Modules.Services.Commands;
@@ -34,9 +34,9 @@ public sealed class GetServicesQueryTests
         var outputPort = new TestOutputPort<IReadOnlyList<ServiceInfo>>();
         await _handler.ExecuteAsync(new GetServicesQuery(envId), outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        outputPort.Value.Should().HaveCount(1);
-        outputPort.Value![0].Name.Should().Be("orders-api");
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value.Count().ShouldBe(1);
+        outputPort.Value![0].Name.ShouldBe("orders-api");
     }
 }
 
@@ -61,8 +61,8 @@ public sealed class GetServiceDetailQueryTests
         var outputPort = new TestOutputPort<ServiceInfo>();
         await _handler.ExecuteAsync(new GetServiceDetailQuery(envId, "orders-api"), outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        outputPort.Value!.Name.Should().Be("orders-api");
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value!.Name.ShouldBe("orders-api");
     }
 }
 
@@ -93,7 +93,7 @@ public sealed class TestServiceRequestCommandTests
         var outputPort = new TestOutputPort<string>();
         await _handler.ExecuteAsync(command, outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        outputPort.Value.Should().Be("response-data");
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value.ShouldBe("response-data");
     }
 }

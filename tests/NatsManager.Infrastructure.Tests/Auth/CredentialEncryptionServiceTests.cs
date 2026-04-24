@@ -1,5 +1,5 @@
 using System.Security.Cryptography;
-using FluentAssertions;
+using Shouldly;
 using NatsManager.Infrastructure.Auth;
 
 namespace NatsManager.Infrastructure.Tests.Auth;
@@ -19,9 +19,9 @@ public sealed class CredentialEncryptionServiceTests
     {
         var cipher = _service.Encrypt("secret-password");
 
-        cipher.Should().NotBeNullOrEmpty();
+        cipher.ShouldNotBeNullOrEmpty();
         var act = () => Convert.FromBase64String(cipher);
-        act.Should().NotThrow();
+        Should.NotThrow(act);
     }
 
     [Fact]
@@ -32,7 +32,7 @@ public sealed class CredentialEncryptionServiceTests
 
         var decrypted = _service.Decrypt(cipher);
 
-        decrypted.Should().Be(original);
+        decrypted.ShouldBe(original);
     }
 
     [Fact]
@@ -41,28 +41,28 @@ public sealed class CredentialEncryptionServiceTests
         var cipher1 = _service.Encrypt("password");
         var cipher2 = _service.Encrypt("password");
 
-        cipher1.Should().NotBe(cipher2);
+        cipher1.ShouldNotBe(cipher2);
     }
 
     [Fact]
     public void Constructor_WithWrongKeySize_ShouldThrow()
     {
         var act = () => new CredentialEncryptionService(new byte[16]);
-        act.Should().Throw<ArgumentException>();
+        Should.Throw<ArgumentException>(act);
     }
 
     [Fact]
     public void Encrypt_WithNullInput_ShouldThrow()
     {
         var act = () => _service.Encrypt(null!);
-        act.Should().Throw<ArgumentException>();
+        Should.Throw<ArgumentException>(act);
     }
 
     [Fact]
     public void Decrypt_WithNullInput_ShouldThrow()
     {
         var act = () => _service.Decrypt(null!);
-        act.Should().Throw<ArgumentException>();
+        Should.Throw<ArgumentException>(act);
     }
 
     [Fact]
@@ -74,6 +74,6 @@ public sealed class CredentialEncryptionServiceTests
         var otherService = new CredentialEncryptionService(otherKey);
 
         var act = () => otherService.Decrypt(cipher);
-        act.Should().Throw<CryptographicException>();
+        Should.Throw<CryptographicException>(act);
     }
 }

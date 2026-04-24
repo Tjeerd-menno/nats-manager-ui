@@ -1,5 +1,5 @@
 ---
-description: "Use when writing or modifying backend tests (xUnit, NSubstitute, FluentAssertions). Covers test project conventions, TestOutputPort, mock patterns, and test commands."
+description: "Use when writing or modifying backend tests (xUnit, NSubstitute, Shouldly). Covers test project conventions, TestOutputPort, mock patterns, and test commands."
 applyTo: "tests/NatsManager.Application.Tests/**,tests/NatsManager.Domain.Tests/**,tests/NatsManager.Infrastructure.Tests/**,tests/NatsManager.Web.Tests/**"
 ---
 # Backend Test Instructions
@@ -7,7 +7,7 @@ applyTo: "tests/NatsManager.Application.Tests/**,tests/NatsManager.Domain.Tests/
 ## Framework Stack
 
 - **xUnit v3** with **Microsoft Testing Platform v2** (MTP) — attribute-based: `[Fact]`, `[Theory]`
-- **FluentAssertions** — `.Should().Be(...)`, `.Should().BeTrue()`, `.Should().HaveCount(...)`
+- **Shouldly** — `.ShouldBe(...)`, `.ShouldBeTrue()`, `.ShouldHaveCount(...)`, `Should.Throw<T>(act)`
 - **NSubstitute** — `Substitute.For<IMyPort>()`, `.Returns(...)`, `.Received(...)`
 - Centrally managed versions in `Directory.Packages.props`
 

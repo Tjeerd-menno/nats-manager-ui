@@ -1,4 +1,4 @@
-using FluentAssertions;
+using Shouldly;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -21,8 +21,7 @@ public sealed class DatabaseInitializerTests
 
         var act = () => initializer.InitializeAsync();
 
-        await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*BootstrapAdmin:Username and BootstrapAdmin:Password*");
+        (await Should.ThrowAsync<InvalidOperationException>(act)).Message.ShouldContain("BootstrapAdmin:Username and BootstrapAdmin:Password");
     }
 
     [Fact]
@@ -40,13 +39,13 @@ public sealed class DatabaseInitializerTests
         await initializer.InitializeAsync();
 
         var admin = await context.Users.SingleAsync();
-        admin.Username.Should().Be("bootstrap-admin");
-        admin.DisplayName.Should().Be("Bootstrap Admin");
+        admin.Username.ShouldBe("bootstrap-admin");
+        admin.DisplayName.ShouldBe("Bootstrap Admin");
 
         var adminRole = await context.Roles.SingleAsync(role => role.Name == Role.PredefinedNames.Administrator);
         var assignment = await context.UserRoleAssignments.SingleAsync();
-        assignment.UserId.Should().Be(admin.Id);
-        assignment.RoleId.Should().Be(adminRole.Id);
+        assignment.UserId.ShouldBe(admin.Id);
+        assignment.RoleId.ShouldBe(adminRole.Id);
     }
 
     [Fact]
@@ -71,7 +70,7 @@ public sealed class DatabaseInitializerTests
 
             var act = () => initializer.InitializeAsync();
 
-            await act.Should().NotThrowAsync();
+            await Should.NotThrowAsync(act);
         }
     }
 
@@ -107,15 +106,15 @@ public sealed class DatabaseInitializerTests
         await using (var assertionContext = CreateContext(connection))
         {
             var admin = await assertionContext.Users.SingleAsync();
-            PasswordHasher.Verify("Updated123!", admin.PasswordHash).Should().BeTrue();
-            PasswordHasher.Verify("Original123!", admin.PasswordHash).Should().BeFalse();
+            PasswordHasher.Verify("Updated123!", admin.PasswordHash).ShouldBeTrue();
+            PasswordHasher.Verify("Original123!", admin.PasswordHash).ShouldBeFalse();
 
             var adminRole = await assertionContext.Roles.SingleAsync(role => role.Name == Role.PredefinedNames.Administrator);
             var assignments = await assertionContext.UserRoleAssignments
                 .Where(assignment => assignment.UserId == admin.Id && assignment.RoleId == adminRole.Id)
                 .ToListAsync();
 
-            assignments.Should().ContainSingle();
+            assignments.Count().ShouldBe(1);
         }
     }
 

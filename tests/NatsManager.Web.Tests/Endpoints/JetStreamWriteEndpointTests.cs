@@ -1,6 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
-using FluentAssertions;
+using Shouldly;
 
 namespace NatsManager.Web.Tests.Endpoints;
 
@@ -19,7 +19,7 @@ public sealed class JetStreamWriteEndpointTests : IClassFixture<NatsManagerWebAp
         var envId = Guid.NewGuid();
         var response = await _client.DeleteAsync($"/api/environments/{envId}/jetstream/streams/orders");
 
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
     [Fact]
@@ -28,7 +28,7 @@ public sealed class JetStreamWriteEndpointTests : IClassFixture<NatsManagerWebAp
         var envId = Guid.NewGuid();
         var response = await _client.PostAsync($"/api/environments/{envId}/jetstream/streams/orders/purge", null);
 
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
     [Fact]
@@ -37,7 +37,7 @@ public sealed class JetStreamWriteEndpointTests : IClassFixture<NatsManagerWebAp
         var envId = Guid.NewGuid();
         var response = await _client.DeleteAsync($"/api/environments/{envId}/jetstream/streams/orders/consumers/worker");
 
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
     [Fact]
@@ -48,6 +48,6 @@ public sealed class JetStreamWriteEndpointTests : IClassFixture<NatsManagerWebAp
 
         var response = await _client.PostAsJsonAsync($"/api/environments/{envId}/jetstream/streams", payload);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
     }
 }

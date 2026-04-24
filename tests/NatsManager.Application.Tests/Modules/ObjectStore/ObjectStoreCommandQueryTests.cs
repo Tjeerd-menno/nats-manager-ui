@@ -1,4 +1,4 @@
-using FluentAssertions;
+using Shouldly;
 using NSubstitute;
 using NatsManager.Application.Behaviors;
 using NatsManager.Application.Common;
@@ -32,9 +32,9 @@ public sealed class GetObjectBucketsQueryTests
         var outputPort = new TestOutputPort<IReadOnlyList<ObjectBucketInfo>>();
         await _handler.ExecuteAsync(new GetObjectBucketsQuery(envId), outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        outputPort.Value.Should().HaveCount(1);
-        outputPort.Value![0].BucketName.Should().Be("bucket1");
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value.Count().ShouldBe(1);
+        outputPort.Value![0].BucketName.ShouldBe("bucket1");
     }
 }
 
@@ -58,9 +58,9 @@ public sealed class GetObjectBucketDetailQueryTests
         var outputPort = new TestOutputPort<ObjectBucketInfo>();
         await _handler.ExecuteAsync(new GetObjectBucketDetailQuery(envId, "bucket1"), outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        outputPort.Value.Should().NotBeNull();
-        outputPort.Value!.BucketName.Should().Be("bucket1");
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value.ShouldNotBeNull();
+        outputPort.Value!.BucketName.ShouldBe("bucket1");
     }
 
     [Fact]
@@ -72,7 +72,7 @@ public sealed class GetObjectBucketDetailQueryTests
         var outputPort = new TestOutputPort<ObjectBucketInfo>();
         await _handler.ExecuteAsync(new GetObjectBucketDetailQuery(envId, "missing"), outputPort, CancellationToken.None);
 
-        outputPort.IsNotFound.Should().BeTrue();
+        outputPort.IsNotFound.ShouldBeTrue();
     }
 }
 
@@ -99,9 +99,9 @@ public sealed class GetObjectsQueryTests
         var outputPort = new TestOutputPort<IReadOnlyList<ObjectInfo>>();
         await _handler.ExecuteAsync(new GetObjectsQuery(envId, "bucket1"), outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        outputPort.Value.Should().HaveCount(1);
-        outputPort.Value![0].Name.Should().Be("file.txt");
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value.Count().ShouldBe(1);
+        outputPort.Value![0].Name.ShouldBe("file.txt");
     }
 }
 
@@ -125,9 +125,9 @@ public sealed class GetObjectDetailQueryTests
         var outputPort = new TestOutputPort<ObjectInfo>();
         await _handler.ExecuteAsync(new GetObjectDetailQuery(envId, "bucket1", "file.txt"), outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        outputPort.Value.Should().NotBeNull();
-        outputPort.Value!.Name.Should().Be("file.txt");
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value.ShouldNotBeNull();
+        outputPort.Value!.Name.ShouldBe("file.txt");
     }
 }
 
@@ -151,8 +151,8 @@ public sealed class DownloadObjectQueryTests
         var outputPort = new TestOutputPort<byte[]?>();
         await _handler.ExecuteAsync(new DownloadObjectQuery(envId, "bucket1", "file.bin"), outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        outputPort.Value.Should().BeEquivalentTo(data);
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value.ShouldBe(data);
     }
 
     [Fact]
@@ -165,7 +165,7 @@ public sealed class DownloadObjectQueryTests
         var outputPort = new TestOutputPort<byte[]?>();
         await _handler.ExecuteAsync(new DownloadObjectQuery(envId, "bucket1", "missing"), outputPort, CancellationToken.None);
 
-        outputPort.IsNotFound.Should().BeTrue();
+        outputPort.IsNotFound.ShouldBeTrue();
     }
 }
 
@@ -195,7 +195,7 @@ public sealed class CreateObjectBucketCommandTests
         var outputPort = new TestOutputPort<Unit>();
         await _handler.ExecuteAsync(command, outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
+        outputPort.IsSuccess.ShouldBeTrue();
         await _adapter.Received(1).CreateBucketAsync(
             command.EnvironmentId, "my-bucket", "desc", 1024L, 256L, Arg.Any<CancellationToken>());
     }
@@ -210,7 +210,7 @@ public sealed class CreateObjectBucketCommandValidatorTests
     {
         var command = new CreateObjectBucketCommand { BucketName = "" };
         var result = _validator.Validate(command);
-        result.IsValid.Should().BeFalse();
+        result.IsValid.ShouldBeFalse();
     }
 
     [Fact]
@@ -218,7 +218,7 @@ public sealed class CreateObjectBucketCommandValidatorTests
     {
         var command = new CreateObjectBucketCommand { BucketName = new string('a', 256) };
         var result = _validator.Validate(command);
-        result.IsValid.Should().BeFalse();
+        result.IsValid.ShouldBeFalse();
     }
 
     [Fact]
@@ -226,7 +226,7 @@ public sealed class CreateObjectBucketCommandValidatorTests
     {
         var command = new CreateObjectBucketCommand { BucketName = "valid-bucket" };
         var result = _validator.Validate(command);
-        result.IsValid.Should().BeTrue();
+        result.IsValid.ShouldBeTrue();
     }
 }
 
@@ -257,7 +257,7 @@ public sealed class UploadObjectCommandTests
         var outputPort = new TestOutputPort<Unit>();
         await _handler.ExecuteAsync(command, outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
+        outputPort.IsSuccess.ShouldBeTrue();
         await _adapter.Received(1).UploadObjectAsync(
             command.EnvironmentId, "bucket", "file.bin", data, "application/octet-stream", Arg.Any<CancellationToken>());
     }
@@ -272,7 +272,7 @@ public sealed class UploadObjectCommandValidatorTests
     {
         var command = new UploadObjectCommand { ObjectName = "", Data = [1] };
         var result = _validator.Validate(command);
-        result.IsValid.Should().BeFalse();
+        result.IsValid.ShouldBeFalse();
     }
 
     [Fact]
@@ -280,7 +280,7 @@ public sealed class UploadObjectCommandValidatorTests
     {
         var command = new UploadObjectCommand { ObjectName = "file.bin", Data = [1, 2] };
         var result = _validator.Validate(command);
-        result.IsValid.Should().BeTrue();
+        result.IsValid.ShouldBeTrue();
     }
 }
 
@@ -308,7 +308,7 @@ public sealed class DeleteObjectCommandTests
         var outputPort = new TestOutputPort<Unit>();
         await _handler.ExecuteAsync(command, outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
+        outputPort.IsSuccess.ShouldBeTrue();
         await _adapter.Received(1).DeleteObjectAsync(
             command.EnvironmentId, "bucket", "file.bin", Arg.Any<CancellationToken>());
     }
@@ -337,7 +337,7 @@ public sealed class DeleteObjectBucketCommandTests
         var outputPort = new TestOutputPort<Unit>();
         await _handler.ExecuteAsync(command, outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
+        outputPort.IsSuccess.ShouldBeTrue();
         await _adapter.Received(1).DeleteBucketAsync(
             command.EnvironmentId, "my-bucket", Arg.Any<CancellationToken>());
     }

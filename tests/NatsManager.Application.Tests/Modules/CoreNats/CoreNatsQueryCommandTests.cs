@@ -1,4 +1,4 @@
-using FluentAssertions;
+using Shouldly;
 using NSubstitute;
 using NatsManager.Application.Common;
 using NatsManager.Application.Behaviors;
@@ -29,8 +29,8 @@ public sealed class GetCoreStatusQueryTests
         var outputPort = new TestOutputPort<NatsServerInfo>();
         await _handler.ExecuteAsync(new GetCoreStatusQuery(envId), outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        outputPort.Value!.ServerName.Should().Be("server1");
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value!.ServerName.ShouldBe("server1");
     }
 
     [Fact]
@@ -42,7 +42,7 @@ public sealed class GetCoreStatusQueryTests
         var outputPort = new TestOutputPort<NatsServerInfo>();
         await _handler.ExecuteAsync(new GetCoreStatusQuery(envId), outputPort, CancellationToken.None);
 
-        outputPort.IsNotFound.Should().BeTrue();
+        outputPort.IsNotFound.ShouldBeTrue();
     }
 }
 
@@ -66,9 +66,9 @@ public sealed class GetSubjectsQueryTests
         var outputPort = new TestOutputPort<IReadOnlyList<NatsSubjectInfo>>();
         await _handler.ExecuteAsync(new GetSubjectsQuery(envId), outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        outputPort.Value.Should().HaveCount(1);
-        outputPort.Value![0].Subject.Should().Be("orders.>");
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value.Count().ShouldBe(1);
+        outputPort.Value![0].Subject.ShouldBe("orders.>");
     }
 }
 
@@ -92,9 +92,9 @@ public sealed class GetClientsQueryTests
         var outputPort = new TestOutputPort<IReadOnlyList<NatsClientInfo>>();
         await _handler.ExecuteAsync(new GetClientsQuery(envId), outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        outputPort.Value.Should().HaveCount(1);
-        outputPort.Value![0].Name.Should().Be("client-app");
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value.Count().ShouldBe(1);
+        outputPort.Value![0].Name.ShouldBe("client-app");
     }
 }
 
@@ -123,7 +123,7 @@ public sealed class PublishMessageCommandTests
         var outputPort = new TestOutputPort<Unit>();
         await _handler.ExecuteAsync(command, outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
+        outputPort.IsSuccess.ShouldBeTrue();
         await _adapter.Received(1).PublishAsync(
             envId,
             "orders.new",
@@ -145,7 +145,7 @@ public sealed class PublishMessageCommandTests
         var outputPort = new TestOutputPort<Unit>();
         await _handler.ExecuteAsync(command, outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
+        outputPort.IsSuccess.ShouldBeTrue();
         await _adapter.Received(1).PublishAsync(
             envId,
             "events.ping",
@@ -163,7 +163,7 @@ public sealed class PublishMessageCommandValidatorTests
     {
         var command = new PublishMessageCommand { Subject = "" };
         var result = _validator.Validate(command);
-        result.IsValid.Should().BeFalse();
+        result.IsValid.ShouldBeFalse();
     }
 
     [Fact]
@@ -171,6 +171,6 @@ public sealed class PublishMessageCommandValidatorTests
     {
         var command = new PublishMessageCommand { Subject = "test.subject" };
         var result = _validator.Validate(command);
-        result.IsValid.Should().BeTrue();
+        result.IsValid.ShouldBeTrue();
     }
 }

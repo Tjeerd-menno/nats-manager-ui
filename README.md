@@ -62,7 +62,7 @@ A modular monolith using Clean Architecture (Ports & Adapters):
 - EF Core 10 (SQLite)
 - [NATS.Net](https://github.com/nats-io/nats.net) v2
 - FluentValidation · Serilog
-- xUnit v3 + Microsoft Testing Platform, FluentAssertions, NSubstitute
+- xUnit v3 + Microsoft Testing Platform, Shouldly, NSubstitute
 
 **Frontend**
 - React 19 · TypeScript (strict)

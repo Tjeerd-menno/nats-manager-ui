@@ -14,9 +14,9 @@ public sealed class CoreNatsAdapterTests(NatsFixture fixture) : NatsIntegrationT
 
         var info = await adapter.GetServerInfoAsync(EnvironmentId);
 
-        info.Should().NotBeNull();
-        info!.Version.Should().NotBeNullOrEmpty();
-        info.Port.Should().BeGreaterThan(0);
+        info.ShouldNotBeNull();
+        info!.Version.ShouldNotBeNullOrEmpty();
+        info.Port.ShouldBeGreaterThan(0);
     }
 
     [Fact]
@@ -26,7 +26,7 @@ public sealed class CoreNatsAdapterTests(NatsFixture fixture) : NatsIntegrationT
 
         var act = () => adapter.PublishAsync(EnvironmentId, "test.subject", "hello"u8.ToArray());
 
-        await act.Should().NotThrowAsync();
+        await Should.NotThrowAsync(act);
     }
 
     [Fact]
@@ -36,7 +36,7 @@ public sealed class CoreNatsAdapterTests(NatsFixture fixture) : NatsIntegrationT
 
         var subjects = await adapter.ListSubjectsAsync(EnvironmentId);
 
-        subjects.Should().NotBeNull();
+        subjects.ShouldNotBeNull();
     }
 
     [Fact]
@@ -46,6 +46,6 @@ public sealed class CoreNatsAdapterTests(NatsFixture fixture) : NatsIntegrationT
 
         var clients = await adapter.ListClientsAsync(EnvironmentId);
 
-        clients.Should().NotBeNull();
+        clients.ShouldNotBeNull();
     }
 }
