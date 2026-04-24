@@ -1,6 +1,8 @@
 using FluentValidation;
 using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using NatsManager.Application.Behaviors;
 using NatsManager.Application.Common;
@@ -121,6 +123,46 @@ builder.Services.AddAuthorization(options =>
             .RequireRole(Role.PredefinedNames.Administrator, Role.PredefinedNames.Operator));
 });
 
+// Rate limiting — protects authentication and other sensitive endpoints from
+// brute-force and abusive traffic. Keyed by authenticated user when available,
+// otherwise by remote IP.
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    // Strict limiter for the login endpoint: 5 attempts per minute per client IP.
+    options.AddPolicy(RateLimitPolicyNames.Login, httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst
+            }));
+
+    // Global fallback: generous per-client sliding window to limit abusive clients
+    // without interfering with normal interactive use.
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+    {
+        var partitionKey = httpContext.User.Identity?.IsAuthenticated == true
+            ? $"user:{httpContext.User.Identity.Name}"
+            : $"ip:{httpContext.Connection.RemoteIpAddress}";
+
+        return RateLimitPartition.GetSlidingWindowLimiter(
+            partitionKey: partitionKey,
+            factory: _ => new SlidingWindowRateLimiterOptions
+            {
+                PermitLimit = 300,
+                Window = TimeSpan.FromMinutes(1),
+                SegmentsPerWindow = 6,
+                QueueLimit = 0,
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst
+            });
+    });
+});
+
 // Error handling
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
@@ -151,10 +193,21 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
+// Apply baseline security headers before any handler so every response
+// (including error responses) is covered.
+app.UseMiddleware<SecurityHeadersMiddleware>();
+
 app.UseSerilogRequestLogging();
 app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Enable rate limiting after authentication so that authenticated users
+// get their own partition.
+if (!app.Environment.IsEnvironment("Testing"))
+{
+    app.UseRateLimiter();
+}
 
 if (!app.Environment.IsEnvironment("Testing"))
 {

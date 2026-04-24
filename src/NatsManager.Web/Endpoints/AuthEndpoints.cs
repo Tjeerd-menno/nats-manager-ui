@@ -2,6 +2,7 @@ using System.Security.Claims;
 using NatsManager.Application.Common;
 using NatsManager.Application.Modules.Auth.Commands;
 using NatsManager.Web.Presenters;
+using NatsManager.Web.Security;
 
 namespace NatsManager.Web.Endpoints;
 
@@ -12,7 +13,10 @@ public static class AuthEndpoints
         var group = app.MapGroup("/api/auth")
             .RequireAuthorization();
 
-        group.MapPost("/login", Login).AllowAnonymous().DisableAntiforgery();
+        group.MapPost("/login", Login)
+            .AllowAnonymous()
+            .DisableAntiforgery()
+            .RequireRateLimiting(RateLimitPolicyNames.Login);
         group.MapPost("/logout", Logout);
         group.MapGet("/me", GetCurrentUser);
     }

@@ -23,8 +23,7 @@ public static class ObjectStoreEndpoints
         group.MapGet("/buckets/{bucket}/objects/{objectName}", GetObjectDetail);
         group.MapGet("/buckets/{bucket}/objects/{objectName}/download", DownloadObject);
         group.MapPost("/buckets/{bucket}/objects/{objectName}/upload", UploadObject)
-            .RequireAuthorization(AuthorizationPolicyNames.OperatorAccess)
-            .DisableAntiforgery();
+            .RequireAuthorization(AuthorizationPolicyNames.OperatorAccess);
         group.MapDelete("/buckets/{bucket}/objects/{objectName}", DeleteObject).RequireAuthorization(AuthorizationPolicyNames.OperatorAccess);
 
         return app;
