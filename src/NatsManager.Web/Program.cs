@@ -159,6 +159,11 @@ builder.Services.AddRateLimiter(options =>
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
     // Strict limiter for the login endpoint: 5 attempts per minute per client IP.
+    // NOTE: Partitions by the socket-level remote IP. If the app is deployed behind
+    // a reverse proxy, configure `ForwardedHeadersOptions` (with a trusted
+    // `KnownProxies`/`KnownNetworks` set) so that `RemoteIpAddress` reflects the
+    // real client; otherwise all traffic will share a single partition keyed on the
+    // proxy's IP, effectively disabling the limiter.
     options.AddPolicy(RateLimitPolicyNames.Login, httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",

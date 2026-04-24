@@ -30,8 +30,10 @@ public sealed class SecurityHeadersMiddleware
         headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=(), usb=()";
 
         // Baseline CSP. The frontend is served as static assets and calls the same origin,
-        // so 'self' is sufficient. Keep 'unsafe-inline' for styles to avoid breaking
-        // Mantine's injected style tags; review once a nonce/hash-based policy is wired up.
+        // so 'self' is sufficient. 'unsafe-inline' on style-src is a temporary concession
+        // to Mantine's runtime-injected <style> tags and weakens XSS mitigation; it should
+        // be replaced with a nonce/hash-based policy once the frontend supports it.
+        // TODO: migrate style-src to nonces/hashes and drop 'unsafe-inline'.
         if (!headers.ContainsKey("Content-Security-Policy"))
         {
             headers["Content-Security-Policy"] =

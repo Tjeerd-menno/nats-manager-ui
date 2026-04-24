@@ -65,13 +65,18 @@ public sealed class User
     /// <summary>
     /// Records a failed login attempt. Once <paramref name="threshold"/> consecutive failures
     /// are reached, the account is temporarily locked for <paramref name="lockoutDuration"/>.
+    /// The counter saturates at <paramref name="threshold"/> to avoid integer overflow
+    /// from repeated probes against a locked account.
     /// </summary>
     public void RecordFailedLogin(int threshold = DefaultLockoutThreshold, TimeSpan? lockoutDuration = null)
     {
         if (threshold < 1)
             throw new ArgumentOutOfRangeException(nameof(threshold), "Threshold must be at least 1.");
 
-        FailedLoginAttempts = checked(FailedLoginAttempts + 1);
+        if (FailedLoginAttempts < threshold)
+        {
+            FailedLoginAttempts++;
+        }
 
         if (FailedLoginAttempts >= threshold)
         {

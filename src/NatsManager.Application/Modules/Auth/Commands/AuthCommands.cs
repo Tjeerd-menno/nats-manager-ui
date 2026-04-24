@@ -85,16 +85,19 @@ public sealed class LoginCommandHandler(
     }
 
     private Task RecordFailureAsync(string username, string details, CancellationToken cancellationToken)
-        => auditTrail.RecordAsync(
+    {
+        var safeUsername = string.IsNullOrWhiteSpace(username) ? "unknown" : username;
+        return auditTrail.RecordAsync(
             ActionType.Login,
             ResourceType.User,
-            resourceId: string.IsNullOrWhiteSpace(username) ? "unknown" : username,
-            resourceName: string.IsNullOrWhiteSpace(username) ? "unknown" : username,
+            resourceId: safeUsername,
+            resourceName: safeUsername,
             environmentId: null,
             Outcome.Failure,
             details: details,
             AuditSource.UserInitiated,
             cancellationToken);
+    }
 }
 
 public sealed class CreateUserCommand : IAuditableCommand

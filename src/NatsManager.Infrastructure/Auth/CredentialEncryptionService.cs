@@ -10,13 +10,14 @@ namespace NatsManager.Infrastructure.Auth;
 /// in a single primitive (no padding-oracle risk, unlike raw AES-CBC).
 /// Ciphertext layout (before base64): [12-byte nonce][16-byte auth tag][ciphertext].
 /// </summary>
-public sealed class CredentialEncryptionService : ICredentialEncryptionService
+public sealed class CredentialEncryptionService : ICredentialEncryptionService, IDisposable
 {
     private const int NonceSize = 12; // AES-GCM standard nonce size
     private const int TagSize = 16;   // AES-GCM standard authentication tag size
     private const int KeySize = 32;   // AES-256
 
     private readonly byte[] _key;
+    private bool _disposed;
 
     public CredentialEncryptionService(byte[] encryptionKey)
     {
@@ -32,6 +33,7 @@ public sealed class CredentialEncryptionService : ICredentialEncryptionService
 
     public string Encrypt(string plainText)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentException.ThrowIfNullOrWhiteSpace(plainText);
 
         var plainBytes = Encoding.UTF8.GetBytes(plainText);
@@ -54,6 +56,7 @@ public sealed class CredentialEncryptionService : ICredentialEncryptionService
 
     public string Decrypt(string cipherText)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentException.ThrowIfNullOrWhiteSpace(cipherText);
 
         var fullCipher = Convert.FromBase64String(cipherText);
@@ -79,5 +82,18 @@ public sealed class CredentialEncryptionService : ICredentialEncryptionService
         }
 
         return Encoding.UTF8.GetString(plainBytes);
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        // Zero the key material so it doesn't linger in managed memory once
+        // the service is torn down.
+        CryptographicOperations.ZeroMemory(_key);
+        _disposed = true;
     }
 }
