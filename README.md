@@ -65,7 +65,7 @@ A modular monolith using Clean Architecture (Ports & Adapters):
 
 **Frontend**
 - React 19 · TypeScript (strict)
-- Mantine 7 · Tabler Icons · Recharts
+- Mantine 9.0.1 · Tabler Icons · Recharts
 - TanStack Query · TanStack Virtual · React Router
 - Vite · Vitest · React Testing Library · MSW
 
