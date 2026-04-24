@@ -16,7 +16,8 @@ public sealed class NatsHealthCheckerTests(NatsFixture fixture) : NatsIntegratio
         var result = await checker.CheckHealthAsync(NatsUrl, null);
 
         result.Reachable.ShouldBeTrue();
-        result.LatencyMs.ShouldBeGreaterThan(0);
+        result.LatencyMs.ShouldNotBeNull();
+        result.LatencyMs!.Value.ShouldBeGreaterThan(0);
         result.ServerVersion.ShouldNotBeNullOrEmpty();
         result.JetStreamAvailable.ShouldBeTrue();
     }

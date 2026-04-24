@@ -71,7 +71,8 @@ public sealed class ObjectStoreAdapterTests(NatsFixture fixture) : NatsIntegrati
         var objects = await adapter.ListObjectsAsync(EnvironmentId, bucketName);
 
         objects.Count().ShouldBe(2);
-        objects.Select(o => o.Name).ShouldContain(["file1.txt", "file2.txt"]);
+        objects.Select(o => o.Name).ShouldContain("file1.txt");
+        objects.Select(o => o.Name).ShouldContain("file2.txt");
     }
 
     [Fact]

@@ -89,7 +89,8 @@ public sealed class KvStoreAdapterTests(NatsFixture fixture) : NatsIntegrationTe
         var keys = await adapter.ListKeysAsync(EnvironmentId, bucketName, null);
 
         keys.Count().ShouldBe(2);
-        keys.Select(k => k.Key).ShouldContain(["key-a", "key-b"]);
+        keys.Select(k => k.Key).ShouldContain("key-a");
+        keys.Select(k => k.Key).ShouldContain("key-b");
     }
 
     [Fact]
