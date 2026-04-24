@@ -1,4 +1,4 @@
-using FluentAssertions;
+using Shouldly;
 using NatsManager.Domain.Modules.Common;
 using NatsManager.Domain.Modules.Common.Errors;
 
@@ -14,13 +14,13 @@ public sealed class BookmarkTests
 
         var bookmark = Bookmark.Create(userId, envId, ResourceType.Stream, "stream-1", "My Stream");
 
-        bookmark.Id.Should().NotBeEmpty();
-        bookmark.UserId.Should().Be(userId);
-        bookmark.EnvironmentId.Should().Be(envId);
-        bookmark.ResourceType.Should().Be(ResourceType.Stream);
-        bookmark.ResourceId.Should().Be("stream-1");
-        bookmark.DisplayName.Should().Be("My Stream");
-        bookmark.CreatedAt.Should().BeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromSeconds(2));
+        bookmark.Id.ShouldNotBe(Guid.Empty);
+        bookmark.UserId.ShouldBe(userId);
+        bookmark.EnvironmentId.ShouldBe(envId);
+        bookmark.ResourceType.ShouldBe(ResourceType.Stream);
+        bookmark.ResourceId.ShouldBe("stream-1");
+        bookmark.DisplayName.ShouldBe("My Stream");
+        (bookmark.CreatedAt - DateTimeOffset.UtcNow).Duration().ShouldBeLessThan(TimeSpan.FromSeconds(2));
     }
 
     [Theory]
@@ -30,7 +30,7 @@ public sealed class BookmarkTests
     public void Create_WithInvalidResourceId_ShouldThrow(string? resourceId)
     {
         var act = () => Bookmark.Create(Guid.NewGuid(), Guid.NewGuid(), ResourceType.Stream, resourceId!, "Name");
-        act.Should().Throw<ArgumentException>();
+        Should.Throw<ArgumentException>(act);
     }
 
     [Theory]
@@ -40,7 +40,7 @@ public sealed class BookmarkTests
     public void Create_WithInvalidDisplayName_ShouldThrow(string? displayName)
     {
         var act = () => Bookmark.Create(Guid.NewGuid(), Guid.NewGuid(), ResourceType.Stream, "id", displayName!);
-        act.Should().Throw<ArgumentException>();
+        Should.Throw<ArgumentException>(act);
     }
 
     [Fact]
@@ -50,7 +50,7 @@ public sealed class BookmarkTests
 
         bookmark.UpdateDisplayName("New Name");
 
-        bookmark.DisplayName.Should().Be("New Name");
+        bookmark.DisplayName.ShouldBe("New Name");
     }
 
     [Fact]
@@ -60,7 +60,7 @@ public sealed class BookmarkTests
 
         var act = () => bookmark.UpdateDisplayName("");
 
-        act.Should().Throw<ArgumentException>();
+        Should.Throw<ArgumentException>(act);
     }
 
     [Fact]
@@ -68,8 +68,8 @@ public sealed class BookmarkTests
     {
         var bookmark = Bookmark.Create(Guid.NewGuid(), Guid.NewGuid(), ResourceType.Stream, "  id  ", "  Name  ");
 
-        bookmark.ResourceId.Should().Be("id");
-        bookmark.DisplayName.Should().Be("Name");
+        bookmark.ResourceId.ShouldBe("id");
+        bookmark.DisplayName.ShouldBe("Name");
     }
 }
 
@@ -82,11 +82,11 @@ public sealed class UserPreferenceTests
 
         var pref = UserPreference.Create(userId, "theme", "dark");
 
-        pref.Id.Should().NotBeEmpty();
-        pref.UserId.Should().Be(userId);
-        pref.Key.Should().Be("theme");
-        pref.Value.Should().Be("dark");
-        pref.UpdatedAt.Should().BeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromSeconds(2));
+        pref.Id.ShouldNotBe(Guid.Empty);
+        pref.UserId.ShouldBe(userId);
+        pref.Key.ShouldBe("theme");
+        pref.Value.ShouldBe("dark");
+        (pref.UpdatedAt - DateTimeOffset.UtcNow).Duration().ShouldBeLessThan(TimeSpan.FromSeconds(2));
     }
 
     [Theory]
@@ -96,14 +96,14 @@ public sealed class UserPreferenceTests
     public void Create_WithInvalidKey_ShouldThrow(string? key)
     {
         var act = () => UserPreference.Create(Guid.NewGuid(), key!, "value");
-        act.Should().Throw<ArgumentException>();
+        Should.Throw<ArgumentException>(act);
     }
 
     [Fact]
     public void Create_WithNullValue_ShouldDefaultToEmpty()
     {
         var pref = UserPreference.Create(Guid.NewGuid(), "key", null!);
-        pref.Value.Should().BeEmpty();
+        pref.Value.ShouldBeEmpty();
     }
 
     [Fact]
@@ -114,8 +114,8 @@ public sealed class UserPreferenceTests
 
         pref.UpdateValue("dark");
 
-        pref.Value.Should().Be("dark");
-        pref.UpdatedAt.Should().BeOnOrAfter(originalUpdatedAt);
+        pref.Value.ShouldBe("dark");
+        pref.UpdatedAt.ShouldBeGreaterThanOrEqualTo(originalUpdatedAt);
     }
 
     [Fact]
@@ -125,7 +125,7 @@ public sealed class UserPreferenceTests
 
         pref.UpdateValue(null!);
 
-        pref.Value.Should().BeEmpty();
+        pref.Value.ShouldBeEmpty();
     }
 }
 
@@ -136,11 +136,11 @@ public sealed class DomainExceptionTests
     {
         var ex = new NotFoundException("Stream", "my-stream");
 
-        ex.Message.Should().Contain("Stream");
-        ex.Message.Should().Contain("my-stream");
-        ex.ErrorCode.Should().Be("RESOURCE_NOT_FOUND");
-        ex.ResourceType.Should().Be("Stream");
-        ex.ResourceId.Should().Be("my-stream");
+        ex.Message.ShouldContain("Stream");
+        ex.Message.ShouldContain("my-stream");
+        ex.ErrorCode.ShouldBe("RESOURCE_NOT_FOUND");
+        ex.ResourceType.ShouldBe("Stream");
+        ex.ResourceId.ShouldBe("my-stream");
     }
 
     [Fact]
@@ -148,8 +148,8 @@ public sealed class DomainExceptionTests
     {
         var ex = new ConflictException("Already exists");
 
-        ex.Message.Should().Be("Already exists");
-        ex.ErrorCode.Should().Be("CONFLICT");
+        ex.Message.ShouldBe("Already exists");
+        ex.ErrorCode.ShouldBe("CONFLICT");
     }
 
     [Fact]
@@ -157,8 +157,8 @@ public sealed class DomainExceptionTests
     {
         var ex = new ForbiddenException("Not allowed");
 
-        ex.Message.Should().Be("Not allowed");
-        ex.ErrorCode.Should().Be("FORBIDDEN");
+        ex.Message.ShouldBe("Not allowed");
+        ex.ErrorCode.ShouldBe("FORBIDDEN");
     }
 
     [Fact]
@@ -166,9 +166,9 @@ public sealed class DomainExceptionTests
     {
         var ex = new ConnectionException("prod", "timeout");
 
-        ex.Message.Should().Contain("prod");
-        ex.Message.Should().Contain("timeout");
-        ex.ErrorCode.Should().Be("CONNECTION_ERROR");
-        ex.EnvironmentName.Should().Be("prod");
+        ex.Message.ShouldContain("prod");
+        ex.Message.ShouldContain("timeout");
+        ex.ErrorCode.ShouldBe("CONNECTION_ERROR");
+        ex.EnvironmentName.ShouldBe("prod");
     }
 }

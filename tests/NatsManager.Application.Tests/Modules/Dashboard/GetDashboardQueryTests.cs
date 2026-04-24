@@ -1,4 +1,4 @@
-using FluentAssertions;
+using Shouldly;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using NatsManager.Application.Common;
@@ -40,9 +40,9 @@ public sealed class GetDashboardQueryTests
         var outputPort = new TestOutputPort<DashboardSummary>();
         await _handler.ExecuteAsync(new GetDashboardQuery(envId), outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        outputPort.Value!.Environment.ConnectionStatus.Should().Be("Available");
-        outputPort.Value!.Environment.LastSuccessfulContact.Should().NotBeNull();
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value!.Environment.ConnectionStatus.ShouldBe("Available");
+        outputPort.Value!.Environment.LastSuccessfulContact.ShouldNotBeNull();
     }
 
     [Fact]
@@ -81,12 +81,12 @@ public sealed class GetDashboardQueryTests
         var outputPort = new TestOutputPort<DashboardSummary>();
         await _handler.ExecuteAsync(new GetDashboardQuery(envId), outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        outputPort.Value!.JetStream.StreamCount.Should().Be(2);
-        outputPort.Value!.JetStream.ConsumerCount.Should().Be(3);
-        outputPort.Value!.JetStream.TotalMessages.Should().Be(300);
-        outputPort.Value!.JetStream.TotalBytes.Should().Be(3072);
-        outputPort.Value!.JetStream.UnhealthyConsumers.Should().Be(1);
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value!.JetStream.StreamCount.ShouldBe(2);
+        outputPort.Value!.JetStream.ConsumerCount.ShouldBe(3);
+        outputPort.Value!.JetStream.TotalMessages.ShouldBe(300);
+        outputPort.Value!.JetStream.TotalBytes.ShouldBe(3072);
+        outputPort.Value!.JetStream.UnhealthyConsumers.ShouldBe(1);
     }
 
     [Fact]
@@ -114,8 +114,8 @@ public sealed class GetDashboardQueryTests
         var outputPort = new TestOutputPort<DashboardSummary>();
         await _handler.ExecuteAsync(new GetDashboardQuery(envId), outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        outputPort.Value!.Alerts.Should().ContainSingle(a => a.Message.Contains("5000"));
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value!.Alerts.Count(a => a.Message.Contains("5000")).ShouldBe(1);
     }
 
     [Fact]
@@ -137,9 +137,9 @@ public sealed class GetDashboardQueryTests
         var outputPort = new TestOutputPort<DashboardSummary>();
         await _handler.ExecuteAsync(new GetDashboardQuery(envId), outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        outputPort.Value!.KeyValue.BucketCount.Should().Be(2);
-        outputPort.Value!.KeyValue.TotalKeys.Should().Be(60);
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value!.KeyValue.BucketCount.ShouldBe(2);
+        outputPort.Value!.KeyValue.TotalKeys.ShouldBe(60);
     }
 
     [Fact]
@@ -155,8 +155,8 @@ public sealed class GetDashboardQueryTests
         var outputPort = new TestOutputPort<DashboardSummary>();
         await _handler.ExecuteAsync(new GetDashboardQuery(envId), outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        outputPort.Value!.Alerts.Should().Contain(a => a.Severity == "error" && a.ResourceType == "JetStream");
-        outputPort.Value!.JetStream.StreamCount.Should().Be(0);
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value!.Alerts.ShouldContain(a => a.Severity == "error" && a.ResourceType == "JetStream");
+        outputPort.Value!.JetStream.StreamCount.ShouldBe(0);
     }
 }

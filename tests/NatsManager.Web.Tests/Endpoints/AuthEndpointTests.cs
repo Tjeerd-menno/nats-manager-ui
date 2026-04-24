@@ -1,6 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
-using FluentAssertions;
+using Shouldly;
 
 namespace NatsManager.Web.Tests.Endpoints;
 
@@ -22,7 +22,7 @@ public sealed class AuthEndpointTests : IClassFixture<NatsManagerWebAppFactory>
 
         var response = await _client.PostAsJsonAsync("/api/auth/login", payload);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
@@ -30,7 +30,7 @@ public sealed class AuthEndpointTests : IClassFixture<NatsManagerWebAppFactory>
     {
         var response = await _client.GetAsync("/api/auth/me");
 
-        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
@@ -39,6 +39,6 @@ public sealed class AuthEndpointTests : IClassFixture<NatsManagerWebAppFactory>
         using var authenticatedClient = _factory.CreateAuthenticatedClient();
         var response = await authenticatedClient.PostAsync("/api/auth/logout", null);
 
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 }

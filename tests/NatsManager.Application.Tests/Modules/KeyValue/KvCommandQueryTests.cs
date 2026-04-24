@@ -1,4 +1,4 @@
-using FluentAssertions;
+using Shouldly;
 using NSubstitute;
 using NatsManager.Application.Behaviors;
 using NatsManager.Application.Common;
@@ -34,9 +34,9 @@ public sealed class GetKvBucketsQueryTests
         var outputPort = new TestOutputPort<IReadOnlyList<KvBucketInfo>>();
         await _handler.ExecuteAsync(new GetKvBucketsQuery(envId), outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        outputPort.Value.Should().HaveCount(2);
-        outputPort.Value![0].BucketName.Should().Be("config");
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value.Count().ShouldBe(2);
+        outputPort.Value![0].BucketName.ShouldBe("config");
     }
 }
 
@@ -64,9 +64,9 @@ public sealed class GetKvKeysQueryTests
         var outputPort = new TestOutputPort<IReadOnlyList<KvEntry>>();
         await _handler.ExecuteAsync(new GetKvKeysQuery(envId, "bucket", null), outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        outputPort.Value.Should().HaveCount(1);
-        outputPort.Value![0].Key.Should().Be("key1");
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value.Count().ShouldBe(1);
+        outputPort.Value![0].Key.ShouldBe("key1");
     }
 }
 
@@ -91,9 +91,9 @@ public sealed class GetKvKeyDetailQueryTests
         var outputPort = new TestOutputPort<KvEntry>();
         await _handler.ExecuteAsync(new GetKvKeyDetailQuery(envId, "bucket", "key1"), outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        outputPort.Value.Should().NotBeNull();
-        outputPort.Value!.Revision.Should().Be(3);
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value.ShouldNotBeNull();
+        outputPort.Value!.Revision.ShouldBe(3);
     }
 
     [Fact]
@@ -105,7 +105,7 @@ public sealed class GetKvKeyDetailQueryTests
         var outputPort = new TestOutputPort<KvEntry>();
         await _handler.ExecuteAsync(new GetKvKeyDetailQuery(envId, "bucket", "missing"), outputPort, CancellationToken.None);
 
-        outputPort.IsNotFound.Should().BeTrue();
+        outputPort.IsNotFound.ShouldBeTrue();
     }
 }
 
@@ -133,7 +133,7 @@ public sealed class CreateKvBucketCommandTests
         var outputPort = new TestOutputPort<Unit>();
         await _handler.ExecuteAsync(command, outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
+        outputPort.IsSuccess.ShouldBeTrue();
         await _adapter.Received(1).CreateBucketAsync(
             command.EnvironmentId, "test-bucket", 5, -1, -1, null, Arg.Any<CancellationToken>());
     }
@@ -152,7 +152,7 @@ public sealed class CreateKvBucketCommandValidatorTests
             BucketName = "bucket"
         };
 
-        _validator.Validate(command).IsValid.Should().BeTrue();
+        _validator.Validate(command).IsValid.ShouldBeTrue();
     }
 
     [Fact]
@@ -164,7 +164,7 @@ public sealed class CreateKvBucketCommandValidatorTests
             BucketName = ""
         };
 
-        _validator.Validate(command).IsValid.Should().BeFalse();
+        _validator.Validate(command).IsValid.ShouldBeFalse();
     }
 
     [Fact]
@@ -177,7 +177,7 @@ public sealed class CreateKvBucketCommandValidatorTests
             History = 0
         };
 
-        _validator.Validate(command).IsValid.Should().BeFalse();
+        _validator.Validate(command).IsValid.ShouldBeFalse();
     }
 }
 
@@ -211,8 +211,8 @@ public sealed class PutKvKeyCommandTests
         var outputPort = new TestOutputPort<long>();
         await _handler.ExecuteAsync(command, outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        outputPort.Value.Should().Be(1);
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value.ShouldBe(1);
         await _adapter.Received(1).PutKeyAsync(
             envId, "bucket", "key1", Arg.Any<byte[]>(), null, Arg.Any<CancellationToken>());
     }
@@ -236,8 +236,8 @@ public sealed class PutKvKeyCommandTests
         var outputPort = new TestOutputPort<long>();
         await _handler.ExecuteAsync(command, outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        outputPort.Value.Should().Be(6);
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value.ShouldBe(6);
     }
 }
 
@@ -266,7 +266,7 @@ public sealed class DeleteKvKeyCommandTests
         var outputPort = new TestOutputPort<Unit>();
         await _handler.ExecuteAsync(command, outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
+        outputPort.IsSuccess.ShouldBeTrue();
         await _adapter.Received(1).DeleteKeyAsync(envId, "bucket", "key1", Arg.Any<CancellationToken>());
     }
 }

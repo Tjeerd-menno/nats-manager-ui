@@ -23,7 +23,7 @@ public sealed class JetStreamAdapterTests(NatsFixture fixture) : NatsIntegration
 
         var streams = await adapter.ListStreamsAsync(EnvironmentId);
 
-        streams.Should().Contain(s => s.Name == streamName);
+        streams.ShouldContain(s => s.Name == streamName);
     }
 
     [Fact]
@@ -40,8 +40,8 @@ public sealed class JetStreamAdapterTests(NatsFixture fixture) : NatsIntegration
 
         var info = await adapter.GetStreamAsync(EnvironmentId, streamName);
 
-        info.Should().NotBeNull();
-        info!.Name.Should().Be(streamName);
+        info.ShouldNotBeNull();
+        info!.Name.ShouldBe(streamName);
     }
 
     [Fact]
@@ -51,7 +51,7 @@ public sealed class JetStreamAdapterTests(NatsFixture fixture) : NatsIntegration
 
         var result = await adapter.GetStreamAsync(EnvironmentId, "nonexistent-stream");
 
-        result.Should().BeNull();
+        result.ShouldBeNull();
     }
 
     [Fact]
@@ -70,9 +70,9 @@ public sealed class JetStreamAdapterTests(NatsFixture fixture) : NatsIntegration
 
         var config = await adapter.GetStreamConfigAsync(EnvironmentId, streamName);
 
-        config.Should().NotBeNull();
-        config!.RetentionPolicy.Should().Be("Limits");
-        config.StorageType.Should().Be("Memory");
+        config.ShouldNotBeNull();
+        config!.RetentionPolicy.ShouldBe("Limits");
+        config.StorageType.ShouldBe("Memory");
     }
 
     [Fact]
@@ -90,7 +90,7 @@ public sealed class JetStreamAdapterTests(NatsFixture fixture) : NatsIntegration
         await adapter.DeleteStreamAsync(EnvironmentId, streamName);
 
         var info = await adapter.GetStreamAsync(EnvironmentId, streamName);
-        info.Should().BeNull();
+        info.ShouldBeNull();
     }
 
     [Fact]
@@ -118,7 +118,7 @@ public sealed class JetStreamAdapterTests(NatsFixture fixture) : NatsIntegration
 
         var consumers = await adapter.ListConsumersAsync(EnvironmentId, streamName);
 
-        consumers.Should().Contain(c => c.Name == consumerName);
+        consumers.ShouldContain(c => c.Name == consumerName);
     }
 
     [Fact]
@@ -147,6 +147,6 @@ public sealed class JetStreamAdapterTests(NatsFixture fixture) : NatsIntegration
         await adapter.DeleteConsumerAsync(EnvironmentId, streamName, consumerName);
 
         var consumers = await adapter.ListConsumersAsync(EnvironmentId, streamName);
-        consumers.Should().NotContain(c => c.Name == consumerName);
+        consumers.ShouldNotContain(c => c.Name == consumerName);
     }
 }

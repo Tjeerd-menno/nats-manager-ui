@@ -14,8 +14,8 @@ public sealed class ServiceDiscoveryAdapterTests(NatsFixture fixture) : NatsInte
 
         var services = await adapter.DiscoverServicesAsync(EnvironmentId);
 
-        services.Should().NotBeNull();
-        services.Should().BeEmpty();
+        services.ShouldNotBeNull();
+        services.ShouldBeEmpty();
     }
 
     [Fact]
@@ -25,6 +25,6 @@ public sealed class ServiceDiscoveryAdapterTests(NatsFixture fixture) : NatsInte
 
         var service = await adapter.GetServiceAsync(EnvironmentId, "nonexistent-service");
 
-        service.Should().BeNull();
+        service.ShouldBeNull();
     }
 }

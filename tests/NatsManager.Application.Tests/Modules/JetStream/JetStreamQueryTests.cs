@@ -1,4 +1,4 @@
-using FluentAssertions;
+using Shouldly;
 using NSubstitute;
 using NatsManager.Application.Common;
 using NatsManager.Application.Modules.JetStream.Models;
@@ -35,9 +35,9 @@ public sealed class GetStreamsQueryTests
         var outputPort = new TestOutputPort<PaginatedResult<StreamListItem>>();
         await _handler.ExecuteAsync(query, outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        outputPort.Value!.Items.Should().HaveCount(2);
-        outputPort.Value!.TotalCount.Should().Be(2);
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value!.Items.Count().ShouldBe(2);
+        outputPort.Value!.TotalCount.ShouldBe(2);
     }
 
     [Fact]
@@ -58,9 +58,9 @@ public sealed class GetStreamsQueryTests
         var outputPort = new TestOutputPort<PaginatedResult<StreamListItem>>();
         await _handler.ExecuteAsync(query, outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        outputPort.Value!.Items.Should().HaveCount(1);
-        outputPort.Value!.Items[0].Name.Should().Be("orders");
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value!.Items.Count().ShouldBe(1);
+        outputPort.Value!.Items[0].Name.ShouldBe("orders");
     }
 
     [Fact]
@@ -81,9 +81,9 @@ public sealed class GetStreamsQueryTests
         var outputPort = new TestOutputPort<PaginatedResult<StreamListItem>>();
         await _handler.ExecuteAsync(query, outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        outputPort.Value!.Items[0].Name.Should().Be("high");
-        outputPort.Value!.Items[1].Name.Should().Be("low");
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value!.Items[0].Name.ShouldBe("high");
+        outputPort.Value!.Items[1].Name.ShouldBe("low");
     }
 }
 
@@ -113,10 +113,10 @@ public sealed class GetStreamDetailQueryTests
         var outputPort = new TestOutputPort<StreamDetailResult>();
         await _handler.ExecuteAsync(new GetStreamDetailQuery(envId, "test"), outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        outputPort.Value!.Info.Should().Be(info);
-        outputPort.Value!.Config.Should().Be(config);
-        outputPort.Value!.Consumers.Should().BeEmpty();
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value!.Info.ShouldBe(info);
+        outputPort.Value!.Config.ShouldBe(config);
+        outputPort.Value!.Consumers.ShouldBeEmpty();
     }
 
     [Fact]
@@ -128,7 +128,7 @@ public sealed class GetStreamDetailQueryTests
         var outputPort = new TestOutputPort<StreamDetailResult>();
         await _handler.ExecuteAsync(new GetStreamDetailQuery(envId, "missing"), outputPort, CancellationToken.None);
 
-        outputPort.IsNotFound.Should().BeTrue();
+        outputPort.IsNotFound.ShouldBeTrue();
     }
 }
 
@@ -154,8 +154,8 @@ public sealed class GetConsumerDetailQueryTests
         var outputPort = new TestOutputPort<ConsumerInfo>();
         await _handler.ExecuteAsync(new GetConsumerDetailQuery(envId, "stream", "consumer"), outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        outputPort.Value.Should().Be(consumer);
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value.ShouldBe(consumer);
     }
 
     [Fact]
@@ -167,7 +167,7 @@ public sealed class GetConsumerDetailQueryTests
         var outputPort = new TestOutputPort<ConsumerInfo>();
         await _handler.ExecuteAsync(new GetConsumerDetailQuery(envId, "stream", "missing"), outputPort, CancellationToken.None);
 
-        outputPort.IsNotFound.Should().BeTrue();
+        outputPort.IsNotFound.ShouldBeTrue();
     }
 }
 
@@ -196,8 +196,8 @@ public sealed class GetConsumersQueryTests
         var outputPort = new TestOutputPort<IReadOnlyList<ConsumerInfo>>();
         await _handler.ExecuteAsync(new GetConsumersQuery(envId, "stream"), outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        outputPort.Value.Should().HaveCount(1);
-        outputPort.Value![0].Name.Should().Be("consumer-1");
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value.Count().ShouldBe(1);
+        outputPort.Value![0].Name.ShouldBe("consumer-1");
     }
 }

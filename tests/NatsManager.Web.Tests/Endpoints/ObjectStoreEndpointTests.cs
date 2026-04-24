@@ -1,6 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
-using FluentAssertions;
+using Shouldly;
 using NSubstitute;
 using NatsManager.Application.Modules.ObjectStore.Models;
 
@@ -26,7 +26,7 @@ public sealed class ObjectStoreEndpointTests : IClassFixture<NatsManagerWebAppFa
 
         var response = await _client.GetAsync($"/api/environments/{envId}/objectstore/buckets");
 
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
     [Fact]
@@ -38,7 +38,7 @@ public sealed class ObjectStoreEndpointTests : IClassFixture<NatsManagerWebAppFa
 
         var response = await _client.GetAsync($"/api/environments/{envId}/objectstore/buckets/missing");
 
-        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
     [Fact]
@@ -47,7 +47,7 @@ public sealed class ObjectStoreEndpointTests : IClassFixture<NatsManagerWebAppFa
         var envId = Guid.NewGuid();
         var response = await _client.DeleteAsync($"/api/environments/{envId}/objectstore/buckets/test");
 
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
     [Fact]
@@ -60,6 +60,6 @@ public sealed class ObjectStoreEndpointTests : IClassFixture<NatsManagerWebAppFa
         var response = await _client.GetAsync($"/api/environments/{envId}/objectstore/buckets/bucket/objects/missing/download");
 
         // The handler catches exception and returns null → NotFound
-        response.StatusCode.Should().BeOneOf(HttpStatusCode.NotFound, HttpStatusCode.InternalServerError);
+        response.StatusCode.ShouldBeOneOf(HttpStatusCode.NotFound, HttpStatusCode.InternalServerError);
     }
 }

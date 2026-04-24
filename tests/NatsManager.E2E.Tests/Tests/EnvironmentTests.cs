@@ -1,4 +1,4 @@
-using FluentAssertions;
+using Shouldly;
 using Microsoft.Playwright;
 using NatsManager.E2E.Tests.Infrastructure;
 

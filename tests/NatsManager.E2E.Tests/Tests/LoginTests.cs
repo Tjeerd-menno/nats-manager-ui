@@ -1,4 +1,4 @@
-using FluentAssertions;
+using Shouldly;
 using Microsoft.Playwright;
 using NatsManager.E2E.Tests.Infrastructure;
 
@@ -35,7 +35,7 @@ public sealed class LoginTests(AppHostFixture fixture) : E2ETestBase(fixture)
 
         // Should redirect to dashboard after successful login
         await Page.WaitForURLAsync("**/dashboard", new PageWaitForURLOptions { Timeout = 15_000 });
-        Page.Url.Should().Contain("/dashboard");
+        Page.Url.ShouldContain("/dashboard");
     }
 
     [Fact]
@@ -52,7 +52,7 @@ public sealed class LoginTests(AppHostFixture fixture) : E2ETestBase(fixture)
         await Expect(errorAlert).ToBeVisibleAsync(new() { Timeout = 10_000 });
 
         // Should stay on login page
-        Page.Url.Should().Contain("/login");
+        Page.Url.ShouldContain("/login");
     }
 
     [Fact]
@@ -62,6 +62,6 @@ public sealed class LoginTests(AppHostFixture fixture) : E2ETestBase(fixture)
 
         // Should redirect unauthenticated users to the login page
         await Page.WaitForURLAsync("**/login", new PageWaitForURLOptions { Timeout = 10_000 });
-        Page.Url.Should().Contain("/login");
+        Page.Url.ShouldContain("/login");
     }
 }

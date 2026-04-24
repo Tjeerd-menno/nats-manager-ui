@@ -1,4 +1,4 @@
-using FluentAssertions;
+using Shouldly;
 using NSubstitute;
 using NatsManager.Application.Behaviors;
 using NatsManager.Application.Common;
@@ -31,7 +31,7 @@ public sealed class CreateStreamCommandTests
         var outputPort = new TestOutputPort<Unit>();
         await _handler.ExecuteAsync(command, outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
+        outputPort.IsSuccess.ShouldBeTrue();
         await _writeAdapter.Received(1).CreateStreamAsync(command, Arg.Any<CancellationToken>());
     }
 }
@@ -50,7 +50,7 @@ public sealed class CreateStreamCommandValidatorTests
             Subjects = ["test.>"]
         };
 
-        _validator.Validate(command).IsValid.Should().BeTrue();
+        _validator.Validate(command).IsValid.ShouldBeTrue();
     }
 
     [Fact]
@@ -63,7 +63,7 @@ public sealed class CreateStreamCommandValidatorTests
             Subjects = ["test.>"]
         };
 
-        _validator.Validate(command).IsValid.Should().BeFalse();
+        _validator.Validate(command).IsValid.ShouldBeFalse();
     }
 
     [Fact]
@@ -76,7 +76,7 @@ public sealed class CreateStreamCommandValidatorTests
             Subjects = []
         };
 
-        _validator.Validate(command).IsValid.Should().BeFalse();
+        _validator.Validate(command).IsValid.ShouldBeFalse();
     }
 
     [Fact]
@@ -90,7 +90,7 @@ public sealed class CreateStreamCommandValidatorTests
             Replicas = 0
         };
 
-        _validator.Validate(command).IsValid.Should().BeFalse();
+        _validator.Validate(command).IsValid.ShouldBeFalse();
     }
 }
 
@@ -114,7 +114,7 @@ public sealed class DeleteStreamCommandTests
         var outputPort = new TestOutputPort<Unit>();
         await _handler.ExecuteAsync(command, outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
+        outputPort.IsSuccess.ShouldBeTrue();
         await _writeAdapter.Received(1).DeleteStreamAsync(envId, "test-stream", Arg.Any<CancellationToken>());
     }
 }
@@ -139,7 +139,7 @@ public sealed class PurgeStreamCommandTests
         var outputPort = new TestOutputPort<Unit>();
         await _handler.ExecuteAsync(command, outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
+        outputPort.IsSuccess.ShouldBeTrue();
         await _writeAdapter.Received(1).PurgeStreamAsync(envId, "test-stream", Arg.Any<CancellationToken>());
     }
 }
@@ -168,7 +168,7 @@ public sealed class CreateConsumerCommandTests
         var outputPort = new TestOutputPort<Unit>();
         await _handler.ExecuteAsync(command, outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
+        outputPort.IsSuccess.ShouldBeTrue();
         await _writeAdapter.Received(1).CreateConsumerAsync(command, Arg.Any<CancellationToken>());
     }
 }
@@ -187,7 +187,7 @@ public sealed class CreateConsumerCommandValidatorTests
             Name = "consumer"
         };
 
-        _validator.Validate(command).IsValid.Should().BeTrue();
+        _validator.Validate(command).IsValid.ShouldBeTrue();
     }
 
     [Fact]
@@ -200,7 +200,7 @@ public sealed class CreateConsumerCommandValidatorTests
             Name = "consumer"
         };
 
-        _validator.Validate(command).IsValid.Should().BeFalse();
+        _validator.Validate(command).IsValid.ShouldBeFalse();
     }
 }
 
@@ -229,7 +229,7 @@ public sealed class DeleteConsumerCommandTests
         var outputPort = new TestOutputPort<Unit>();
         await _handler.ExecuteAsync(command, outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
+        outputPort.IsSuccess.ShouldBeTrue();
         await _writeAdapter.Received(1).DeleteConsumerAsync(envId, "stream", "consumer", Arg.Any<CancellationToken>());
     }
 }

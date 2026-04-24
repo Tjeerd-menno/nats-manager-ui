@@ -1,4 +1,4 @@
-using FluentAssertions;
+using Shouldly;
 using NatsManager.Domain.Modules.Audit;
 using NatsManager.Domain.Modules.Common;
 
@@ -24,18 +24,18 @@ public sealed class AuditEventTests
             details: "Created stream",
             source: AuditSource.UserInitiated);
 
-        auditEvent.Id.Should().NotBeEmpty();
-        auditEvent.Timestamp.Should().BeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromSeconds(2));
-        auditEvent.ActorId.Should().Be(actorId);
-        auditEvent.ActorName.Should().Be("admin");
-        auditEvent.ActionType.Should().Be(ActionType.Create);
-        auditEvent.ResourceType.Should().Be(ResourceType.Stream);
-        auditEvent.ResourceId.Should().Be("stream-1");
-        auditEvent.ResourceName.Should().Be("My Stream");
-        auditEvent.EnvironmentId.Should().Be(envId);
-        auditEvent.Outcome.Should().Be(Outcome.Success);
-        auditEvent.Details.Should().Be("Created stream");
-        auditEvent.Source.Should().Be(AuditSource.UserInitiated);
+        auditEvent.Id.ShouldNotBe(Guid.Empty);
+        (auditEvent.Timestamp - DateTimeOffset.UtcNow).Duration().ShouldBeLessThan(TimeSpan.FromSeconds(2));
+        auditEvent.ActorId.ShouldBe(actorId);
+        auditEvent.ActorName.ShouldBe("admin");
+        auditEvent.ActionType.ShouldBe(ActionType.Create);
+        auditEvent.ResourceType.ShouldBe(ResourceType.Stream);
+        auditEvent.ResourceId.ShouldBe("stream-1");
+        auditEvent.ResourceName.ShouldBe("My Stream");
+        auditEvent.EnvironmentId.ShouldBe(envId);
+        auditEvent.Outcome.ShouldBe(Outcome.Success);
+        auditEvent.Details.ShouldBe("Created stream");
+        auditEvent.Source.ShouldBe(AuditSource.UserInitiated);
     }
 
     [Fact]
@@ -53,9 +53,9 @@ public sealed class AuditEventTests
             details: null,
             source: AuditSource.SystemGenerated);
 
-        auditEvent.ActorId.Should().BeNull();
-        auditEvent.EnvironmentId.Should().BeNull();
-        auditEvent.Details.Should().BeNull();
+        auditEvent.ActorId.ShouldBeNull();
+        auditEvent.EnvironmentId.ShouldBeNull();
+        auditEvent.Details.ShouldBeNull();
     }
 
     [Theory]
@@ -68,7 +68,7 @@ public sealed class AuditEventTests
             Guid.NewGuid(), actorName!, ActionType.Create,
             ResourceType.Stream, "id", "name", null, Outcome.Success, null, AuditSource.UserInitiated);
 
-        act.Should().Throw<ArgumentException>();
+        Should.Throw<ArgumentException>(act);
     }
 
     [Theory]
@@ -81,7 +81,7 @@ public sealed class AuditEventTests
             Guid.NewGuid(), "admin", ActionType.Create,
             ResourceType.Stream, resourceId!, "name", null, Outcome.Success, null, AuditSource.UserInitiated);
 
-        act.Should().Throw<ArgumentException>();
+        Should.Throw<ArgumentException>(act);
     }
 
     [Theory]
@@ -94,7 +94,7 @@ public sealed class AuditEventTests
             Guid.NewGuid(), "admin", ActionType.Create,
             ResourceType.Stream, "id", resourceName!, null, Outcome.Success, null, AuditSource.UserInitiated);
 
-        act.Should().Throw<ArgumentException>();
+        Should.Throw<ArgumentException>(act);
     }
 
     [Fact]
@@ -104,8 +104,8 @@ public sealed class AuditEventTests
             Guid.NewGuid(), "  admin  ", ActionType.Create,
             ResourceType.Stream, "  id  ", "  name  ", null, Outcome.Success, null, AuditSource.UserInitiated);
 
-        auditEvent.ActorName.Should().Be("admin");
-        auditEvent.ResourceId.Should().Be("id");
-        auditEvent.ResourceName.Should().Be("name");
+        auditEvent.ActorName.ShouldBe("admin");
+        auditEvent.ResourceId.ShouldBe("id");
+        auditEvent.ResourceName.ShouldBe("name");
     }
 }

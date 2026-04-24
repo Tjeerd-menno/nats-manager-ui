@@ -1,5 +1,5 @@
 using System.Net;
-using FluentAssertions;
+using Shouldly;
 using NSubstitute;
 using NatsManager.Application.Modules.JetStream.Models;
 
@@ -25,7 +25,7 @@ public sealed class JetStreamReadEndpointTests : IClassFixture<NatsManagerWebApp
 
         var response = await _client.GetAsync($"/api/environments/{envId}/jetstream/streams");
 
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
     [Fact]
@@ -45,7 +45,7 @@ public sealed class JetStreamReadEndpointTests : IClassFixture<NatsManagerWebApp
 
         var response = await _client.GetAsync($"/api/environments/{envId}/jetstream/streams/orders");
 
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
     [Fact]
@@ -57,6 +57,6 @@ public sealed class JetStreamReadEndpointTests : IClassFixture<NatsManagerWebApp
 
         var response = await _client.GetAsync($"/api/environments/{envId}/jetstream/streams/orders/consumers");
 
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 }

@@ -1,5 +1,5 @@
 using System.Net;
-using FluentAssertions;
+using Shouldly;
 using NatsManager.Domain.Modules.Auth;
 
 namespace NatsManager.Web.Tests.Endpoints;
@@ -20,7 +20,7 @@ public sealed class AccessControlEndpointTests : IClassFixture<NatsManagerWebApp
 
         var response = await client.GetAsync("/api/access-control/roles");
 
-        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
@@ -30,7 +30,7 @@ public sealed class AccessControlEndpointTests : IClassFixture<NatsManagerWebApp
 
         var response = await client.GetAsync("/api/access-control/roles");
 
-        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
     [Fact]
@@ -40,6 +40,6 @@ public sealed class AccessControlEndpointTests : IClassFixture<NatsManagerWebApp
 
         var response = await client.GetAsync("/api/access-control/roles");
 
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 }

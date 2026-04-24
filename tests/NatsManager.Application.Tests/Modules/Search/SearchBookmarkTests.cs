@@ -1,4 +1,4 @@
-using FluentAssertions;
+using Shouldly;
 using NSubstitute;
 using NatsManager.Application.Common;
 using NatsManager.Application.Modules.Search.Commands;
@@ -26,8 +26,8 @@ public sealed class AddBookmarkCommandTests
         var outputPort = new TestOutputPort<Guid>();
         await _handler.ExecuteAsync(command, outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        outputPort.Value.Should().NotBeEmpty();
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value.ShouldNotBe(Guid.Empty);
         await _repository.Received(1).AddAsync(
             Arg.Is<Bookmark>(b => b.ResourceId == "stream-1" && b.DisplayName == "Orders Stream"),
             Arg.Any<CancellationToken>());
@@ -43,7 +43,7 @@ public sealed class AddBookmarkCommandValidatorTests
     {
         var command = new AddBookmarkCommand(Guid.NewGuid(), Guid.NewGuid(), ResourceType.Stream, "", "Display");
         var result = _validator.Validate(command);
-        result.IsValid.Should().BeFalse();
+        result.IsValid.ShouldBeFalse();
     }
 
     [Fact]
@@ -51,7 +51,7 @@ public sealed class AddBookmarkCommandValidatorTests
     {
         var command = new AddBookmarkCommand(Guid.NewGuid(), Guid.NewGuid(), ResourceType.Stream, "id", "");
         var result = _validator.Validate(command);
-        result.IsValid.Should().BeFalse();
+        result.IsValid.ShouldBeFalse();
     }
 
     [Fact]
@@ -59,7 +59,7 @@ public sealed class AddBookmarkCommandValidatorTests
     {
         var command = new AddBookmarkCommand(Guid.NewGuid(), Guid.NewGuid(), ResourceType.Stream, "id", new string('a', 201));
         var result = _validator.Validate(command);
-        result.IsValid.Should().BeFalse();
+        result.IsValid.ShouldBeFalse();
     }
 
     [Fact]
@@ -67,7 +67,7 @@ public sealed class AddBookmarkCommandValidatorTests
     {
         var command = new AddBookmarkCommand(Guid.NewGuid(), Guid.NewGuid(), ResourceType.Stream, "stream-1", "Orders");
         var result = _validator.Validate(command);
-        result.IsValid.Should().BeTrue();
+        result.IsValid.ShouldBeTrue();
     }
 }
 
@@ -92,7 +92,7 @@ public sealed class RemoveBookmarkCommandTests
         var outputPort = new TestOutputPort<Unit>();
         await _handler.ExecuteAsync(new RemoveBookmarkCommand(userId, bookmarkId), outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
+        outputPort.IsSuccess.ShouldBeTrue();
         await _repository.Received(1).RemoveAsync(bookmarkId, Arg.Any<CancellationToken>());
     }
 
@@ -108,7 +108,7 @@ public sealed class RemoveBookmarkCommandTests
         var outputPort = new TestOutputPort<Unit>();
         await _handler.ExecuteAsync(new RemoveBookmarkCommand(actorId, bookmarkId), outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
+        outputPort.IsSuccess.ShouldBeTrue();
         await _repository.DidNotReceive().RemoveAsync(bookmarkId, Arg.Any<CancellationToken>());
     }
 }
@@ -132,7 +132,7 @@ public sealed class SetPreferenceCommandTests
         var outputPort = new TestOutputPort<Unit>();
         await _handler.ExecuteAsync(new SetPreferenceCommand(userId, "theme", "dark"), outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
+        outputPort.IsSuccess.ShouldBeTrue();
         await _repository.Received(1).UpsertAsync(
             Arg.Is<UserPreference>(p => p.Key == "theme" && p.Value == "dark"),
             Arg.Any<CancellationToken>());
@@ -148,8 +148,8 @@ public sealed class SetPreferenceCommandTests
         var outputPort = new TestOutputPort<Unit>();
         await _handler.ExecuteAsync(new SetPreferenceCommand(userId, "theme", "dark"), outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        existing.Value.Should().Be("dark");
+        outputPort.IsSuccess.ShouldBeTrue();
+        existing.Value.ShouldBe("dark");
         await _repository.Received(1).UpsertAsync(existing, Arg.Any<CancellationToken>());
     }
 }
@@ -163,7 +163,7 @@ public sealed class SetPreferenceCommandValidatorTests
     {
         var command = new SetPreferenceCommand(Guid.NewGuid(), "", "value");
         var result = _validator.Validate(command);
-        result.IsValid.Should().BeFalse();
+        result.IsValid.ShouldBeFalse();
     }
 
     [Fact]
@@ -171,7 +171,7 @@ public sealed class SetPreferenceCommandValidatorTests
     {
         var command = new SetPreferenceCommand(Guid.NewGuid(), new string('k', 101), "value");
         var result = _validator.Validate(command);
-        result.IsValid.Should().BeFalse();
+        result.IsValid.ShouldBeFalse();
     }
 
     [Fact]
@@ -179,7 +179,7 @@ public sealed class SetPreferenceCommandValidatorTests
     {
         var command = new SetPreferenceCommand(Guid.NewGuid(), "theme", "dark");
         var result = _validator.Validate(command);
-        result.IsValid.Should().BeTrue();
+        result.IsValid.ShouldBeTrue();
     }
 }
 
@@ -203,10 +203,10 @@ public sealed class GetBookmarksQueryTests
         var outputPort = new TestOutputPort<IReadOnlyList<BookmarkDto>>();
         await _handler.ExecuteAsync(new GetBookmarksQuery(userId), outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        outputPort.Value.Should().HaveCount(1);
-        outputPort.Value![0].ResourceId.Should().Be("stream-1");
-        outputPort.Value![0].DisplayName.Should().Be("Orders");
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value.Count().ShouldBe(1);
+        outputPort.Value![0].ResourceId.ShouldBe("stream-1");
+        outputPort.Value![0].DisplayName.ShouldBe("Orders");
     }
 }
 
@@ -234,9 +234,9 @@ public sealed class GetUserPreferencesQueryTests
         var outputPort = new TestOutputPort<Dictionary<string, string>>();
         await _handler.ExecuteAsync(new GetUserPreferencesQuery(userId), outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        outputPort.Value.Should().HaveCount(2);
-        outputPort.Value!["theme"].Should().Be("dark");
-        outputPort.Value!["lang"].Should().Be("en");
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value.Count().ShouldBe(2);
+        outputPort.Value!["theme"].ShouldBe("dark");
+        outputPort.Value!["lang"].ShouldBe("en");
     }
 }

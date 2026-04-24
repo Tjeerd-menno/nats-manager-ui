@@ -1,5 +1,5 @@
 using System.Net;
-using FluentAssertions;
+using Shouldly;
 using NSubstitute;
 using NatsManager.Application.Modules.Dashboard.Models;
 
@@ -29,6 +29,6 @@ public sealed class DashboardEndpointTests : IClassFixture<NatsManagerWebAppFact
 
         var response = await _client.GetAsync($"/api/environments/{envId}/monitoring/dashboard");
 
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 }

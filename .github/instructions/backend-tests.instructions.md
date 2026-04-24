@@ -1,5 +1,5 @@
 ---
-description: "Use when writing or modifying backend tests (xUnit, NSubstitute, FluentAssertions). Covers test project conventions, TestOutputPort, mock patterns, and test commands."
+description: "Use when writing or modifying backend tests (xUnit, NSubstitute, Shouldly). Covers test project conventions, TestOutputPort, mock patterns, and test commands."
 applyTo: "tests/NatsManager.Application.Tests/**,tests/NatsManager.Domain.Tests/**,tests/NatsManager.Infrastructure.Tests/**,tests/NatsManager.Web.Tests/**"
 ---
 # Backend Test Instructions
@@ -7,7 +7,7 @@ applyTo: "tests/NatsManager.Application.Tests/**,tests/NatsManager.Domain.Tests/
 ## Framework Stack
 
 - **xUnit v3** with **Microsoft Testing Platform v2** (MTP) — attribute-based: `[Fact]`, `[Theory]`
-- **FluentAssertions** — `.Should().Be(...)`, `.Should().BeTrue()`, `.Should().HaveCount(...)`
+- **Shouldly** — `.ShouldBe(...)`, `.ShouldBeTrue()`, `.Count().ShouldBe(n)`, `Should.Throw<T>(act)`
 - **NSubstitute** — `Substitute.For<IMyPort>()`, `.Returns(...)`, `.Received(...)`
 - Centrally managed versions in `Directory.Packages.props`
 
@@ -42,7 +42,7 @@ public async Task Handle_ValidRequest_ReturnsSuccess()
     await handler.ExecuteAsync(command, outputPort, CancellationToken.None);
 
     // Assert
-    outputPort.IsSuccess.Should().BeTrue();
+    outputPort.IsSuccess.ShouldBeTrue();
     await repo.Received(1).SaveAsync(Arg.Any<MyEntity>(), Arg.Any<CancellationToken>());
 }
 ```
@@ -50,11 +50,11 @@ public async Task Handle_ValidRequest_ReturnsSuccess()
 ### Asserting Business Outcomes
 
 ```csharp
-outputPort.IsSuccess.Should().BeTrue();       // Happy path
-outputPort.IsNotFound.Should().BeTrue();      // Resource not found
-outputPort.IsConflict.Should().BeTrue();      // Duplicate/conflict
-outputPort.IsUnauthorized.Should().BeTrue();  // Permission denied
-outputPort.Value!.Name.Should().Be("test");   // Access result value
+outputPort.IsSuccess.ShouldBeTrue();       // Happy path
+outputPort.IsNotFound.ShouldBeTrue();      // Resource not found
+outputPort.IsConflict.ShouldBeTrue();      // Duplicate/conflict
+outputPort.IsUnauthorized.ShouldBeTrue();  // Permission denied
+outputPort.Value!.Name.ShouldBe("test");   // Access result value
 ```
 
 ### Auditable Commands
@@ -76,7 +76,7 @@ public sealed class MyEndpointTests(NatsManagerWebAppFactory factory)
     {
         factory.MyAdapter.GetAsync(...).Returns(...);
         var response = await _client.GetAsync("/api/...");
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 }
 ```

@@ -15,10 +15,11 @@ public sealed class NatsHealthCheckerTests(NatsFixture fixture) : NatsIntegratio
 
         var result = await checker.CheckHealthAsync(NatsUrl, null);
 
-        result.Reachable.Should().BeTrue();
-        result.LatencyMs.Should().BeGreaterThan(0);
-        result.ServerVersion.Should().NotBeNullOrEmpty();
-        result.JetStreamAvailable.Should().BeTrue();
+        result.Reachable.ShouldBeTrue();
+        result.LatencyMs.ShouldNotBeNull();
+        result.LatencyMs!.Value.ShouldBeGreaterThan(0);
+        result.ServerVersion.ShouldNotBeNullOrEmpty();
+        result.JetStreamAvailable.ShouldBeTrue();
     }
 
     [Fact]
@@ -28,9 +29,9 @@ public sealed class NatsHealthCheckerTests(NatsFixture fixture) : NatsIntegratio
 
         var result = await checker.CheckHealthAsync("nats://nonexistent-host:4222", null);
 
-        result.Reachable.Should().BeFalse();
-        result.LatencyMs.Should().BeNull();
-        result.ServerVersion.Should().BeNull();
+        result.Reachable.ShouldBeFalse();
+        result.LatencyMs.ShouldBeNull();
+        result.ServerVersion.ShouldBeNull();
     }
 
     private sealed class NoOpCredentialEncryptionService : ICredentialEncryptionService
