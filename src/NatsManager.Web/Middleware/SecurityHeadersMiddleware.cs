@@ -6,6 +6,22 @@ namespace NatsManager.Web.Middleware;
 /// </summary>
 public sealed class SecurityHeadersMiddleware
 {
+    // Baseline CSP. The frontend is served as static assets and calls the same origin,
+    // so 'self' is sufficient. 'unsafe-inline' on style-src is a temporary concession
+    // to Mantine's runtime-injected <style> tags and weakens XSS mitigation; it should
+    // be replaced with a nonce/hash-based policy once the frontend supports it.
+    // TODO: migrate style-src to nonces/hashes and drop 'unsafe-inline'.
+    private const string ContentSecurityPolicy =
+        "default-src 'self'; " +
+        "script-src 'self'; " +
+        "style-src 'self' 'unsafe-inline'; " +
+        "img-src 'self' data:; " +
+        "font-src 'self' data:; " +
+        "connect-src 'self'; " +
+        "frame-ancestors 'none'; " +
+        "base-uri 'self'; " +
+        "form-action 'self'";
+
     private readonly RequestDelegate _next;
 
     public SecurityHeadersMiddleware(RequestDelegate next)
@@ -29,23 +45,9 @@ public sealed class SecurityHeadersMiddleware
         // Deny powerful browser features we don't use.
         headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=(), usb=()";
 
-        // Baseline CSP. The frontend is served as static assets and calls the same origin,
-        // so 'self' is sufficient. 'unsafe-inline' on style-src is a temporary concession
-        // to Mantine's runtime-injected <style> tags and weakens XSS mitigation; it should
-        // be replaced with a nonce/hash-based policy once the frontend supports it.
-        // TODO: migrate style-src to nonces/hashes and drop 'unsafe-inline'.
         if (!headers.ContainsKey("Content-Security-Policy"))
         {
-            headers["Content-Security-Policy"] =
-                "default-src 'self'; " +
-                "script-src 'self'; " +
-                "style-src 'self' 'unsafe-inline'; " +
-                "img-src 'self' data:; " +
-                "font-src 'self' data:; " +
-                "connect-src 'self'; " +
-                "frame-ancestors 'none'; " +
-                "base-uri 'self'; " +
-                "form-action 'self'";
+            headers["Content-Security-Policy"] = ContentSecurityPolicy;
         }
 
         return _next(context);

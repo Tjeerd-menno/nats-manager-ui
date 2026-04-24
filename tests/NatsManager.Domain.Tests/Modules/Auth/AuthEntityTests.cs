@@ -97,6 +97,16 @@ public sealed class UserTests
     }
 
     [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void RecordFailedLogin_WithNonPositiveLockoutDuration_ShouldThrow(int seconds)
+    {
+        var user = User.Create("admin", "Admin", "hash");
+        var act = () => user.RecordFailedLogin(lockoutDuration: TimeSpan.FromSeconds(seconds));
+        act.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Theory]
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]

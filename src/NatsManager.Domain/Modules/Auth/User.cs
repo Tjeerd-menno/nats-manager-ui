@@ -73,6 +73,9 @@ public sealed class User
         if (threshold < 1)
             throw new ArgumentOutOfRangeException(nameof(threshold), "Threshold must be at least 1.");
 
+        if (lockoutDuration is { } duration && duration <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(lockoutDuration), "Lockout duration must be positive.");
+
         if (FailedLoginAttempts < threshold)
         {
             FailedLoginAttempts++;
