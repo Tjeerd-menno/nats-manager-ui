@@ -105,11 +105,12 @@ This launches:
 ```bash
 cd src/NatsManager.Web
 dotnet restore
+dotnet tool restore
 dotnet ef database update --project ../NatsManager.Infrastructure
 dotnet run
 ```
 
-API available at `http://localhost:5000` (Swagger at `/swagger`, health at `/health`).
+API available at `http://localhost:5267` and `https://localhost:7047` (Swagger at `/swagger`, health at `/health`).
 </details>
 
 <details>
@@ -194,7 +195,7 @@ dotnet test
 # Frontend unit tests
 cd src/NatsManager.Frontend
 npm test
-npm run test:coverage
+npm test -- --coverage
 ```
 
 ### Lint & format
