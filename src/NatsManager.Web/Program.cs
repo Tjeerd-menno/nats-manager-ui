@@ -92,6 +92,17 @@ builder.Services.AddSingleton<ICredentialEncryptionService>(_ =>
     }
 });
 
+// CORS origins are read early so that the session cookie policy can be aligned.
+// When the SPA is served from a different origin than the API, cookies must use
+// SameSite=None (+ Secure) so that browsers will include them in cross-site
+// requests. With no cross-origin origins configured the stricter SameSite=Strict
+// default is kept.
+var allowedOrigins = builder.Configuration
+    .GetSection("Cors:AllowedOrigins")
+    .Get<string[]>() ?? [];
+
+var crossOriginEnabled = allowedOrigins.Length > 0;
+
 // Session — sliding 30-minute idle window. Abandoned browser tabs or stolen session
 // cookies are invalidated far sooner than the previous 8-hour window.
 builder.Services.AddDistributedMemoryCache();
@@ -100,8 +111,15 @@ builder.Services.AddSession(options =>
     options.IdleTimeout = TimeSpan.FromMinutes(30);
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
-    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-    options.Cookie.SameSite = SameSiteMode.Strict;
+    // When CORS cross-origin access is enabled the cookie must be SameSite=None
+    // so browsers will send it on cross-site requests. Secure is required by the
+    // SameSite=None specification.
+    options.Cookie.SecurePolicy = crossOriginEnabled
+        ? CookieSecurePolicy.Always
+        : CookieSecurePolicy.SameAsRequest;
+    options.Cookie.SameSite = crossOriginEnabled
+        ? SameSiteMode.None
+        : SameSiteMode.Strict;
 });
 builder.Services.AddAntiforgery(options =>
 {
@@ -129,10 +147,9 @@ builder.Services.AddAuthorization(options =>
 // (e.g. a CDN), populate `Cors:AllowedOrigins` with the explicit list of trusted
 // origins. The policy is opt-in: with no allowed origins configured the
 // middleware is effectively a no-op for cross-origin requests.
-var allowedOrigins = builder.Configuration
-    .GetSection("Cors:AllowedOrigins")
-    .Get<string[]>() ?? [];
-
+// NOTE: enabling cross-origin origins also sets the session cookie to
+// SameSite=None + Secure (see session configuration above) so that browsers
+// will include it in cross-site requests.
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
