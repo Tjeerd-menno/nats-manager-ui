@@ -58,6 +58,9 @@ jobs:
       - name: Build .NET solution
         run: dotnet build NatsManager.slnx --configuration Release --no-restore
 
+      - name: Trust HTTPS dev certificate
+        run: dotnet dev-certs https --trust
+
       - name: Install Playwright browsers
         run: pwsh tests/NatsManager.E2E.Tests/bin/Release/net10.0/playwright.ps1 install --with-deps chromium
 

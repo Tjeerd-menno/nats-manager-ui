@@ -82,7 +82,11 @@ public abstract class E2ETestBase : IAsyncLifetime
     protected async Task LoginAsAdminAsync(string navigateTo = "/dashboard")
     {
         // Login directly via the backend API (bypassing Vite proxy) for reliable session creation
-        using var handler = new HttpClientHandler { CookieContainer = new System.Net.CookieContainer() };
+        using var handler = new HttpClientHandler
+        {
+            CookieContainer = new System.Net.CookieContainer(),
+            ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator,
+        };
         using var httpClient = new HttpClient(handler) { BaseAddress = new Uri(Fixture.BackendUrl) };
 
         // Retry login a few times to handle cold-start transient failures
@@ -111,7 +115,11 @@ public abstract class E2ETestBase : IAsyncLifetime
     /// </summary>
     protected async Task<(HttpClient Client, HttpClientHandler Handler)> CreateAuthenticatedHttpClientAsync()
     {
-        var handler = new HttpClientHandler { CookieContainer = new System.Net.CookieContainer() };
+        var handler = new HttpClientHandler
+        {
+            CookieContainer = new System.Net.CookieContainer(),
+            ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator,
+        };
         var httpClient = new HttpClient(handler) { BaseAddress = new Uri(Fixture.BackendUrl) };
 
         HttpResponseMessage loginResponse = null!;

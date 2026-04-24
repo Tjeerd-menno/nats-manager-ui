@@ -119,7 +119,11 @@ public sealed class AppHostFixture : IAsyncLifetime
 
     private async Task WaitForFrontendReadyAsync(CancellationToken ct)
     {
-        using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+        using var handler = new System.Net.Http.HttpClientHandler
+        {
+            ServerCertificateCustomValidationCallback = System.Net.Http.HttpClientHandler.DangerousAcceptAnyServerCertificateValidator,
+        };
+        using var httpClient = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(5) };
         while (!ct.IsCancellationRequested)
         {
             try
