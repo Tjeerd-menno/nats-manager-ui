@@ -4,6 +4,7 @@ A unified, open-source web application for inspecting and administering [NATS](h
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![.NET 10](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
+[![Aspire 13.2](https://img.shields.io/badge/Aspire-13.2-512BD4?logo=dotnet)](https://aspire.dev/)
 [![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript)](https://www.typescriptlang.org/)
 
@@ -70,7 +71,7 @@ A modular monolith using Clean Architecture (Ports & Adapters):
 - Vite · Vitest · React Testing Library · MSW
 
 **Orchestration & Tooling**
-- .NET Aspire (AppHost + ServiceDefaults)
+- [.NET Aspire 13.2](https://aspire.dev/) (AppHost + ServiceDefaults)
 - Playwright (E2E tests)
 - ESLint · Prettier · `dotnet format`
 
@@ -81,13 +82,29 @@ A modular monolith using Clean Architecture (Ports & Adapters):
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
 - [Node.js 22 LTS](https://nodejs.org/) (with npm)
 - [Docker](https://www.docker.com/) (for the Aspire-managed NATS container)
-- .NET Aspire workload: `dotnet workload install aspire`
+- [Aspire CLI](https://aspire.dev/) (recommended — see install instructions below)
+
+**Install the Aspire CLI** (the recommended way to run the stack):
+
+```bash
+# Linux / macOS
+curl -sSL https://aspire.dev/install.sh | bash
+
+# Windows (PowerShell)
+irm https://aspire.dev/install.ps1 | iex
+```
+
+After installation, verify with `aspire --version`.
+
+> **Alternative (no Aspire CLI):** Install the Aspire workload instead and use `dotnet run` inside the AppHost project:
+> ```bash
+> dotnet workload install aspire
+> ```
 
 ### Run the full stack with Aspire (recommended)
 
 ```bash
-cd src/NatsManager.AppHost
-dotnet run
+aspire run
 ```
 
 This launches:
@@ -95,7 +112,7 @@ This launches:
 - A **NATS** container with JetStream enabled (`4222`)
 - The **backend** ASP.NET Core API
 - The **frontend** Vite dev server
-- The **Aspire Dashboard** (logs, traces, metrics) — opens automatically
+- The **Aspire Dashboard** (logs, traces, metrics) — URL is printed to the console
 
 ### Run components manually
 
@@ -110,7 +127,7 @@ dotnet ef database update --project ../NatsManager.Infrastructure
 dotnet run
 ```
 
-API available at `http://localhost:5267` and `https://localhost:7047` (Swagger at `/swagger`, health at `/health`).
+The URL and port are printed by `dotnet run` (Swagger at `/swagger`, health at `/health`).
 </details>
 
 <details>
@@ -242,4 +259,4 @@ Released under the [MIT License](./LICENSE).
 ## Acknowledgements
 
 - [NATS.io](https://nats.io) and the [NATS.Net](https://github.com/nats-io/nats.net) client team
-- [.NET Aspire](https://learn.microsoft.com/dotnet/aspire/) · [Mantine](https://mantine.dev/) · [TanStack](https://tanstack.com/)
+- [.NET Aspire](https://aspire.dev/) · [Mantine](https://mantine.dev/) · [TanStack](https://tanstack.com/)
