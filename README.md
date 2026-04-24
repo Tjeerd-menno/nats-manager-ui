@@ -195,7 +195,7 @@ dotnet test
 # Frontend unit tests
 cd src/NatsManager.Frontend
 npm test
-npm test -- --coverage
+npm run test:coverage
 ```
 
 ### Lint & format
