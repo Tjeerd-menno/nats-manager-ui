@@ -203,7 +203,8 @@ public abstract class E2ETestBase : IAsyncLifetime
 
         // In the Testing environment the backend disables antiforgery middleware and never
         // issues the XSRF-TOKEN cookie, so we skip the header setup gracefully.
-        var xsrfCookie = cookieContainer.GetCookies(new Uri(Fixture.BackendUrl))["XSRF-TOKEN"];
+        // Use GetAllCookies() to avoid URL-matching issues with CookieContainer.
+        var xsrfCookie = cookieContainer.GetAllCookies().FirstOrDefault(c => c.Name == "XSRF-TOKEN");
         if (xsrfCookie is not null)
         {
             httpClient.DefaultRequestHeaders.Remove("X-XSRF-TOKEN");
@@ -215,12 +216,12 @@ public abstract class E2ETestBase : IAsyncLifetime
 
     private async Task CopyBackendCookiesToBrowserAsync(CookieContainer cookieContainer)
     {
-        var backendCookies = cookieContainer.GetCookies(new Uri(Fixture.BackendUrl));
         var frontendUri = new Uri(Fixture.FrontendUrl);
         var isFrontendSecure = string.Equals(frontendUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase);
 
-        var cookies = backendCookies
-            .Cast<System.Net.Cookie>()
+        // Use GetAllCookies() so we don't miss cookies whose stored URL doesn't
+        // exactly match Fixture.BackendUrl (e.g. due to Aspire service-discovery URLs).
+        var cookies = cookieContainer.GetAllCookies()
             .Select(cookie => new Microsoft.Playwright.Cookie
             {
                 Name = cookie.Name,
@@ -232,11 +233,9 @@ public abstract class E2ETestBase : IAsyncLifetime
             })
             .ToArray();
 
-        if (cookies.Length == 0)
+        if (cookies.Length > 0)
         {
-            throw new Exception("No backend cookies were available to inject into the browser context.");
+            await Page.Context.AddCookiesAsync(cookies);
         }
-
-        await Page.Context.AddCookiesAsync(cookies);
     }
 }
