@@ -96,11 +96,6 @@ irm https://aspire.dev/install.ps1 | iex
 
 After installation, verify with `aspire --version`.
 
-> **Alternative (no Aspire CLI):** Install the Aspire workload instead and use `dotnet run` inside the AppHost project:
-> ```bash
-> dotnet workload install aspire
-> ```
-
 ### Run the full stack with Aspire (recommended)
 
 ```bash
