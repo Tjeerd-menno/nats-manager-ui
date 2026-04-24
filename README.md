@@ -43,7 +43,7 @@ A modular monolith using Clean Architecture (Ports & Adapters):
 | Application | `NatsManager.Application` | Use cases (commands/queries), output ports, FluentValidation validators. No framework references. |
 | Infrastructure | `NatsManager.Infrastructure` | NATS adapters (NATS.Net v2), EF Core (SQLite) repositories, auth services. |
 | Web | `NatsManager.Web` | ASP.NET Core Minimal API endpoints, presenters, middleware, DI composition. |
-| Frontend | `NatsManager.Frontend` | React 19 + Mantine 7 SPA organized by feature folders. |
+| Frontend | `NatsManager.Frontend` | React 19 + Mantine 9 SPA organized by feature folders. |
 | Orchestration | `NatsManager.AppHost` / `NatsManager.ServiceDefaults` | .NET Aspire local orchestration, OpenTelemetry, health checks, resilience. |
 
 **Bounded contexts** (mirrored on backend and frontend): `Audit`, `Auth`, `CoreNats`, `Dashboard`, `Environments`, `JetStream`, `KeyValue`, `ObjectStore`, `Search`, `Services`.
