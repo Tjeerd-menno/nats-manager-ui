@@ -127,9 +127,72 @@ public sealed class EnvironmentTests
         var env = Environment.Create("Env", "nats://localhost:4222",
             credentialType: CredentialType.Token, credentialReference: "original-ref");
 
-        env.Update("Env", "nats://localhost:4222", credentialReference: null);
+        env.Update(
+            "Env",
+            "nats://localhost:4222",
+            credentialType: CredentialType.Token,
+            credentialReference: null);
 
         env.CredentialReference.Should().Be("original-ref");
+    }
+
+    [Fact]
+    public void Create_WithNoneCredentialType_AndReference_ShouldThrow()
+    {
+        var act = () => Environment.Create(
+            "Env",
+            "nats://localhost:4222",
+            credentialType: CredentialType.None,
+            credentialReference: "leftover-token");
+
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("*CredentialReference must be empty*");
+    }
+
+    [Fact]
+    public void Create_WithCredentialTypeButNoReference_ShouldThrow()
+    {
+        var act = () => Environment.Create(
+            "Env",
+            "nats://localhost:4222",
+            credentialType: CredentialType.Token,
+            credentialReference: null);
+
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("*CredentialReference is required*");
+    }
+
+    [Fact]
+    public void Update_SwitchingToNone_ShouldClearExistingReference()
+    {
+        var env = Environment.Create("Env", "nats://localhost:4222",
+            credentialType: CredentialType.Token, credentialReference: "old-token");
+
+        env.Update(
+            "Env",
+            "nats://localhost:4222",
+            credentialType: CredentialType.None,
+            credentialReference: null);
+
+        env.CredentialType.Should().Be(CredentialType.None);
+        env.CredentialReference.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Update_SwitchingToCredentialTypeWithoutReference_ShouldThrow()
+    {
+        // Environment starts with no credentials, user tries to switch to Token auth
+        // but doesn't provide one — must be rejected so we never have a half-configured env.
+        var env = Environment.Create("Env", "nats://localhost:4222");
+
+        var act = () => env.Update(
+            "Env",
+            "nats://localhost:4222",
+            credentialType: CredentialType.Token,
+            credentialReference: null);
+
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("*CredentialReference is required*");
     }
 
     [Fact]

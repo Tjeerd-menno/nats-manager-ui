@@ -92,11 +92,12 @@ builder.Services.AddSingleton<ICredentialEncryptionService>(_ =>
     }
 });
 
-// Authentication
+// Session — sliding 30-minute idle window. Abandoned browser tabs or stolen session
+// cookies are invalidated far sooner than the previous 8-hour window.
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
-    options.IdleTimeout = TimeSpan.FromHours(8);
+    options.IdleTimeout = TimeSpan.FromMinutes(30);
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
     options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;

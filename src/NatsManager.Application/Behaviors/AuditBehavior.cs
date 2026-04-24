@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using NatsManager.Application.Modules.Audit.Ports;
 using NatsManager.Domain.Modules.Audit;
 using NatsManager.Domain.Modules.Common;
@@ -40,7 +41,10 @@ public interface IAuditTrail
         CancellationToken cancellationToken = default);
 }
 
-public sealed class AuditTrail(IAuditEventRepository auditRepository, IAuditContext auditContext) : IAuditTrail
+public sealed partial class AuditTrail(
+    IAuditEventRepository auditRepository,
+    IAuditContext auditContext,
+    ILogger<AuditTrail> logger) : IAuditTrail
 {
     public Task RecordAsync(IAuditableCommand command, CancellationToken cancellationToken)
         => RecordCoreAsync(command, command.ResourceId, cancellationToken);
@@ -48,7 +52,7 @@ public sealed class AuditTrail(IAuditEventRepository auditRepository, IAuditCont
     public Task RecordAsync(IAuditableCommand command, string resourceIdOverride, CancellationToken cancellationToken)
         => RecordCoreAsync(command, resourceIdOverride, cancellationToken);
 
-    public async Task RecordAsync(
+    public Task RecordAsync(
         ActionType actionType,
         ResourceType resourceType,
         string resourceId,
@@ -71,10 +75,10 @@ public sealed class AuditTrail(IAuditEventRepository auditRepository, IAuditCont
             details: details,
             source: source);
 
-        await auditRepository.AddAsync(auditEvent, cancellationToken);
+        return SafePersistAsync(auditEvent, cancellationToken);
     }
 
-    private async Task RecordCoreAsync(IAuditableCommand command, string resourceId, CancellationToken cancellationToken)
+    private Task RecordCoreAsync(IAuditableCommand command, string resourceId, CancellationToken cancellationToken)
     {
         var auditEvent = AuditEvent.Create(
             actorId: auditContext.ActorId,
@@ -88,6 +92,38 @@ public sealed class AuditTrail(IAuditEventRepository auditRepository, IAuditCont
             details: null,
             source: AuditSource.UserInitiated);
 
-        await auditRepository.AddAsync(auditEvent, cancellationToken);
+        return SafePersistAsync(auditEvent, cancellationToken);
     }
+
+    /// <summary>
+    /// Persists the audit event on a best-effort basis. A failure to write audit
+    /// (transient DB error, disk full, etc.) is logged but must never fail the
+    /// owning use case — the user action has already succeeded at this point.
+    /// Cancellation is honoured so that a cancelled caller still short-circuits.
+    /// </summary>
+    private async Task SafePersistAsync(AuditEvent auditEvent, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await auditRepository.AddAsync(auditEvent, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            LogAuditPersistenceFailed(ex, auditEvent.ActionType, auditEvent.ResourceType, auditEvent.ResourceId);
+        }
+    }
+
+    [LoggerMessage(
+        EventId = 5001,
+        Level = LogLevel.Error,
+        Message = "Failed to persist audit event for action {ActionType} on {ResourceType} '{ResourceId}'. Audit entry was dropped.")]
+    private partial void LogAuditPersistenceFailed(
+        Exception exception,
+        ActionType actionType,
+        ResourceType resourceType,
+        string resourceId);
 }

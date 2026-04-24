@@ -33,6 +33,8 @@ public sealed class Environment
         if (name.Length > 100)
             throw new ArgumentException("Name must not exceed 100 characters.", nameof(name));
 
+        ValidateCredentialInvariant(credentialType, credentialReference);
+
         var now = DateTimeOffset.UtcNow;
         return new Environment
         {
@@ -64,14 +66,49 @@ public sealed class Environment
         if (name.Length > 100)
             throw new ArgumentException("Name must not exceed 100 characters.", nameof(name));
 
+        // Work out the final credential reference that will be persisted, then validate the
+        // invariant against that. Rules:
+        //   * credentialType == None  ⇒ reference is always cleared, regardless of input.
+        //   * credentialType != None  ⇒ either a new non-empty reference must be provided,
+        //                               or the currently stored reference is reused.
+        string finalReference;
+        if (credentialType == CredentialType.None)
+        {
+            finalReference = string.Empty;
+        }
+        else
+        {
+            finalReference = credentialReference ?? CredentialReference;
+        }
+
+        ValidateCredentialInvariant(credentialType, finalReference);
+
         Name = name.Trim();
         Description = description?.Trim() ?? string.Empty;
         ServerUrl = serverUrl.Trim();
         CredentialType = credentialType;
-        if (credentialReference is not null)
-            CredentialReference = credentialReference;
+        CredentialReference = finalReference;
         IsProduction = isProduction;
         UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    private static void ValidateCredentialInvariant(CredentialType credentialType, string? credentialReference)
+    {
+        var hasReference = !string.IsNullOrWhiteSpace(credentialReference);
+
+        if (credentialType == CredentialType.None && hasReference)
+        {
+            throw new ArgumentException(
+                "CredentialReference must be empty when CredentialType is None.",
+                nameof(credentialReference));
+        }
+
+        if (credentialType != CredentialType.None && !hasReference)
+        {
+            throw new ArgumentException(
+                $"CredentialReference is required when CredentialType is {credentialType}.",
+                nameof(credentialReference));
+        }
     }
 
     public void UpdateConnectionStatus(ConnectionStatus status)
