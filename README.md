@@ -104,11 +104,12 @@ aspire run
 
 This launches:
 
-- A **NATS** container with JetStream enabled (`4222`)
+- A **NATS** container with JetStream enabled
 - The **backend** ASP.NET Core API
 - The **frontend** Vite dev server
 - The **Aspire Dashboard** (logs, traces, metrics) — URL is printed to the console
 
+For local development, Aspire may assign the NATS host port dynamically. Use the NATS endpoint shown in the Aspire console output or dashboard rather than assuming `4222`.
 ### Run components manually
 
 <details>
@@ -153,7 +154,7 @@ docker run -d --name nats-dev \
 2. Start the stack via Aspire.
 3. Open the frontend URL shown in the Aspire Dashboard.
 4. Sign in using the bootstrap admin credentials you configured.
-5. Go to **Environments** and register a NATS server (e.g. `nats://localhost:4222`).
+5. Go to **Environments** and register a NATS server using the endpoint provided by Aspire for the NATS resource. If you started NATS with the standalone Docker command above, use `nats://localhost:4222` because that command explicitly maps port `4222`.
 6. Test the connection — a green "Available" status indicates success.
 7. Explore JetStream, KV, Object Store, Services, and Core NATS for that environment.
 
