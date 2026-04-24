@@ -7,6 +7,9 @@ A unified, open-source web application for inspecting and administering [NATS](h
 [![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript)](https://www.typescriptlang.org/)
 
+> [!WARNING]
+> **Alpha — active development.** NATS Admin UI is in early-stage development and is **not yet production-ready**. APIs, data models, and UI may change without notice between releases. Expect bugs and incomplete features. Feedback and contributions are very welcome!
+
 ---
 
 ## Overview
