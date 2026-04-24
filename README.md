@@ -154,12 +154,13 @@ docker run -d --name nats-dev \
 
 ### First steps
 
-1. Start the stack via Aspire.
-2. Open the frontend URL shown in the Aspire Dashboard.
-3. Sign in with the default admin account (created during the first migration).
-4. Go to **Environments** and register a NATS server (e.g. `nats://localhost:4222`).
-5. Test the connection — a green "Available" status indicates success.
-6. Explore JetStream, KV, Object Store, Services, and Core NATS for that environment.
+1. Before starting the app against an empty database, provide the required startup settings: `Encryption:Key`, `BootstrapAdmin:Username`, and `BootstrapAdmin:Password` (for example via Aspire parameters or environment variables).
+2. Start the stack via Aspire.
+3. Open the frontend URL shown in the Aspire Dashboard.
+4. Sign in using the bootstrap admin credentials you configured.
+5. Go to **Environments** and register a NATS server (e.g. `nats://localhost:4222`).
+6. Test the connection — a green "Available" status indicates success.
+7. Explore JetStream, KV, Object Store, Services, and Core NATS for that environment.
 
 ## Project Structure
 
