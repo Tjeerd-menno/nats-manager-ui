@@ -182,7 +182,7 @@ builder.Services.AddRateLimiter(options =>
     {
         var partitionKey = httpContext.User.Identity?.IsAuthenticated == true
             ? $"user:{httpContext.User.Identity.Name}"
-            : $"ip:{httpContext.Connection.RemoteIpAddress}";
+            : $"ip:{httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
 
         return RateLimitPartition.GetSlidingWindowLimiter(
             partitionKey: partitionKey,
