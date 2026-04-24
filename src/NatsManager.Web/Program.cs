@@ -221,7 +221,7 @@ using (var scope = app.Services.CreateScope())
 
 app.UseExceptionHandler();
 
-if (!app.Environment.IsDevelopment())
+if (!app.Environment.IsDevelopment() && !app.Environment.IsEnvironment("Testing"))
 {
     app.UseHttpsRedirection();
     app.UseHsts();
