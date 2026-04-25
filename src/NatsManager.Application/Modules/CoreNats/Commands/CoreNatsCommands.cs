@@ -39,7 +39,7 @@ public sealed class PublishMessageCommandValidator : AbstractValidator<PublishMe
                 .Must(p =>
                 {
                     try { JsonDocument.Parse(p!); return true; }
-                    catch { return false; }
+                    catch (System.Text.Json.JsonException) { return false; }
                 })
                 .WithMessage("Payload is not valid JSON.");
         });
@@ -50,7 +50,7 @@ public sealed class PublishMessageCommandValidator : AbstractValidator<PublishMe
                 .Must(p =>
                 {
                     try { Convert.FromHexString(p!); return true; }
-                    catch { return false; }
+                    catch (FormatException) { return false; }
                 })
                 .WithMessage("Payload is not valid hex-encoded bytes.");
         });

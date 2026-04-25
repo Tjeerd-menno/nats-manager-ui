@@ -151,7 +151,7 @@ export function PublishMessageForm({ environmentId }: PublishMessageFormProps) {
               placeholder="Key"
               value={h.key}
               onChange={(e) => updateHeader(h.id, 'key', e.currentTarget.value)}
-              error={h.key === '' && headers.some((x) => x.id === h.id) ? 'Key required' : undefined}
+              error={h.key === '' ? 'Key required' : undefined}
               style={{ flex: 1 }}
             />
             <TextInput

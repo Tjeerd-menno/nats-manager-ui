@@ -10,7 +10,6 @@ public sealed class CoreNatsAdapterTests(NatsFixture fixture) : NatsIntegrationT
     private CoreNatsAdapter CreateAdapter()
     {
         var options = Options.Create(new CoreNatsMonitoringOptions());
-        var httpClientFactory = new System.Net.Http.HttpClient();
         var factory = new DefaultHttpClientFactory();
         return new CoreNatsAdapter(ConnectionFactory, factory, options, NullLogger<CoreNatsAdapter>());
     }
