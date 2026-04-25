@@ -18,9 +18,9 @@ public sealed class GetCoreStatusQueryHandler(ICoreNatsAdapter adapter) : IUseCa
 
 public sealed record GetSubjectsQuery(Guid EnvironmentId);
 
-public sealed class GetSubjectsQueryHandler(ICoreNatsAdapter adapter) : IUseCase<GetSubjectsQuery, IReadOnlyList<NatsSubjectInfo>>
+public sealed class GetSubjectsQueryHandler(ICoreNatsAdapter adapter) : IUseCase<GetSubjectsQuery, ListSubjectsResult>
 {
-    public async Task ExecuteAsync(GetSubjectsQuery request, IOutputPort<IReadOnlyList<NatsSubjectInfo>> outputPort, CancellationToken cancellationToken)
+    public async Task ExecuteAsync(GetSubjectsQuery request, IOutputPort<ListSubjectsResult> outputPort, CancellationToken cancellationToken)
     {
         var result = await adapter.ListSubjectsAsync(request.EnvironmentId, cancellationToken);
         outputPort.Success(result);

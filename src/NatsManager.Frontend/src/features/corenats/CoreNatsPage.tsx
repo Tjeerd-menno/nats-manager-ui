@@ -1,21 +1,36 @@
 import { useState } from 'react';
-import { Title, Text, Card, Stack, Group, Badge, Button, TextInput, Textarea, Modal, Loader, Center, SimpleGrid, Code } from '@mantine/core';
-import { useCoreNatsStatus, usePublishMessage } from './hooks/useCoreNats';
+import {
+  Title,
+  Text,
+  Card,
+  Stack,
+  Group,
+  Badge,
+  Button,
+  Modal,
+  Loader,
+  Center,
+  SimpleGrid,
+  Code,
+} from '@mantine/core';
+import { useCoreNatsStatus } from './hooks/useCoreNats';
 import { useEnvironmentContext } from '../environments/EnvironmentContext';
+import { SubjectBrowser } from './components/SubjectBrowser';
+import { PublishMessageForm } from './components/PublishMessageForm';
+import { LiveMessageViewer } from './components/LiveMessageViewer';
 
 export default function CoreNatsPage() {
   const { selectedEnvironmentId } = useEnvironmentContext();
   const { data: serverInfo, isLoading } = useCoreNatsStatus(selectedEnvironmentId);
-  const publishMutation = usePublishMessage(selectedEnvironmentId);
   const [publishOpen, setPublishOpen] = useState(false);
-  const [subject, setSubject] = useState('');
-  const [payload, setPayload] = useState('');
 
   if (!selectedEnvironmentId) {
     return (
       <div>
         <Title order={2}>Core NATS</Title>
-        <Text c="dimmed" mt="sm">Select an environment to view NATS server info.</Text>
+        <Text c="dimmed" mt="sm">
+          Select an environment to view NATS server info.
+        </Text>
       </div>
     );
   }
@@ -26,16 +41,12 @@ export default function CoreNatsPage() {
     return (
       <div>
         <Title order={2}>Core NATS</Title>
-        <Text c="red" mt="sm">Unable to retrieve server information.</Text>
+        <Text c="red" mt="sm">
+          Unable to retrieve server information.
+        </Text>
       </div>
     );
   }
-
-  const handlePublish = () => {
-    publishMutation.mutate({ subject, payload: payload || undefined }, {
-      onSuccess: () => { setPublishOpen(false); setSubject(''); setPayload(''); },
-    });
-  };
 
   return (
     <Stack>
@@ -80,14 +91,18 @@ export default function CoreNatsPage() {
         </Card>
       </SimpleGrid>
 
-      <Modal opened={publishOpen} onClose={() => setPublishOpen(false)} title="Publish Message">
-        <Stack>
-          <TextInput label="Subject" value={subject} onChange={(e) => setSubject(e.currentTarget.value)} required />
-          <Textarea label="Payload" value={payload} onChange={(e) => setPayload(e.currentTarget.value)} minRows={3} />
-          <Button onClick={handlePublish} loading={publishMutation.isPending}>Publish</Button>
-          {publishMutation.isSuccess && <Text c="green" size="sm">Message published successfully</Text>}
-          {publishMutation.error && <Text c="red" size="sm">Error: {(publishMutation.error as Error).message}</Text>}
-        </Stack>
+      <Card shadow="sm" padding="lg" radius="md" withBorder>
+        <Title order={4} mb="sm">Active Subjects</Title>
+        <SubjectBrowser environmentId={selectedEnvironmentId} />
+      </Card>
+
+      <Card shadow="sm" padding="lg" radius="md" withBorder>
+        <Title order={4} mb="sm">Live Message Viewer</Title>
+        <LiveMessageViewer environmentId={selectedEnvironmentId} />
+      </Card>
+
+      <Modal opened={publishOpen} onClose={() => setPublishOpen(false)} title="Publish Message" size="lg">
+        <PublishMessageForm environmentId={selectedEnvironmentId} />
       </Modal>
     </Stack>
   );

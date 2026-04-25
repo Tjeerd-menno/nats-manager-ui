@@ -61,14 +61,31 @@ public sealed class GetSubjectsQueryTests
     {
         var envId = Guid.NewGuid();
         var subjects = new List<NatsSubjectInfo> { new("orders.>", 42) };
-        _adapter.ListSubjectsAsync(envId, Arg.Any<CancellationToken>()).Returns(subjects);
+        _adapter.ListSubjectsAsync(envId, Arg.Any<CancellationToken>())
+            .Returns(new ListSubjectsResult(subjects, IsMonitoringAvailable: true));
 
-        var outputPort = new TestOutputPort<IReadOnlyList<NatsSubjectInfo>>();
+        var outputPort = new TestOutputPort<ListSubjectsResult>();
         await _handler.ExecuteAsync(new GetSubjectsQuery(envId), outputPort, CancellationToken.None);
 
         outputPort.IsSuccess.ShouldBeTrue();
-        outputPort.Value.Count().ShouldBe(1);
-        outputPort.Value![0].Subject.ShouldBe("orders.>");
+        outputPort.Value!.Subjects.Count.ShouldBe(1);
+        outputPort.Value.Subjects[0].Subject.ShouldBe("orders.>");
+        outputPort.Value.IsMonitoringAvailable.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task Handle_WhenMonitoringUnavailable_ShouldReturnEmptyWithFlag()
+    {
+        var envId = Guid.NewGuid();
+        _adapter.ListSubjectsAsync(envId, Arg.Any<CancellationToken>())
+            .Returns(new ListSubjectsResult([], IsMonitoringAvailable: false));
+
+        var outputPort = new TestOutputPort<ListSubjectsResult>();
+        await _handler.ExecuteAsync(new GetSubjectsQuery(envId), outputPort, CancellationToken.None);
+
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value!.Subjects.Count.ShouldBe(0);
+        outputPort.Value.IsMonitoringAvailable.ShouldBeFalse();
     }
 }
 
@@ -117,7 +134,8 @@ public sealed class PublishMessageCommandTests
         {
             EnvironmentId = envId,
             Subject = "orders.new",
-            Payload = "hello"
+            Payload = "hello",
+            PayloadFormat = PayloadFormat.PlainText,
         };
 
         var outputPort = new TestOutputPort<Unit>();
@@ -128,6 +146,8 @@ public sealed class PublishMessageCommandTests
             envId,
             "orders.new",
             Arg.Is<byte[]>(b => System.Text.Encoding.UTF8.GetString(b) == "hello"),
+            Arg.Any<IReadOnlyDictionary<string, string>?>(),
+            Arg.Any<string?>(),
             Arg.Any<CancellationToken>());
     }
 
@@ -150,6 +170,102 @@ public sealed class PublishMessageCommandTests
             envId,
             "events.ping",
             Arg.Is<byte[]>(b => b.Length == 0),
+            Arg.Any<IReadOnlyDictionary<string, string>?>(),
+            Arg.Any<string?>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_WithHeaders_ShouldPassHeadersToAdapter()
+    {
+        var envId = Guid.NewGuid();
+        var headers = new Dictionary<string, string> { ["X-Source"] = "test" };
+        var command = new PublishMessageCommand
+        {
+            EnvironmentId = envId,
+            Subject = "orders.new",
+            Payload = "hello",
+            Headers = headers,
+        };
+
+        var outputPort = new TestOutputPort<Unit>();
+        await _handler.ExecuteAsync(command, outputPort, CancellationToken.None);
+
+        outputPort.IsSuccess.ShouldBeTrue();
+        await _adapter.Received(1).PublishAsync(
+            envId,
+            "orders.new",
+            Arg.Any<byte[]>(),
+            Arg.Is<IReadOnlyDictionary<string, string>?>(h => h != null && h["X-Source"] == "test"),
+            Arg.Any<string?>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_WithReplyTo_ShouldPassReplyToAdapter()
+    {
+        var envId = Guid.NewGuid();
+        var command = new PublishMessageCommand
+        {
+            EnvironmentId = envId,
+            Subject = "orders.new",
+            Payload = "hello",
+            ReplyTo = "orders.reply",
+        };
+
+        var outputPort = new TestOutputPort<Unit>();
+        await _handler.ExecuteAsync(command, outputPort, CancellationToken.None);
+
+        outputPort.IsSuccess.ShouldBeTrue();
+        await _adapter.Received(1).PublishAsync(
+            envId,
+            "orders.new",
+            Arg.Any<byte[]>(),
+            Arg.Any<IReadOnlyDictionary<string, string>?>(),
+            "orders.reply",
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_WithJsonFormat_ValidJson_ShouldSucceed()
+    {
+        var envId = Guid.NewGuid();
+        var command = new PublishMessageCommand
+        {
+            EnvironmentId = envId,
+            Subject = "orders.new",
+            Payload = "{\"orderId\":\"abc\"}",
+            PayloadFormat = PayloadFormat.Json,
+        };
+
+        var outputPort = new TestOutputPort<Unit>();
+        await _handler.ExecuteAsync(command, outputPort, CancellationToken.None);
+
+        outputPort.IsSuccess.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task Handle_WithHexBytesFormat_ShouldDecodeAndPublish()
+    {
+        var envId = Guid.NewGuid();
+        var command = new PublishMessageCommand
+        {
+            EnvironmentId = envId,
+            Subject = "orders.new",
+            Payload = "48656C6C6F",  // "Hello" in hex
+            PayloadFormat = PayloadFormat.HexBytes,
+        };
+
+        var outputPort = new TestOutputPort<Unit>();
+        await _handler.ExecuteAsync(command, outputPort, CancellationToken.None);
+
+        outputPort.IsSuccess.ShouldBeTrue();
+        await _adapter.Received(1).PublishAsync(
+            envId,
+            "orders.new",
+            Arg.Is<byte[]>(b => System.Text.Encoding.ASCII.GetString(b) == "Hello"),
+            Arg.Any<IReadOnlyDictionary<string, string>?>(),
+            Arg.Any<string?>(),
             Arg.Any<CancellationToken>());
     }
 }
@@ -172,5 +288,46 @@ public sealed class PublishMessageCommandValidatorTests
         var command = new PublishMessageCommand { Subject = "test.subject" };
         var result = _validator.Validate(command);
         result.IsValid.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void Should_Fail_WhenJsonFormat_InvalidJson()
+    {
+        var command = new PublishMessageCommand
+        {
+            Subject = "test.subject",
+            Payload = "not-valid-json",
+            PayloadFormat = PayloadFormat.Json,
+        };
+        var result = _validator.Validate(command);
+        result.IsValid.ShouldBeFalse();
+        result.Errors.ShouldContain(e => e.ErrorMessage.Contains("JSON"));
+    }
+
+    [Fact]
+    public void Should_Fail_WhenHexBytesFormat_InvalidHex()
+    {
+        var command = new PublishMessageCommand
+        {
+            Subject = "test.subject",
+            Payload = "ZZZZ",
+            PayloadFormat = PayloadFormat.HexBytes,
+        };
+        var result = _validator.Validate(command);
+        result.IsValid.ShouldBeFalse();
+        result.Errors.ShouldContain(e => e.ErrorMessage.Contains("hex"));
+    }
+
+    [Fact]
+    public void Should_Fail_WhenHeaderKeyIsEmpty()
+    {
+        var command = new PublishMessageCommand
+        {
+            Subject = "test.subject",
+            Headers = new Dictionary<string, string> { [""] = "value" },
+        };
+        var result = _validator.Validate(command);
+        result.IsValid.ShouldBeFalse();
+        result.Errors.ShouldContain(e => e.ErrorMessage.Contains("Header key"));
     }
 }
