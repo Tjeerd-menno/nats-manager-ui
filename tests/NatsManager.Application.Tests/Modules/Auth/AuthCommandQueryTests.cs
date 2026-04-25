@@ -1,4 +1,4 @@
-using FluentAssertions;
+using Shouldly;
 using NSubstitute;
 using NatsManager.Application.Behaviors;
 using NatsManager.Application.Common;
@@ -33,11 +33,11 @@ public sealed class LoginCommandTests
         var outputPort = new TestOutputPort<LoginResult>();
         await _handler.ExecuteAsync(new LoginCommand("admin", "password123"), outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        outputPort.Value!.Id.Should().Be(user.Id);
-        outputPort.Value!.Username.Should().Be("admin");
-        outputPort.Value!.DisplayName.Should().Be("Admin User");
-        outputPort.Value!.Roles.Should().BeEmpty();
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value!.Id.ShouldBe(user.Id);
+        outputPort.Value!.Username.ShouldBe("admin");
+        outputPort.Value!.DisplayName.ShouldBe("Admin User");
+        outputPort.Value!.Roles.ShouldBeEmpty();
     }
 
     [Fact]
@@ -52,7 +52,7 @@ public sealed class LoginCommandTests
         var outputPort = new TestOutputPort<LoginResult>();
         await _handler.ExecuteAsync(new LoginCommand("admin", "password123"), outputPort, CancellationToken.None);
 
-        user.LastLoginAt.Should().NotBeNull();
+        user.LastLoginAt.ShouldNotBeNull();
         await _userRepo.Received(1).UpdateAsync(user, Arg.Any<CancellationToken>());
     }
 
@@ -64,7 +64,7 @@ public sealed class LoginCommandTests
         var outputPort = new TestOutputPort<LoginResult>();
         await _handler.ExecuteAsync(new LoginCommand("unknown", "pass"), outputPort, CancellationToken.None);
 
-        outputPort.IsUnauthorized.Should().BeTrue();
+        outputPort.IsUnauthorized.ShouldBeTrue();
     }
 
     [Fact]
@@ -77,7 +77,7 @@ public sealed class LoginCommandTests
         var outputPort = new TestOutputPort<LoginResult>();
         await _handler.ExecuteAsync(new LoginCommand("admin", "pass"), outputPort, CancellationToken.None);
 
-        outputPort.IsUnauthorized.Should().BeTrue();
+        outputPort.IsUnauthorized.ShouldBeTrue();
     }
 
     [Fact]
@@ -90,7 +90,7 @@ public sealed class LoginCommandTests
         var outputPort = new TestOutputPort<LoginResult>();
         await _handler.ExecuteAsync(new LoginCommand("admin", "wrong"), outputPort, CancellationToken.None);
 
-        outputPort.IsUnauthorized.Should().BeTrue();
+        outputPort.IsUnauthorized.ShouldBeTrue();
     }
 
     [Fact]
@@ -103,7 +103,7 @@ public sealed class LoginCommandTests
         var outputPort = new TestOutputPort<LoginResult>();
         await _handler.ExecuteAsync(new LoginCommand("admin", "wrong"), outputPort, CancellationToken.None);
 
-        user.FailedLoginAttempts.Should().Be(1);
+        user.FailedLoginAttempts.ShouldBe(1);
         await _userRepo.Received(1).UpdateAsync(user, Arg.Any<CancellationToken>());
     }
 
@@ -121,7 +121,7 @@ public sealed class LoginCommandTests
         var outputPort = new TestOutputPort<LoginResult>();
         await _handler.ExecuteAsync(new LoginCommand("admin", "any"), outputPort, CancellationToken.None);
 
-        outputPort.IsUnauthorized.Should().BeTrue();
+        outputPort.IsUnauthorized.ShouldBeTrue();
         _hasher.DidNotReceiveWithAnyArgs().Verify(default!, default!);
     }
 
@@ -195,8 +195,8 @@ public sealed class CreateUserCommandTests
             new CreateUserCommand { Username = "newuser", DisplayName = "New User", Password = "password123" },
             outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        outputPort.Value.Should().NotBeEmpty();
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value.ShouldNotBe(Guid.Empty);
         await _userRepo.Received(1).AddAsync(Arg.Is<User>(u => u.Username == "newuser" && u.PasswordHash == "hashed-pw"), Arg.Any<CancellationToken>());
     }
 
@@ -211,7 +211,7 @@ public sealed class CreateUserCommandTests
             new CreateUserCommand { Username = "taken", DisplayName = "User", Password = "password123" },
             outputPort, CancellationToken.None);
 
-        outputPort.IsConflict.Should().BeTrue();
+        outputPort.IsConflict.ShouldBeTrue();
     }
 }
 
@@ -235,8 +235,8 @@ public sealed class UpdateUserCommandTests
         var outputPort = new TestOutputPort<Unit>();
         await _handler.ExecuteAsync(new UpdateUserCommand { UserId = user.Id, DisplayName = "New Name" }, outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        user.DisplayName.Should().Be("New Name");
+        outputPort.IsSuccess.ShouldBeTrue();
+        user.DisplayName.ShouldBe("New Name");
         await _userRepo.Received(1).UpdateAsync(user, Arg.Any<CancellationToken>());
     }
 
@@ -249,7 +249,7 @@ public sealed class UpdateUserCommandTests
         var outputPort = new TestOutputPort<Unit>();
         await _handler.ExecuteAsync(new UpdateUserCommand { UserId = id, DisplayName = "Name" }, outputPort, CancellationToken.None);
 
-        outputPort.IsNotFound.Should().BeTrue();
+        outputPort.IsNotFound.ShouldBeTrue();
     }
 }
 
@@ -273,8 +273,8 @@ public sealed class DeactivateUserCommandTests
         var outputPort = new TestOutputPort<Unit>();
         await _handler.ExecuteAsync(new DeactivateUserCommand { UserId = user.Id }, outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        user.IsActive.Should().BeFalse();
+        outputPort.IsSuccess.ShouldBeTrue();
+        user.IsActive.ShouldBeFalse();
         await _userRepo.Received(1).UpdateAsync(user, Arg.Any<CancellationToken>());
     }
 
@@ -287,7 +287,7 @@ public sealed class DeactivateUserCommandTests
         var outputPort = new TestOutputPort<Unit>();
         await _handler.ExecuteAsync(new DeactivateUserCommand { UserId = id }, outputPort, CancellationToken.None);
 
-        outputPort.IsNotFound.Should().BeTrue();
+        outputPort.IsNotFound.ShouldBeTrue();
     }
 }
 
@@ -316,7 +316,7 @@ public sealed class AssignRoleCommandTests
         var outputPort = new TestOutputPort<Unit>();
         await _handler.ExecuteAsync(command, outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
+        outputPort.IsSuccess.ShouldBeTrue();
         await _userRepo.Received(1).AddRoleAssignmentAsync(
             Arg.Is<UserRoleAssignment>(a => a.UserId == command.UserId && a.RoleId == command.RoleId),
             Arg.Any<CancellationToken>());
@@ -346,7 +346,7 @@ public sealed class RevokeRoleCommandTests
         var outputPort = new TestOutputPort<Unit>();
         await _handler.ExecuteAsync(new RevokeRoleCommand { UserId = userId, AssignmentId = assignmentId }, outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
+        outputPort.IsSuccess.ShouldBeTrue();
         await _userRepo.Received(1).RemoveRoleAssignmentAsync(assignmentId, Arg.Any<CancellationToken>());
     }
 }
@@ -370,11 +370,11 @@ public sealed class GetUsersQueryTests
         var outputPort = new TestOutputPort<IReadOnlyList<UserDto>>();
         await _handler.ExecuteAsync(new GetUsersQuery(), outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        outputPort.Value.Should().HaveCount(1);
-        outputPort.Value![0].Username.Should().Be("admin");
-        outputPort.Value![0].DisplayName.Should().Be("Admin User");
-        outputPort.Value![0].IsActive.Should().BeTrue();
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value.Count().ShouldBe(1);
+        outputPort.Value![0].Username.ShouldBe("admin");
+        outputPort.Value![0].DisplayName.ShouldBe("Admin User");
+        outputPort.Value![0].IsActive.ShouldBeTrue();
     }
 }
 
@@ -397,10 +397,10 @@ public sealed class GetRolesQueryTests
         var outputPort = new TestOutputPort<IReadOnlyList<RoleDto>>();
         await _handler.ExecuteAsync(new GetRolesQuery(), outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        outputPort.Value.Should().HaveCount(1);
-        outputPort.Value![0].Name.Should().Be("Administrator");
-        outputPort.Value![0].Description.Should().Be("Full access");
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value.Count().ShouldBe(1);
+        outputPort.Value![0].Name.ShouldBe("Administrator");
+        outputPort.Value![0].Description.ShouldBe("Full access");
     }
 }
 
@@ -429,9 +429,9 @@ public sealed class GetUserRolesQueryTests
         var outputPort = new TestOutputPort<IReadOnlyList<UserRoleDto>>();
         await _handler.ExecuteAsync(new GetUserRolesQuery(userId), outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        outputPort.Value.Should().HaveCount(1);
-        outputPort.Value![0].RoleName.Should().Be("Admin");
-        outputPort.Value![0].RoleId.Should().Be(role.Id);
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value.Count().ShouldBe(1);
+        outputPort.Value![0].RoleName.ShouldBe("Admin");
+        outputPort.Value![0].RoleId.ShouldBe(role.Id);
     }
 }

@@ -1,4 +1,4 @@
-using FluentAssertions;
+using Shouldly;
 using NSubstitute;
 using NatsManager.Application.Common;
 using NatsManager.Application.Modules.Audit.Ports;
@@ -31,11 +31,11 @@ public sealed class GetAuditEventsQueryTests
         var outputPort = new TestOutputPort<AuditEventsResult>();
         await _handler.ExecuteAsync(new GetAuditEventsQuery { Page = 1, PageSize = 50 }, outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        outputPort.Value!.Items.Should().HaveCount(1);
-        outputPort.Value!.TotalCount.Should().Be(1);
-        outputPort.Value!.Page.Should().Be(1);
-        outputPort.Value!.PageSize.Should().Be(50);
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value!.Items.Count().ShouldBe(1);
+        outputPort.Value!.TotalCount.ShouldBe(1);
+        outputPort.Value!.Page.ShouldBe(1);
+        outputPort.Value!.PageSize.ShouldBe(50);
     }
 
     [Fact]
@@ -53,17 +53,17 @@ public sealed class GetAuditEventsQueryTests
         var outputPort = new TestOutputPort<AuditEventsResult>();
         await _handler.ExecuteAsync(new GetAuditEventsQuery { Page = 1, PageSize = 10 }, outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
+        outputPort.IsSuccess.ShouldBeTrue();
         var dto = outputPort.Value!.Items[0];
-        dto.ActorId.Should().Be(actorId);
-        dto.ActorName.Should().Be("admin");
-        dto.ActionType.Should().Be(ActionType.Delete);
-        dto.ResourceType.Should().Be(ResourceType.Stream);
-        dto.ResourceId.Should().Be("stream-1");
-        dto.EnvironmentId.Should().Be(envId);
-        dto.Outcome.Should().Be(Outcome.Failure);
-        dto.Details.Should().Be("timeout");
-        dto.Source.Should().Be(AuditSource.SystemGenerated);
+        dto.ActorId.ShouldBe(actorId);
+        dto.ActorName.ShouldBe("admin");
+        dto.ActionType.ShouldBe(ActionType.Delete);
+        dto.ResourceType.ShouldBe(ResourceType.Stream);
+        dto.ResourceId.ShouldBe("stream-1");
+        dto.EnvironmentId.ShouldBe(envId);
+        dto.Outcome.ShouldBe(Outcome.Failure);
+        dto.Details.ShouldBe("timeout");
+        dto.Source.ShouldBe(AuditSource.SystemGenerated);
     }
 
     [Fact]
@@ -93,8 +93,8 @@ public sealed class GetAuditEventsQueryTests
         var outputPort = new TestOutputPort<AuditEventsResult>();
         await _handler.ExecuteAsync(query, outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        outputPort.Value!.Items.Should().BeEmpty();
-        outputPort.Value!.TotalCount.Should().Be(0);
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value!.Items.ShouldBeEmpty();
+        outputPort.Value!.TotalCount.ShouldBe(0);
     }
 }

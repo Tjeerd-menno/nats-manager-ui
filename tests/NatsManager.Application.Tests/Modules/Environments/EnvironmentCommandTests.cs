@@ -1,4 +1,4 @@
-using FluentAssertions;
+using Shouldly;
 using NSubstitute;
 using NatsManager.Application.Behaviors;
 using NatsManager.Application.Common;
@@ -39,9 +39,9 @@ public sealed class RegisterEnvironmentCommandTests
         var outputPort = new TestOutputPort<RegisterEnvironmentResult>();
         await _handler.ExecuteAsync(command, outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        outputPort.Value!.Id.Should().NotBeEmpty();
-        outputPort.Value!.Name.Should().Be("Test Env");
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value!.Id.ShouldNotBe(Guid.Empty);
+        outputPort.Value!.Name.ShouldBe("Test Env");
         await _repository.Received(1).AddAsync(Arg.Any<Environment>(), Arg.Any<CancellationToken>());
     }
 
@@ -60,7 +60,7 @@ public sealed class RegisterEnvironmentCommandTests
         var outputPort = new TestOutputPort<RegisterEnvironmentResult>();
         await _handler.ExecuteAsync(command, outputPort, CancellationToken.None);
 
-        outputPort.IsConflict.Should().BeTrue();
+        outputPort.IsConflict.ShouldBeTrue();
     }
 
     [Fact]
@@ -81,7 +81,7 @@ public sealed class RegisterEnvironmentCommandTests
         var outputPort = new TestOutputPort<RegisterEnvironmentResult>();
         await _handler.ExecuteAsync(command, outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
+        outputPort.IsSuccess.ShouldBeTrue();
         _encryption.Received(1).Encrypt("my-secret-token");
         await _repository.Received(1).AddAsync(
             Arg.Is<Environment>(e => e.CredentialReference == "encrypted-token"),
@@ -104,7 +104,7 @@ public sealed class RegisterEnvironmentCommandTests
         var outputPort = new TestOutputPort<RegisterEnvironmentResult>();
         await _handler.ExecuteAsync(command, outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
+        outputPort.IsSuccess.ShouldBeTrue();
         _encryption.DidNotReceive().Encrypt(Arg.Any<string>());
     }
 }
@@ -124,7 +124,7 @@ public sealed class RegisterEnvironmentCommandValidatorTests
 
         var result = _validator.Validate(command);
 
-        result.IsValid.Should().BeTrue();
+        result.IsValid.ShouldBeTrue();
     }
 
     [Fact]
@@ -138,8 +138,8 @@ public sealed class RegisterEnvironmentCommandValidatorTests
 
         var result = _validator.Validate(command);
 
-        result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(e => e.PropertyName == "Name");
+        result.IsValid.ShouldBeFalse();
+        result.Errors.ShouldContain(e => e.PropertyName == "Name");
     }
 
     [Fact]
@@ -155,7 +155,7 @@ public sealed class RegisterEnvironmentCommandValidatorTests
 
         var result = _validator.Validate(command);
 
-        result.IsValid.Should().BeFalse();
+        result.IsValid.ShouldBeFalse();
     }
 
     [Theory]
@@ -170,7 +170,7 @@ public sealed class RegisterEnvironmentCommandValidatorTests
 
         var result = _validator.Validate(command);
 
-        result.IsValid.Should().BeTrue(because: string.Join("; ", result.Errors.Select(e => e.ErrorMessage)));
+        result.IsValid.ShouldBeTrue(string.Join("; ", result.Errors.Select(e => e.ErrorMessage)));
     }
 
     [Theory]
@@ -186,8 +186,8 @@ public sealed class RegisterEnvironmentCommandValidatorTests
 
         var result = _validator.Validate(command);
 
-        result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(e => e.PropertyName == nameof(RegisterEnvironmentCommand.ServerUrl));
+        result.IsValid.ShouldBeFalse();
+        result.Errors.ShouldContain(e => e.PropertyName == nameof(RegisterEnvironmentCommand.ServerUrl));
     }
 }
 
@@ -223,7 +223,7 @@ public sealed class UpdateEnvironmentCommandTests
         var outputPort = new TestOutputPort<Unit>();
         await _handler.ExecuteAsync(command, outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
+        outputPort.IsSuccess.ShouldBeTrue();
         await _repository.Received(1).UpdateAsync(existing, Arg.Any<CancellationToken>());
         await _connectionFactory.Received(1).RemoveConnectionAsync(envId, Arg.Any<CancellationToken>());
     }
@@ -243,7 +243,7 @@ public sealed class UpdateEnvironmentCommandTests
         var outputPort = new TestOutputPort<Unit>();
         await _handler.ExecuteAsync(command, outputPort, CancellationToken.None);
 
-        outputPort.IsNotFound.Should().BeTrue();
+        outputPort.IsNotFound.ShouldBeTrue();
     }
 
     [Fact]
@@ -264,7 +264,7 @@ public sealed class UpdateEnvironmentCommandTests
         var outputPort = new TestOutputPort<Unit>();
         await _handler.ExecuteAsync(command, outputPort, CancellationToken.None);
 
-        outputPort.IsConflict.Should().BeTrue();
+        outputPort.IsConflict.ShouldBeTrue();
     }
 }
 
@@ -292,7 +292,7 @@ public sealed class DeleteEnvironmentCommandTests
         var outputPort = new TestOutputPort<Unit>();
         await _handler.ExecuteAsync(command, outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
+        outputPort.IsSuccess.ShouldBeTrue();
         await _connectionFactory.Received(1).RemoveConnectionAsync(envId, Arg.Any<CancellationToken>());
         await _repository.Received(1).DeleteAsync(existing, Arg.Any<CancellationToken>());
     }
@@ -307,7 +307,7 @@ public sealed class DeleteEnvironmentCommandTests
         var outputPort = new TestOutputPort<Unit>();
         await _handler.ExecuteAsync(command, outputPort, CancellationToken.None);
 
-        outputPort.IsNotFound.Should().BeTrue();
+        outputPort.IsNotFound.ShouldBeTrue();
     }
 }
 
@@ -337,12 +337,12 @@ public sealed class TestConnectionCommandTests
         var outputPort = new TestOutputPort<TestConnectionResult>();
         await _handler.ExecuteAsync(command, outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        outputPort.Value!.Reachable.Should().BeTrue();
-        outputPort.Value!.LatencyMs.Should().Be(5);
-        outputPort.Value!.ServerVersion.Should().Be("2.10.0");
-        outputPort.Value!.JetStreamAvailable.Should().BeTrue();
-        existing.ConnectionStatus.Should().Be(ConnectionStatus.Available);
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value!.Reachable.ShouldBeTrue();
+        outputPort.Value!.LatencyMs.ShouldBe(5);
+        outputPort.Value!.ServerVersion.ShouldBe("2.10.0");
+        outputPort.Value!.JetStreamAvailable.ShouldBeTrue();
+        existing.ConnectionStatus.ShouldBe(ConnectionStatus.Available);
         await _repository.Received(1).UpdateAsync(existing, Arg.Any<CancellationToken>());
     }
 
@@ -360,9 +360,9 @@ public sealed class TestConnectionCommandTests
         var outputPort = new TestOutputPort<TestConnectionResult>();
         await _handler.ExecuteAsync(command, outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        outputPort.Value!.Reachable.Should().BeFalse();
-        existing.ConnectionStatus.Should().Be(ConnectionStatus.Unavailable);
+        outputPort.IsSuccess.ShouldBeTrue();
+        outputPort.Value!.Reachable.ShouldBeFalse();
+        existing.ConnectionStatus.ShouldBe(ConnectionStatus.Unavailable);
     }
 
     [Fact]
@@ -374,7 +374,7 @@ public sealed class TestConnectionCommandTests
         var outputPort = new TestOutputPort<TestConnectionResult>();
         await _handler.ExecuteAsync(command, outputPort, CancellationToken.None);
 
-        outputPort.IsNotFound.Should().BeTrue();
+        outputPort.IsNotFound.ShouldBeTrue();
     }
 }
 
@@ -403,8 +403,8 @@ public sealed class EnableDisableEnvironmentCommandTests
         var outputPort = new TestOutputPort<Unit>();
         await _handler.ExecuteAsync(command, outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        existing.IsEnabled.Should().BeTrue();
+        outputPort.IsSuccess.ShouldBeTrue();
+        existing.IsEnabled.ShouldBeTrue();
         await _repository.Received(1).UpdateAsync(existing, Arg.Any<CancellationToken>());
     }
 
@@ -420,8 +420,8 @@ public sealed class EnableDisableEnvironmentCommandTests
         var outputPort = new TestOutputPort<Unit>();
         await _handler.ExecuteAsync(command, outputPort, CancellationToken.None);
 
-        outputPort.IsSuccess.Should().BeTrue();
-        existing.IsEnabled.Should().BeFalse();
+        outputPort.IsSuccess.ShouldBeTrue();
+        existing.IsEnabled.ShouldBeFalse();
         await _connectionFactory.Received(1).RemoveConnectionAsync(envId, Arg.Any<CancellationToken>());
     }
 }

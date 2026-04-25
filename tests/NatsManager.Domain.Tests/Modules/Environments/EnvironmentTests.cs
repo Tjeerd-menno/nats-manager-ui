@@ -1,4 +1,4 @@
-using FluentAssertions;
+using Shouldly;
 using NatsManager.Domain.Modules.Common;
 using Environment = NatsManager.Domain.Modules.Environments.Environment;
 
@@ -11,18 +11,18 @@ public sealed class EnvironmentTests
     {
         var env = Environment.Create("Test Env", "nats://localhost:4222");
 
-        env.Id.Should().NotBeEmpty();
-        env.Name.Should().Be("Test Env");
-        env.ServerUrl.Should().Be("nats://localhost:4222");
-        env.Description.Should().BeEmpty();
-        env.CredentialType.Should().Be(CredentialType.None);
-        env.CredentialReference.Should().BeEmpty();
-        env.IsEnabled.Should().BeTrue();
-        env.IsProduction.Should().BeFalse();
-        env.ConnectionStatus.Should().Be(ConnectionStatus.Unknown);
-        env.LastSuccessfulContact.Should().BeNull();
-        env.CreatedAt.Should().BeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromSeconds(2));
-        env.UpdatedAt.Should().BeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromSeconds(2));
+        env.Id.ShouldNotBe(Guid.Empty);
+        env.Name.ShouldBe("Test Env");
+        env.ServerUrl.ShouldBe("nats://localhost:4222");
+        env.Description.ShouldBeEmpty();
+        env.CredentialType.ShouldBe(CredentialType.None);
+        env.CredentialReference.ShouldBeEmpty();
+        env.IsEnabled.ShouldBeTrue();
+        env.IsProduction.ShouldBeFalse();
+        env.ConnectionStatus.ShouldBe(ConnectionStatus.Unknown);
+        env.LastSuccessfulContact.ShouldBeNull();
+        (env.CreatedAt - DateTimeOffset.UtcNow).Duration().ShouldBeLessThan(TimeSpan.FromSeconds(2));
+        (env.UpdatedAt - DateTimeOffset.UtcNow).Duration().ShouldBeLessThan(TimeSpan.FromSeconds(2));
     }
 
     [Fact]
@@ -36,12 +36,12 @@ public sealed class EnvironmentTests
             credentialReference: "encrypted-token",
             isProduction: true);
 
-        env.Name.Should().Be("Production");
-        env.Description.Should().Be("Prod env");
-        env.ServerUrl.Should().Be("nats://prod:4222");
-        env.CredentialType.Should().Be(CredentialType.Token);
-        env.CredentialReference.Should().Be("encrypted-token");
-        env.IsProduction.Should().BeTrue();
+        env.Name.ShouldBe("Production");
+        env.Description.ShouldBe("Prod env");
+        env.ServerUrl.ShouldBe("nats://prod:4222");
+        env.CredentialType.ShouldBe(CredentialType.Token);
+        env.CredentialReference.ShouldBe("encrypted-token");
+        env.IsProduction.ShouldBeTrue();
     }
 
     [Theory]
@@ -52,7 +52,7 @@ public sealed class EnvironmentTests
     {
         var act = () => Environment.Create(name!, "nats://localhost:4222");
 
-        act.Should().Throw<ArgumentException>();
+        Should.Throw<ArgumentException>(act);
     }
 
     [Theory]
@@ -63,7 +63,7 @@ public sealed class EnvironmentTests
     {
         var act = () => Environment.Create("Test", serverUrl!);
 
-        act.Should().Throw<ArgumentException>();
+        Should.Throw<ArgumentException>(act);
     }
 
     [Fact]
@@ -73,7 +73,7 @@ public sealed class EnvironmentTests
 
         var act = () => Environment.Create(longName, "nats://localhost:4222");
 
-        act.Should().Throw<ArgumentException>().WithMessage("*100 characters*");
+        Should.Throw<ArgumentException>(act).Message.ShouldContain("100 characters");
     }
 
     [Fact]
@@ -81,9 +81,9 @@ public sealed class EnvironmentTests
     {
         var env = Environment.Create("  Trimmed  ", "  nats://localhost  ", description: "  desc  ");
 
-        env.Name.Should().Be("Trimmed");
-        env.ServerUrl.Should().Be("nats://localhost");
-        env.Description.Should().Be("desc");
+        env.Name.ShouldBe("Trimmed");
+        env.ServerUrl.ShouldBe("nats://localhost");
+        env.Description.ShouldBe("desc");
     }
 
     [Fact]
@@ -94,11 +94,11 @@ public sealed class EnvironmentTests
 
         env.Update("Updated", "nats://updated:4222", description: "New desc", isProduction: true);
 
-        env.Name.Should().Be("Updated");
-        env.ServerUrl.Should().Be("nats://updated:4222");
-        env.Description.Should().Be("New desc");
-        env.IsProduction.Should().BeTrue();
-        env.UpdatedAt.Should().BeOnOrAfter(originalUpdatedAt);
+        env.Name.ShouldBe("Updated");
+        env.ServerUrl.ShouldBe("nats://updated:4222");
+        env.Description.ShouldBe("New desc");
+        env.IsProduction.ShouldBeTrue();
+        env.UpdatedAt.ShouldBeGreaterThanOrEqualTo(originalUpdatedAt);
     }
 
     [Fact]
@@ -108,7 +108,7 @@ public sealed class EnvironmentTests
 
         var act = () => env.Update("", "nats://localhost:4222");
 
-        act.Should().Throw<ArgumentException>();
+        Should.Throw<ArgumentException>(act);
     }
 
     [Fact]
@@ -118,7 +118,7 @@ public sealed class EnvironmentTests
 
         var act = () => env.Update(new string('x', 101), "nats://localhost:4222");
 
-        act.Should().Throw<ArgumentException>().WithMessage("*100 characters*");
+        Should.Throw<ArgumentException>(act).Message.ShouldContain("100 characters");
     }
 
     [Fact]
@@ -133,7 +133,7 @@ public sealed class EnvironmentTests
             credentialType: CredentialType.Token,
             credentialReference: null);
 
-        env.CredentialReference.Should().Be("original-ref");
+        env.CredentialReference.ShouldBe("original-ref");
     }
 
     [Fact]
@@ -145,8 +145,7 @@ public sealed class EnvironmentTests
             credentialType: CredentialType.None,
             credentialReference: "leftover-token");
 
-        act.Should().Throw<ArgumentException>()
-            .WithMessage("*CredentialReference must be empty*");
+        Should.Throw<ArgumentException>(act).Message.ShouldContain("CredentialReference must be empty");
     }
 
     [Fact]
@@ -158,8 +157,7 @@ public sealed class EnvironmentTests
             credentialType: CredentialType.Token,
             credentialReference: null);
 
-        act.Should().Throw<ArgumentException>()
-            .WithMessage("*CredentialReference is required*");
+        Should.Throw<ArgumentException>(act).Message.ShouldContain("CredentialReference is required");
     }
 
     [Fact]
@@ -174,8 +172,8 @@ public sealed class EnvironmentTests
             credentialType: CredentialType.None,
             credentialReference: null);
 
-        env.CredentialType.Should().Be(CredentialType.None);
-        env.CredentialReference.Should().BeEmpty();
+        env.CredentialType.ShouldBe(CredentialType.None);
+        env.CredentialReference.ShouldBeEmpty();
     }
 
     [Fact]
@@ -191,21 +189,20 @@ public sealed class EnvironmentTests
             credentialType: CredentialType.Token,
             credentialReference: null);
 
-        act.Should().Throw<ArgumentException>()
-            .WithMessage("*CredentialReference is required*");
+        Should.Throw<ArgumentException>(act).Message.ShouldContain("CredentialReference is required");
     }
 
     [Fact]
     public void UpdateConnectionStatus_ToAvailable_ShouldSetLastSuccessfulContact()
     {
         var env = Environment.Create("Test", "nats://localhost:4222");
-        env.LastSuccessfulContact.Should().BeNull();
+        env.LastSuccessfulContact.ShouldBeNull();
 
         env.UpdateConnectionStatus(ConnectionStatus.Available);
 
-        env.ConnectionStatus.Should().Be(ConnectionStatus.Available);
-        env.LastSuccessfulContact.Should().NotBeNull();
-        env.LastSuccessfulContact.Should().BeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromSeconds(2));
+        env.ConnectionStatus.ShouldBe(ConnectionStatus.Available);
+        env.LastSuccessfulContact.ShouldNotBeNull();
+        (env.LastSuccessfulContact!.Value - DateTimeOffset.UtcNow).Duration().ShouldBeLessThan(TimeSpan.FromSeconds(2));
     }
 
     [Fact]
@@ -215,8 +212,8 @@ public sealed class EnvironmentTests
 
         env.UpdateConnectionStatus(ConnectionStatus.Unavailable);
 
-        env.ConnectionStatus.Should().Be(ConnectionStatus.Unavailable);
-        env.LastSuccessfulContact.Should().BeNull();
+        env.ConnectionStatus.ShouldBe(ConnectionStatus.Unavailable);
+        env.LastSuccessfulContact.ShouldBeNull();
     }
 
     [Fact]
@@ -228,8 +225,8 @@ public sealed class EnvironmentTests
 
         env.Enable();
 
-        env.IsEnabled.Should().BeTrue();
-        env.ConnectionStatus.Should().Be(ConnectionStatus.Unknown);
+        env.IsEnabled.ShouldBeTrue();
+        env.ConnectionStatus.ShouldBe(ConnectionStatus.Unknown);
     }
 
     [Fact]
@@ -239,6 +236,6 @@ public sealed class EnvironmentTests
 
         env.Disable();
 
-        env.IsEnabled.Should().BeFalse();
+        env.IsEnabled.ShouldBeFalse();
     }
 }

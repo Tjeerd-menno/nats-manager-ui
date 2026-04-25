@@ -1,4 +1,4 @@
-using FluentAssertions;
+using Shouldly;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
@@ -56,8 +56,7 @@ public sealed class AuditTrailTests
             AuditSource.UserInitiated,
             CancellationToken.None);
 
-        await act.Should().NotThrowAsync(
-            because: "audit-write failures must not fail the owning use case");
+        await Should.NotThrowAsync(act);
     }
 
     [Fact]
@@ -75,7 +74,7 @@ public sealed class AuditTrailTests
 
         var act = async () => await _auditTrail.RecordAsync(command, CancellationToken.None);
 
-        await act.Should().NotThrowAsync();
+        await Should.NotThrowAsync(act);
     }
 
     [Fact]
@@ -98,6 +97,6 @@ public sealed class AuditTrailTests
             AuditSource.UserInitiated,
             cts.Token);
 
-        await act.Should().ThrowAsync<OperationCanceledException>();
+        await Should.ThrowAsync<OperationCanceledException>(act);
     }
 }

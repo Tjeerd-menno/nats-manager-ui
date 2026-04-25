@@ -1,4 +1,4 @@
-using FluentAssertions;
+using Shouldly;
 using Microsoft.Playwright;
 using NatsManager.E2E.Tests.Infrastructure;
 
@@ -42,7 +42,7 @@ public sealed class DashboardNavigationTests(AppHostFixture fixture) : E2ETestBa
 
         await Page.GetByText("JetStream", new PageGetByTextOptions { Exact = true }).ClickAsync();
         await Page.WaitForURLAsync("**/jetstream/streams", new PageWaitForURLOptions { Timeout = 10_000 });
-        Page.Url.Should().Contain("/jetstream/streams");
+        Page.Url.ShouldContain("/jetstream/streams");
     }
 
     [Fact]
@@ -52,7 +52,7 @@ public sealed class DashboardNavigationTests(AppHostFixture fixture) : E2ETestBa
 
         await Page.GetByText("Key-Value", new PageGetByTextOptions { Exact = true }).ClickAsync();
         await Page.WaitForURLAsync("**/kv/buckets", new PageWaitForURLOptions { Timeout = 10_000 });
-        Page.Url.Should().Contain("/kv/buckets");
+        Page.Url.ShouldContain("/kv/buckets");
     }
 
     [Fact]
@@ -62,7 +62,7 @@ public sealed class DashboardNavigationTests(AppHostFixture fixture) : E2ETestBa
 
         await Page.GetByText("Audit Log", new PageGetByTextOptions { Exact = true }).ClickAsync();
         await Page.WaitForURLAsync("**/audit", new PageWaitForURLOptions { Timeout = 10_000 });
-        Page.Url.Should().Contain("/audit");
+        Page.Url.ShouldContain("/audit");
     }
 
     [Fact]

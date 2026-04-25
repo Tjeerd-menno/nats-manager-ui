@@ -1,4 +1,4 @@
-using FluentAssertions;
+using Shouldly;
 using NatsManager.Infrastructure.Auth;
 
 namespace NatsManager.Infrastructure.Tests.Auth;
@@ -10,11 +10,11 @@ public sealed class PasswordHasherTests
     {
         var result = PasswordHasher.Hash("password123");
 
-        result.Should().Contain(".");
+        result.ShouldContain(".");
         var parts = result.Split('.');
-        parts.Should().HaveCount(2);
-        parts[0].Should().NotBeNullOrEmpty();
-        parts[1].Should().NotBeNullOrEmpty();
+        parts.Count().ShouldBe(2);
+        parts[0].ShouldNotBeNullOrEmpty();
+        parts[1].ShouldNotBeNullOrEmpty();
     }
 
     [Fact]
@@ -23,7 +23,7 @@ public sealed class PasswordHasherTests
         var hash1 = PasswordHasher.Hash("password123");
         var hash2 = PasswordHasher.Hash("password123");
 
-        hash1.Should().NotBe(hash2);
+        hash1.ShouldNotBe(hash2);
     }
 
     [Fact]
@@ -31,7 +31,7 @@ public sealed class PasswordHasherTests
     {
         var hash = PasswordHasher.Hash("password123");
 
-        PasswordHasher.Verify("password123", hash).Should().BeTrue();
+        PasswordHasher.Verify("password123", hash).ShouldBeTrue();
     }
 
     [Fact]
@@ -39,27 +39,27 @@ public sealed class PasswordHasherTests
     {
         var hash = PasswordHasher.Hash("password123");
 
-        PasswordHasher.Verify("wrongpassword", hash).Should().BeFalse();
+        PasswordHasher.Verify("wrongpassword", hash).ShouldBeFalse();
     }
 
     [Fact]
     public void Verify_WithInvalidHashFormat_ShouldReturnFalse()
     {
-        PasswordHasher.Verify("password123", "invalidhash").Should().BeFalse();
+        PasswordHasher.Verify("password123", "invalidhash").ShouldBeFalse();
     }
 
     [Fact]
     public void Hash_WithNullPassword_ShouldThrow()
     {
         var act = () => PasswordHasher.Hash(null!);
-        act.Should().Throw<ArgumentException>();
+        Should.Throw<ArgumentException>(act);
     }
 
     [Fact]
     public void Hash_WithEmptyPassword_ShouldThrow()
     {
         var act = () => PasswordHasher.Hash("");
-        act.Should().Throw<ArgumentException>();
+        Should.Throw<ArgumentException>(act);
     }
 
     [Fact]
@@ -69,7 +69,7 @@ public sealed class PasswordHasherTests
         var iface = (NatsManager.Application.Modules.Auth.Ports.IPasswordHasher)hasher;
 
         var hash = iface.Hash("test");
-        iface.Verify("test", hash).Should().BeTrue();
-        iface.Verify("wrong", hash).Should().BeFalse();
+        iface.Verify("test", hash).ShouldBeTrue();
+        iface.Verify("wrong", hash).ShouldBeFalse();
     }
 }

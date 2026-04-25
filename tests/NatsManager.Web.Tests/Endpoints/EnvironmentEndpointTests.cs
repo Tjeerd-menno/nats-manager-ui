@@ -1,6 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
-using FluentAssertions;
+using Shouldly;
 using NSubstitute;
 using NatsManager.Application.Modules.Environments.Commands;
 using NatsManager.Domain.Modules.Common;
@@ -29,7 +29,7 @@ public sealed class EnvironmentEndpointTests : IClassFixture<NatsManagerWebAppFa
 
         var response = await _client.GetAsync("/api/environments");
 
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
     [Fact]
@@ -40,7 +40,7 @@ public sealed class EnvironmentEndpointTests : IClassFixture<NatsManagerWebAppFa
 
         var response = await _client.GetAsync($"/api/environments/{env.Id}");
 
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
     [Fact]
@@ -53,6 +53,6 @@ public sealed class EnvironmentEndpointTests : IClassFixture<NatsManagerWebAppFa
 
         var response = await _client.PostAsync($"/api/environments/{env.Id}/test", null);
 
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 }

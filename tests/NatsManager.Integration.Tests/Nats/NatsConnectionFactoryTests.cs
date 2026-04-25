@@ -22,7 +22,7 @@ public sealed class NatsConnectionFactoryTests(NatsFixture fixture) : NatsIntegr
 
         var connection = await connectionFactory.GetConnectionAsync(EnvironmentId);
 
-        connection.Should().NotBeNull();
+        connection.ShouldNotBeNull();
     }
 
     [Fact]
@@ -33,7 +33,7 @@ public sealed class NatsConnectionFactoryTests(NatsFixture fixture) : NatsIntegr
         var first = await connectionFactory.GetConnectionAsync(EnvironmentId);
         var second = await connectionFactory.GetConnectionAsync(EnvironmentId);
 
-        second.Should().BeSameAs(first);
+        second.ShouldBeSameAs(first);
     }
 
     [Fact]
@@ -43,7 +43,7 @@ public sealed class NatsConnectionFactoryTests(NatsFixture fixture) : NatsIntegr
 
         var status = await connectionFactory.TestConnectionAsync(NatsUrl, null);
 
-        status.Should().Be(ConnectionStatus.Available);
+        status.ShouldBe(ConnectionStatus.Available);
     }
 
     [Fact]
@@ -54,7 +54,7 @@ public sealed class NatsConnectionFactoryTests(NatsFixture fixture) : NatsIntegr
         var connections = await Task.WhenAll(Enumerable.Range(0, 10)
             .Select(_ => connectionFactory.GetConnectionAsync(EnvironmentId)));
 
-        connections.Should().OnlyContain(connection => ReferenceEquals(connection, connections[0]));
+        connections.All(connection => ReferenceEquals(connection, connections[0])).ShouldBeTrue();
     }
 
     [Fact]
@@ -66,7 +66,7 @@ public sealed class NatsConnectionFactoryTests(NatsFixture fixture) : NatsIntegr
         await connectionFactory.RemoveConnectionAsync(EnvironmentId);
         var second = await connectionFactory.GetConnectionAsync(EnvironmentId);
 
-        second.Should().NotBeSameAs(first);
+        second.ShouldNotBeSameAs(first);
     }
 }
 

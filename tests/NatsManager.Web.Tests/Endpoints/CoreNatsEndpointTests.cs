@@ -1,6 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
-using FluentAssertions;
+using Shouldly;
 using NSubstitute;
 using NatsManager.Application.Modules.CoreNats.Models;
 
@@ -26,7 +26,7 @@ public sealed class CoreNatsEndpointTests : IClassFixture<NatsManagerWebAppFacto
 
         var response = await _client.GetAsync($"/api/environments/{envId}/core-nats/status");
 
-        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
     [Fact]
@@ -38,7 +38,7 @@ public sealed class CoreNatsEndpointTests : IClassFixture<NatsManagerWebAppFacto
 
         var response = await _client.GetAsync($"/api/environments/{envId}/core-nats/subjects");
 
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
     [Fact]
@@ -52,6 +52,6 @@ public sealed class CoreNatsEndpointTests : IClassFixture<NatsManagerWebAppFacto
 
         var response = await _client.PostAsJsonAsync($"/api/environments/{envId}/core-nats/publish", payload);
 
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 }
