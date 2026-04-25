@@ -9,6 +9,7 @@ public sealed class TestOutputPort<T> : IOutputPort<T>
     public bool IsNotFound { get; private set; }
     public bool IsConflict { get; private set; }
     public bool IsUnauthorized { get; private set; }
+    public bool IsForbidden { get; private set; }
     public string? ErrorMessage { get; private set; }
     public string? ResourceType { get; private set; }
     public string? ResourceId { get; private set; }
@@ -36,6 +37,12 @@ public sealed class TestOutputPort<T> : IOutputPort<T>
     public void Unauthorized(string message)
     {
         IsUnauthorized = true;
+        ErrorMessage = message;
+    }
+
+    public void Forbidden(string message)
+    {
+        IsForbidden = true;
         ErrorMessage = message;
     }
 }

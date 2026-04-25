@@ -29,6 +29,81 @@ public sealed class UserTests
         Should.Throw<ArgumentException>(act);
     }
 
+    [Fact]
+    public void RecordFailedLogin_ShouldIncrementCounter()
+    {
+        var user = User.Create("admin", "Admin", "hash");
+
+        user.RecordFailedLogin();
+
+        user.FailedLoginAttempts.ShouldBe(1);
+        user.IsLocked().ShouldBeFalse();
+        user.LockedUntil.ShouldBeNull();
+    }
+
+    [Fact]
+    public void RecordFailedLogin_WhenThresholdReached_ShouldLockAccount()
+    {
+        var user = User.Create("admin", "Admin", "hash");
+
+        for (var i = 0; i < User.DefaultLockoutThreshold; i++)
+        {
+            user.RecordFailedLogin();
+        }
+
+        user.FailedLoginAttempts.ShouldBe(User.DefaultLockoutThreshold);
+        user.IsLocked().ShouldBeTrue();
+        user.LockedUntil.ShouldNotBeNull();
+        (user.LockedUntil!.Value - DateTimeOffset.UtcNow.Add(User.DefaultLockoutDuration)).Duration().ShouldBeLessThan(TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
+    public void IsLocked_WhenLockoutExpired_ShouldReturnFalse()
+    {
+        var user = User.Create("admin", "Admin", "hash");
+        for (var i = 0; i < User.DefaultLockoutThreshold; i++)
+        {
+            user.RecordFailedLogin(threshold: User.DefaultLockoutThreshold, lockoutDuration: TimeSpan.FromMilliseconds(1));
+        }
+
+        user.IsLocked(DateTimeOffset.UtcNow.AddHours(1)).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void RecordLogin_ShouldResetFailedAttemptsAndClearLock()
+    {
+        var user = User.Create("admin", "Admin", "hash");
+        for (var i = 0; i < User.DefaultLockoutThreshold; i++)
+        {
+            user.RecordFailedLogin();
+        }
+
+        user.RecordLogin();
+
+        user.FailedLoginAttempts.ShouldBe(0);
+        user.LockedUntil.ShouldBeNull();
+        user.IsLocked().ShouldBeFalse();
+        user.LastLoginAt.ShouldNotBeNull();
+    }
+
+    [Fact]
+    public void RecordFailedLogin_WithInvalidThreshold_ShouldThrow()
+    {
+        var user = User.Create("admin", "Admin", "hash");
+        var act = () => user.RecordFailedLogin(threshold: 0);
+        Should.Throw<ArgumentOutOfRangeException>(act);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void RecordFailedLogin_WithNonPositiveLockoutDuration_ShouldThrow(int seconds)
+    {
+        var user = User.Create("admin", "Admin", "hash");
+        var act = () => user.RecordFailedLogin(lockoutDuration: TimeSpan.FromSeconds(seconds));
+        Should.Throw<ArgumentOutOfRangeException>(act);
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]

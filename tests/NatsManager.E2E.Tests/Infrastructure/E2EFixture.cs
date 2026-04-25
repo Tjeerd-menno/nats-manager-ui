@@ -60,6 +60,8 @@ public sealed class AppHostFixture : IAsyncLifetime
             context.EnvironmentVariables["BootstrapAdmin__Username"] = BootstrapAdminUsername;
             context.EnvironmentVariables["BootstrapAdmin__Password"] = BootstrapAdminPassword;
             context.EnvironmentVariables["Encryption__Key"] = EncryptionKey;
+            // Disable rate limiting and antiforgery in E2E test runs (see Program.cs guards).
+            context.EnvironmentVariables["ASPNETCORE_ENVIRONMENT"] = "Testing";
         }));
 
         appHost.Services.ConfigureHttpClientDefaults(clientBuilder =>
@@ -117,7 +119,11 @@ public sealed class AppHostFixture : IAsyncLifetime
 
     private async Task WaitForFrontendReadyAsync(CancellationToken ct)
     {
-        using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+        using var handler = new System.Net.Http.HttpClientHandler
+        {
+            ServerCertificateCustomValidationCallback = System.Net.Http.HttpClientHandler.DangerousAcceptAnyServerCertificateValidator,
+        };
+        using var httpClient = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(5) };
         while (!ct.IsCancellationRequested)
         {
             try

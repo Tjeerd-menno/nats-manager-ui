@@ -30,7 +30,7 @@ public sealed class RegisterEnvironmentCommandValidator : AbstractValidator<Regi
     public RegisterEnvironmentCommandValidator()
     {
         RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
-        RuleFor(x => x.ServerUrl).NotEmpty().MaximumLength(2048);
+        RuleFor(x => x.ServerUrl).NotEmpty().MaximumLength(2048).MustBeValidNatsServerUrl();
         RuleFor(x => x.Description).MaximumLength(500);
         RuleFor(x => x.Credential).NotEmpty()
             .When(x => x.CredentialType != CredentialType.None)

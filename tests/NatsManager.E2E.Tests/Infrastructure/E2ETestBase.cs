@@ -82,7 +82,11 @@ public abstract class E2ETestBase : IAsyncLifetime
     protected async Task LoginAsAdminAsync(string navigateTo = "/dashboard")
     {
         // Login directly via the backend API (bypassing Vite proxy) for reliable session creation
-        using var handler = new HttpClientHandler { CookieContainer = new System.Net.CookieContainer() };
+        using var handler = new HttpClientHandler
+        {
+            CookieContainer = new System.Net.CookieContainer(),
+            ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator,
+        };
         using var httpClient = new HttpClient(handler) { BaseAddress = new Uri(Fixture.BackendUrl) };
 
         // Retry login a few times to handle cold-start transient failures
@@ -111,7 +115,11 @@ public abstract class E2ETestBase : IAsyncLifetime
     /// </summary>
     protected async Task<(HttpClient Client, HttpClientHandler Handler)> CreateAuthenticatedHttpClientAsync()
     {
-        var handler = new HttpClientHandler { CookieContainer = new System.Net.CookieContainer() };
+        var handler = new HttpClientHandler
+        {
+            CookieContainer = new System.Net.CookieContainer(),
+            ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator,
+        };
         var httpClient = new HttpClient(handler) { BaseAddress = new Uri(Fixture.BackendUrl) };
 
         HttpResponseMessage loginResponse = null!;
@@ -193,22 +201,27 @@ public abstract class E2ETestBase : IAsyncLifetime
         var meResponse = await httpClient.GetAsync("/api/auth/me");
         meResponse.EnsureSuccessStatusCode();
 
-        var xsrfCookie = cookieContainer.GetCookies(new Uri(Fixture.BackendUrl))["XSRF-TOKEN"]
-            ?? throw new Exception("No XSRF-TOKEN cookie returned from backend.");
+        // In the Testing environment the backend disables antiforgery middleware and never
+        // issues the XSRF-TOKEN cookie, so we skip the header setup gracefully.
+        // Use GetAllCookies() to avoid URL-matching issues with CookieContainer.
+        var xsrfCookie = cookieContainer.GetAllCookies().FirstOrDefault(c => c.Name == "XSRF-TOKEN");
+        if (xsrfCookie is not null)
+        {
+            httpClient.DefaultRequestHeaders.Remove("X-XSRF-TOKEN");
+            httpClient.DefaultRequestHeaders.Add("X-XSRF-TOKEN", xsrfCookie.Value);
+        }
 
-        httpClient.DefaultRequestHeaders.Remove("X-XSRF-TOKEN");
-        httpClient.DefaultRequestHeaders.Add("X-XSRF-TOKEN", xsrfCookie.Value);
         httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
     }
 
     private async Task CopyBackendCookiesToBrowserAsync(CookieContainer cookieContainer)
     {
-        var backendCookies = cookieContainer.GetCookies(new Uri(Fixture.BackendUrl));
         var frontendUri = new Uri(Fixture.FrontendUrl);
         var isFrontendSecure = string.Equals(frontendUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase);
 
-        var cookies = backendCookies
-            .Cast<System.Net.Cookie>()
+        // Use GetAllCookies() so we don't miss cookies whose stored URL doesn't
+        // exactly match Fixture.BackendUrl (e.g. due to Aspire service-discovery URLs).
+        var cookies = cookieContainer.GetAllCookies()
             .Select(cookie => new Microsoft.Playwright.Cookie
             {
                 Name = cookie.Name,
@@ -220,11 +233,9 @@ public abstract class E2ETestBase : IAsyncLifetime
             })
             .ToArray();
 
-        if (cookies.Length == 0)
+        if (cookies.Length > 0)
         {
-            throw new Exception("No backend cookies were available to inject into the browser context.");
+            await Page.Context.AddCookiesAsync(cookies);
         }
-
-        await Page.Context.AddCookiesAsync(cookies);
     }
 }

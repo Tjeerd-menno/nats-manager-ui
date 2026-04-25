@@ -1,60 +1,99 @@
 using System.Security.Cryptography;
+using System.Text;
 using NatsManager.Application.Modules.Environments.Ports;
 
 namespace NatsManager.Infrastructure.Auth;
 
-public sealed class CredentialEncryptionService : ICredentialEncryptionService
+/// <summary>
+/// Authenticated-encryption service for sensitive credential material.
+/// Uses AES-256-GCM which provides confidentiality, integrity, and authenticity
+/// in a single primitive (no padding-oracle risk, unlike raw AES-CBC).
+/// Ciphertext layout (before base64): [12-byte nonce][16-byte auth tag][ciphertext].
+/// </summary>
+public sealed class CredentialEncryptionService : ICredentialEncryptionService, IDisposable
 {
+    private const int NonceSize = 12; // AES-GCM standard nonce size
+    private const int TagSize = 16;   // AES-GCM standard authentication tag size
+    private const int KeySize = 32;   // AES-256
+
     private readonly byte[] _key;
+    private bool _disposed;
 
     public CredentialEncryptionService(byte[] encryptionKey)
     {
-        if (encryptionKey.Length != 32)
+        ArgumentNullException.ThrowIfNull(encryptionKey);
+        if (encryptionKey.Length != KeySize)
         {
-            throw new ArgumentException("Encryption key must be 256 bits (32 bytes).", nameof(encryptionKey));
+            throw new ArgumentException($"Encryption key must be {KeySize * 8} bits ({KeySize} bytes).", nameof(encryptionKey));
         }
 
-        _key = encryptionKey;
+        // Copy to avoid aliasing with caller-owned buffer.
+        _key = (byte[])encryptionKey.Clone();
     }
 
     public string Encrypt(string plainText)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentException.ThrowIfNullOrWhiteSpace(plainText);
 
-        using var aes = Aes.Create();
-        aes.Key = _key;
-        aes.GenerateIV();
+        var plainBytes = Encoding.UTF8.GetBytes(plainText);
+        var nonce = RandomNumberGenerator.GetBytes(NonceSize);
+        var cipherBytes = new byte[plainBytes.Length];
+        var tag = new byte[TagSize];
 
-        using var encryptor = aes.CreateEncryptor();
-        var plainBytes = System.Text.Encoding.UTF8.GetBytes(plainText);
-        var cipherBytes = encryptor.TransformFinalBlock(plainBytes, 0, plainBytes.Length);
+        using (var aes = new AesGcm(_key, TagSize))
+        {
+            aes.Encrypt(nonce, plainBytes, cipherBytes, tag);
+        }
 
-        // Prepend IV to cipher text
-        var result = new byte[aes.IV.Length + cipherBytes.Length];
-        Buffer.BlockCopy(aes.IV, 0, result, 0, aes.IV.Length);
-        Buffer.BlockCopy(cipherBytes, 0, result, aes.IV.Length, cipherBytes.Length);
+        var result = new byte[NonceSize + TagSize + cipherBytes.Length];
+        Buffer.BlockCopy(nonce, 0, result, 0, NonceSize);
+        Buffer.BlockCopy(tag, 0, result, NonceSize, TagSize);
+        Buffer.BlockCopy(cipherBytes, 0, result, NonceSize + TagSize, cipherBytes.Length);
 
         return Convert.ToBase64String(result);
     }
 
     public string Decrypt(string cipherText)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentException.ThrowIfNullOrWhiteSpace(cipherText);
 
         var fullCipher = Convert.FromBase64String(cipherText);
+        if (fullCipher.Length < NonceSize + TagSize)
+        {
+            throw new CryptographicException("Ciphertext is malformed or truncated.");
+        }
 
-        using var aes = Aes.Create();
-        aes.Key = _key;
+        var nonce = new byte[NonceSize];
+        var tag = new byte[TagSize];
+        var cipher = new byte[fullCipher.Length - NonceSize - TagSize];
 
-        var iv = new byte[aes.BlockSize / 8];
-        var cipher = new byte[fullCipher.Length - iv.Length];
-        Buffer.BlockCopy(fullCipher, 0, iv, 0, iv.Length);
-        Buffer.BlockCopy(fullCipher, iv.Length, cipher, 0, cipher.Length);
+        Buffer.BlockCopy(fullCipher, 0, nonce, 0, NonceSize);
+        Buffer.BlockCopy(fullCipher, NonceSize, tag, 0, TagSize);
+        Buffer.BlockCopy(fullCipher, NonceSize + TagSize, cipher, 0, cipher.Length);
 
-        aes.IV = iv;
+        var plainBytes = new byte[cipher.Length];
+        using (var aes = new AesGcm(_key, TagSize))
+        {
+            // Throws AuthenticationTagMismatchException (derives from CryptographicException)
+            // if the ciphertext was tampered with or a wrong key is used.
+            aes.Decrypt(nonce, cipher, tag, plainBytes);
+        }
 
-        using var decryptor = aes.CreateDecryptor();
-        var plainBytes = decryptor.TransformFinalBlock(cipher, 0, cipher.Length);
-        return System.Text.Encoding.UTF8.GetString(plainBytes);
+        return Encoding.UTF8.GetString(plainBytes);
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        // Zero the key material so it doesn't linger in managed memory once
+        // the service is torn down.
+        CryptographicOperations.ZeroMemory(_key);
+        _disposed = true;
     }
 }

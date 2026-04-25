@@ -9,6 +9,7 @@ public sealed class Presenter<T> : IOutputPort<T>
     public bool IsNotFound { get; private set; }
     public bool IsConflict { get; private set; }
     public bool IsUnauthorized { get; private set; }
+    public bool IsForbidden { get; private set; }
     public string? ErrorMessage { get; private set; }
     public string? ResourceType { get; private set; }
     public string? ResourceId { get; private set; }
@@ -39,6 +40,12 @@ public sealed class Presenter<T> : IOutputPort<T>
         ErrorMessage = message;
     }
 
+    public void Forbidden(string message)
+    {
+        IsForbidden = true;
+        ErrorMessage = message;
+    }
+
     public IResult ToResult()
     {
         if (IsSuccess)
@@ -52,6 +59,9 @@ public sealed class Presenter<T> : IOutputPort<T>
 
         if (IsUnauthorized)
             return Results.Json(new { error = ErrorMessage }, statusCode: StatusCodes.Status401Unauthorized);
+
+        if (IsForbidden)
+            return Results.Json(new { error = ErrorMessage }, statusCode: StatusCodes.Status403Forbidden);
 
         return Results.Problem("An unexpected error occurred.");
     }

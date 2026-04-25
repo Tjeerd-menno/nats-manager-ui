@@ -1,6 +1,8 @@
 using FluentValidation;
 using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using NatsManager.Application.Behaviors;
 using NatsManager.Application.Common;
@@ -90,15 +92,34 @@ builder.Services.AddSingleton<ICredentialEncryptionService>(_ =>
     }
 });
 
-// Authentication
+// CORS origins are read early so that the session cookie policy can be aligned.
+// When the SPA is served from a different origin than the API, cookies must use
+// SameSite=None (+ Secure) so that browsers will include them in cross-site
+// requests. With no cross-origin origins configured the stricter SameSite=Strict
+// default is kept.
+var allowedOrigins = builder.Configuration
+    .GetSection("Cors:AllowedOrigins")
+    .Get<string[]>() ?? [];
+
+var crossOriginEnabled = allowedOrigins.Length > 0;
+
+// Session — sliding 30-minute idle window. Abandoned browser tabs or stolen session
+// cookies are invalidated far sooner than the previous 8-hour window.
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
-    options.IdleTimeout = TimeSpan.FromHours(8);
+    options.IdleTimeout = TimeSpan.FromMinutes(30);
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
-    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-    options.Cookie.SameSite = SameSiteMode.Strict;
+    // When CORS cross-origin access is enabled the cookie must be SameSite=None
+    // so browsers will send it on cross-site requests. Secure is required by the
+    // SameSite=None specification.
+    options.Cookie.SecurePolicy = crossOriginEnabled
+        ? CookieSecurePolicy.Always
+        : CookieSecurePolicy.SameAsRequest;
+    options.Cookie.SameSite = crossOriginEnabled
+        ? SameSiteMode.None
+        : SameSiteMode.Strict;
 });
 builder.Services.AddAntiforgery(options =>
 {
@@ -119,6 +140,78 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy(AuthorizationPolicyNames.OperatorAccess, policy =>
         policy.RequireAuthenticatedUser()
             .RequireRole(Role.PredefinedNames.Administrator, Role.PredefinedNames.Operator));
+});
+
+// CORS — by default the frontend is served from the same origin as the API
+// and CORS is not required. For deployments where the SPA is hosted separately
+// (e.g. a CDN), populate `Cors:AllowedOrigins` with the explicit list of trusted
+// origins. The policy is opt-in: with no allowed origins configured the
+// middleware is effectively a no-op for cross-origin requests.
+// NOTE: enabling cross-origin origins also sets the session cookie to
+// SameSite=None + Secure (see session configuration above) so that browsers
+// will include it in cross-site requests.
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        if (allowedOrigins.Length == 0)
+        {
+            // Deny-by-default: no origins allowed means no CORS response headers
+            // will be emitted, leaving browsers' same-origin policy in force.
+            return;
+        }
+
+        policy
+            .WithOrigins(allowedOrigins)
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
+    });
+});
+
+// Rate limiting — protects authentication and other sensitive endpoints from
+// brute-force and abusive traffic. Keyed by authenticated user when available,
+// otherwise by remote IP.
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    // Strict limiter for the login endpoint: 5 attempts per minute per client IP.
+    // NOTE: Partitions by the socket-level remote IP. If the app is deployed behind
+    // a reverse proxy, configure `ForwardedHeadersOptions` (with a trusted
+    // `KnownProxies`/`KnownNetworks` set) so that `RemoteIpAddress` reflects the
+    // real client; otherwise all traffic will share a single partition keyed on the
+    // proxy's IP, effectively disabling the limiter.
+    options.AddPolicy(RateLimitPolicyNames.Login, httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst
+            }));
+
+    // Global fallback: generous per-client sliding window to limit abusive clients
+    // without interfering with normal interactive use.
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+    {
+        var partitionKey = httpContext.User.Identity?.IsAuthenticated == true
+            ? $"user:{httpContext.User.Identity.Name}"
+            : $"ip:{httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
+
+        return RateLimitPartition.GetSlidingWindowLimiter(
+            partitionKey: partitionKey,
+            factory: _ => new SlidingWindowRateLimiterOptions
+            {
+                PermitLimit = 300,
+                Window = TimeSpan.FromMinutes(1),
+                SegmentsPerWindow = 6,
+                QueueLimit = 0,
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst
+            });
+    });
 });
 
 // Error handling
@@ -145,16 +238,28 @@ using (var scope = app.Services.CreateScope())
 
 app.UseExceptionHandler();
 
-if (!app.Environment.IsDevelopment())
+if (!app.Environment.IsDevelopment() && !app.Environment.IsEnvironment("Testing"))
 {
     app.UseHttpsRedirection();
     app.UseHsts();
 }
 
+// Apply baseline security headers before any handler so every response
+// (including error responses) is covered.
+app.UseMiddleware<SecurityHeadersMiddleware>();
+
 app.UseSerilogRequestLogging();
+app.UseCors();
 app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Enable rate limiting after authentication so that authenticated users
+// get their own partition.
+if (!app.Environment.IsEnvironment("Testing"))
+{
+    app.UseRateLimiter();
+}
 
 if (!app.Environment.IsEnvironment("Testing"))
 {

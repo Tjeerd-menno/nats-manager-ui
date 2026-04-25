@@ -20,31 +20,61 @@ public sealed class LoginCommandValidator : AbstractValidator<LoginCommand>
     }
 }
 
-public sealed class LoginCommandHandler(IUserRepository userRepository, IPasswordHasher passwordHasher) : IUseCase<LoginCommand, LoginResult>
+public sealed class LoginCommandHandler(
+    IUserRepository userRepository,
+    IPasswordHasher passwordHasher,
+    IAuditTrail auditTrail) : IUseCase<LoginCommand, LoginResult>
 {
+    // Generic message returned to the client for any failure so that we don't leak
+    // whether the username exists or whether an account is locked/disabled.
+    private const string GenericFailureMessage = "Invalid credentials.";
+
     public async Task ExecuteAsync(LoginCommand request, IOutputPort<LoginResult> outputPort, CancellationToken cancellationToken)
     {
         var user = await userRepository.GetByUsernameAsync(request.Username, cancellationToken);
         if (user is null)
         {
-            outputPort.Unauthorized("Invalid credentials.");
+            await RecordFailureAsync(request.Username, "User not found.", cancellationToken);
+            outputPort.Unauthorized(GenericFailureMessage);
             return;
         }
 
         if (!user.IsActive)
         {
-            outputPort.Unauthorized("Account is disabled.");
+            await RecordFailureAsync(request.Username, "Account is disabled.", cancellationToken);
+            outputPort.Unauthorized(GenericFailureMessage);
+            return;
+        }
+
+        if (user.IsLocked())
+        {
+            await RecordFailureAsync(request.Username, "Account is locked.", cancellationToken);
+            outputPort.Unauthorized(GenericFailureMessage);
             return;
         }
 
         if (!passwordHasher.Verify(request.Password, user.PasswordHash))
         {
-            outputPort.Unauthorized("Invalid credentials.");
+            user.RecordFailedLogin();
+            await userRepository.UpdateAsync(user, cancellationToken);
+            await RecordFailureAsync(request.Username, "Password mismatch.", cancellationToken);
+            outputPort.Unauthorized(GenericFailureMessage);
             return;
         }
 
         user.RecordLogin();
         await userRepository.UpdateAsync(user, cancellationToken);
+
+        await auditTrail.RecordAsync(
+            ActionType.Login,
+            ResourceType.User,
+            user.Id.ToString(),
+            user.Username,
+            environmentId: null,
+            Outcome.Success,
+            details: null,
+            AuditSource.UserInitiated,
+            cancellationToken);
 
         var assignments = await userRepository.GetUserRoleAssignmentsAsync(user.Id, cancellationToken);
         var roles = await userRepository.GetRolesAsync(cancellationToken);
@@ -52,6 +82,21 @@ public sealed class LoginCommandHandler(IUserRepository userRepository, IPasswor
         var userRoles = assignments.Select(a => roleMap.GetValueOrDefault(a.RoleId, "Unknown")).Distinct().ToList();
 
         outputPort.Success(new LoginResult(user.Id, user.Username, user.DisplayName, userRoles));
+    }
+
+    private Task RecordFailureAsync(string username, string details, CancellationToken cancellationToken)
+    {
+        var safeUsername = string.IsNullOrWhiteSpace(username) ? "unknown" : username;
+        return auditTrail.RecordAsync(
+            ActionType.Login,
+            ResourceType.User,
+            resourceId: safeUsername,
+            resourceName: safeUsername,
+            environmentId: null,
+            Outcome.Failure,
+            details: details,
+            AuditSource.UserInitiated,
+            cancellationToken);
     }
 }
 
@@ -74,7 +119,14 @@ public sealed class CreateUserCommandValidator : AbstractValidator<CreateUserCom
     {
         RuleFor(x => x.Username).NotEmpty().MaximumLength(100);
         RuleFor(x => x.DisplayName).NotEmpty().MaximumLength(200);
-        RuleFor(x => x.Password).NotEmpty().MinimumLength(8);
+        RuleFor(x => x.Password)
+            .NotEmpty()
+            .MinimumLength(12).WithMessage("Password must be at least 12 characters long.")
+            .MaximumLength(256)
+            .Matches("[A-Z]").WithMessage("Password must contain at least one uppercase letter.")
+            .Matches("[a-z]").WithMessage("Password must contain at least one lowercase letter.")
+            .Matches("[0-9]").WithMessage("Password must contain at least one digit.")
+            .Matches("[^A-Za-z0-9]").WithMessage("Password must contain at least one non-alphanumeric character.");
     }
 }
 

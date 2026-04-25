@@ -61,7 +61,7 @@ public sealed class AuditLogTests(AppHostFixture fixture) : E2ETestBase(fixture)
         // Use the action type filter
         var actionFilter = Page.GetByPlaceholder("Action type");
         await actionFilter.ClickAsync();
-        await Page.GetByText("Login", new() { Exact = true }).ClickAsync();
+        await Page.GetByRole(AriaRole.Option, new() { Name = "Login" }).ClickAsync();
 
         // The table should update (may show events or "No audit events found")
         await Page.WaitForTimeoutAsync(1000);

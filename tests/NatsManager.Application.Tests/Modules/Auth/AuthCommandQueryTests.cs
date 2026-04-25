@@ -13,11 +13,12 @@ public sealed class LoginCommandTests
 {
     private readonly IUserRepository _userRepo = Substitute.For<IUserRepository>();
     private readonly IPasswordHasher _hasher = Substitute.For<IPasswordHasher>();
+    private readonly IAuditTrail _auditTrail = Substitute.For<IAuditTrail>();
     private readonly LoginCommandHandler _handler;
 
     public LoginCommandTests()
     {
-        _handler = new LoginCommandHandler(_userRepo, _hasher);
+        _handler = new LoginCommandHandler(_userRepo, _hasher, _auditTrail);
     }
 
     [Fact]
@@ -90,6 +91,84 @@ public sealed class LoginCommandTests
         await _handler.ExecuteAsync(new LoginCommand("admin", "wrong"), outputPort, CancellationToken.None);
 
         outputPort.IsUnauthorized.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task Handle_WhenPasswordWrong_ShouldRecordFailedAttemptAndPersistUser()
+    {
+        var user = User.Create("admin", "Admin", "hashed");
+        _userRepo.GetByUsernameAsync("admin", Arg.Any<CancellationToken>()).Returns(user);
+        _hasher.Verify("wrong", "hashed").Returns(false);
+
+        var outputPort = new TestOutputPort<LoginResult>();
+        await _handler.ExecuteAsync(new LoginCommand("admin", "wrong"), outputPort, CancellationToken.None);
+
+        user.FailedLoginAttempts.ShouldBe(1);
+        await _userRepo.Received(1).UpdateAsync(user, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_WhenAccountLocked_ShouldBeUnauthorizedAndNotVerifyPassword()
+    {
+        var user = User.Create("admin", "Admin", "hashed");
+        for (var i = 0; i < User.DefaultLockoutThreshold; i++)
+        {
+            user.RecordFailedLogin();
+        }
+
+        _userRepo.GetByUsernameAsync("admin", Arg.Any<CancellationToken>()).Returns(user);
+
+        var outputPort = new TestOutputPort<LoginResult>();
+        await _handler.ExecuteAsync(new LoginCommand("admin", "any"), outputPort, CancellationToken.None);
+
+        outputPort.IsUnauthorized.ShouldBeTrue();
+        _hasher.DidNotReceiveWithAnyArgs().Verify(default!, default!);
+    }
+
+    [Fact]
+    public async Task Handle_OnFailedLogin_ShouldRecordFailureAuditEvent()
+    {
+        var user = User.Create("admin", "Admin", "hashed");
+        _userRepo.GetByUsernameAsync("admin", Arg.Any<CancellationToken>()).Returns(user);
+        _hasher.Verify("wrong", "hashed").Returns(false);
+
+        var outputPort = new TestOutputPort<LoginResult>();
+        await _handler.ExecuteAsync(new LoginCommand("admin", "wrong"), outputPort, CancellationToken.None);
+
+        await _auditTrail.Received(1).RecordAsync(
+            NatsManager.Domain.Modules.Common.ActionType.Login,
+            NatsManager.Domain.Modules.Common.ResourceType.User,
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<Guid?>(),
+            NatsManager.Domain.Modules.Common.Outcome.Failure,
+            Arg.Any<string?>(),
+            Arg.Any<NatsManager.Domain.Modules.Common.AuditSource>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_OnSuccessfulLogin_ShouldRecordSuccessAuditEvent()
+    {
+        var user = User.Create("admin", "Admin", "hashed");
+        _userRepo.GetByUsernameAsync("admin", Arg.Any<CancellationToken>()).Returns(user);
+        _hasher.Verify("password123", "hashed").Returns(true);
+        _userRepo.GetUserRoleAssignmentsAsync(user.Id, Arg.Any<CancellationToken>()).Returns([]);
+        _userRepo.GetRolesAsync(Arg.Any<CancellationToken>()).Returns([]);
+
+        var outputPort = new TestOutputPort<LoginResult>();
+        await _handler.ExecuteAsync(new LoginCommand("admin", "password123"), outputPort, CancellationToken.None);
+
+        await _auditTrail.Received(1).RecordAsync(
+            NatsManager.Domain.Modules.Common.ActionType.Login,
+            NatsManager.Domain.Modules.Common.ResourceType.User,
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<Guid?>(),
+            NatsManager.Domain.Modules.Common.Outcome.Success,
+            Arg.Any<string?>(),
+            Arg.Any<NatsManager.Domain.Modules.Common.AuditSource>(),
+            Arg.Any<CancellationToken>());
     }
 }
 

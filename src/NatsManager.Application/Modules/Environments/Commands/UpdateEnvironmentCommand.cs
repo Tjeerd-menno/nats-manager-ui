@@ -30,7 +30,7 @@ public sealed class UpdateEnvironmentCommandValidator : AbstractValidator<Update
     {
         RuleFor(x => x.Id).NotEmpty();
         RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
-        RuleFor(x => x.ServerUrl).NotEmpty().MaximumLength(2048);
+        RuleFor(x => x.ServerUrl).NotEmpty().MaximumLength(2048).MustBeValidNatsServerUrl();
         RuleFor(x => x.Description).MaximumLength(500);
     }
 }
