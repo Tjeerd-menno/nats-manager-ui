@@ -45,8 +45,8 @@ public sealed class CoreNatsTests(AppHostFixture fixture) : E2ETestBase(fixture)
         // Click Publish Message button
         await Page.GetByRole(AriaRole.Button, new() { Name = "Publish Message" }).ClickAsync();
 
-        // Fill in the publish form
-        await Page.GetByLabel("Subject").FillAsync("test.e2e.subject");
+        // Fill in the publish form (use Exact = true to avoid matching the LiveMessageViewer's "Subject pattern" input)
+        await Page.GetByLabel("Subject", new() { Exact = true }).FillAsync("test.e2e.subject");
         await Page.GetByLabel("Payload").FillAsync("Hello from E2E tests!");
 
         // Submit
