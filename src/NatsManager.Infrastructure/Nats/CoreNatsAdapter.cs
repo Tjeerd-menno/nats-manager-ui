@@ -90,7 +90,7 @@ public sealed partial class CoreNatsAdapter(
             var json = await httpClient.GetStringAsync(url, cts.Token);
 
             using var doc = JsonDocument.Parse(json);
-            if (!doc.RootElement.TryGetProperty("subscriptions", out var subslist)
+            if (!TryGetSubscriptionsList(doc.RootElement, out var subslist)
                 || subslist.ValueKind != JsonValueKind.Array)
             {
                 return new ListSubjectsResult([], IsMonitoringAvailable: true);
@@ -120,6 +120,11 @@ public sealed partial class CoreNatsAdapter(
             return new ListSubjectsResult([], IsMonitoringAvailable: false);
         }
     }
+
+    private static bool TryGetSubscriptionsList(JsonElement root, out JsonElement subscriptions) =>
+        root.TryGetProperty("subscriptions_list", out subscriptions)
+        || root.TryGetProperty("subscriptions", out subscriptions)
+        || root.TryGetProperty("subslist", out subscriptions);
 
     public Task<IReadOnlyList<NatsClientInfo>> ListClientsAsync(Guid environmentId, CancellationToken cancellationToken = default)
     {
