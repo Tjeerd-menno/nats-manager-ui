@@ -14,17 +14,28 @@ namespace NatsManager.Integration.Tests.Infrastructure;
 /// </summary>
 public sealed class NatsFixture : IAsyncLifetime
 {
+    private const string UsernameParameter = "Parameters__bootstrap-admin-username";
+    private const string PasswordParameter = "Parameters__bootstrap-admin-password";
+    private const string EncryptionKeyParameter = "Parameters__backend-encryption-key";
+    private static readonly string TestOnlyEncryptionKey =
+        Convert.ToBase64String("0123456789ABCDEF0123456789ABCDEF"u8.ToArray());
+
     private DistributedApplication _app = default!;
+    private string? _originalUsernameParameter;
+    private string? _originalPasswordParameter;
+    private string? _originalEncryptionKeyParameter;
 
     public string NatsUrl { get; private set; } = string.Empty;
 
     public async ValueTask InitializeAsync()
     {
-        Environment.SetEnvironmentVariable("Parameters__bootstrap-admin-username", "admin");
-        Environment.SetEnvironmentVariable("Parameters__bootstrap-admin-password", "Admin123!");
-        Environment.SetEnvironmentVariable(
-            "Parameters__backend-encryption-key",
-            Convert.ToBase64String("0123456789ABCDEF0123456789ABCDEF"u8.ToArray()));
+        _originalUsernameParameter = Environment.GetEnvironmentVariable(UsernameParameter);
+        _originalPasswordParameter = Environment.GetEnvironmentVariable(PasswordParameter);
+        _originalEncryptionKeyParameter = Environment.GetEnvironmentVariable(EncryptionKeyParameter);
+
+        Environment.SetEnvironmentVariable(UsernameParameter, "admin");
+        Environment.SetEnvironmentVariable(PasswordParameter, "Admin123!");
+        Environment.SetEnvironmentVariable(EncryptionKeyParameter, TestOnlyEncryptionKey);
 
         var appHost = await DistributedApplicationTestingBuilder
             .CreateAsync<Projects.NatsManager_AppHost>(
@@ -51,6 +62,10 @@ public sealed class NatsFixture : IAsyncLifetime
         {
             await _app.DisposeAsync();
         }
+
+        Environment.SetEnvironmentVariable(UsernameParameter, _originalUsernameParameter);
+        Environment.SetEnvironmentVariable(PasswordParameter, _originalPasswordParameter);
+        Environment.SetEnvironmentVariable(EncryptionKeyParameter, _originalEncryptionKeyParameter);
 
         GC.SuppressFinalize(this);
     }

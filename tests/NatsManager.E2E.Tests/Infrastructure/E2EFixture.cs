@@ -17,6 +17,9 @@ namespace NatsManager.E2E.Tests.Infrastructure;
 public sealed class AppHostFixture : IAsyncLifetime
 {
     private static readonly TimeSpan ResourceTimeout = TimeSpan.FromMinutes(5);
+    private const string UsernameParameter = "Parameters__bootstrap-admin-username";
+    private const string PasswordParameter = "Parameters__bootstrap-admin-password";
+    private const string EncryptionKeyParameter = "Parameters__backend-encryption-key";
     public const string BootstrapAdminUsername = "admin";
     public const string BootstrapAdminPassword = "Admin123!";
     public static string EncryptionKey { get; } =
@@ -25,6 +28,9 @@ public sealed class AppHostFixture : IAsyncLifetime
     private DistributedApplication app = default!;
     private ResourceNotificationService resourceNotificationService = default!;
     private string? _dbPath;
+    private string? _originalUsernameParameter;
+    private string? _originalPasswordParameter;
+    private string? _originalEncryptionKeyParameter;
 
     public string FrontendUrl { get; private set; } = string.Empty;
     public string BackendUrl { get; private set; } = string.Empty;
@@ -35,9 +41,13 @@ public sealed class AppHostFixture : IAsyncLifetime
         // Use an ephemeral SQLite database so each test run starts clean
         _dbPath = Path.Combine(Path.GetTempPath(), $"natsmanager-e2e-{Guid.NewGuid():N}.db");
 
-        Environment.SetEnvironmentVariable("Parameters__bootstrap-admin-username", BootstrapAdminUsername);
-        Environment.SetEnvironmentVariable("Parameters__bootstrap-admin-password", BootstrapAdminPassword);
-        Environment.SetEnvironmentVariable("Parameters__backend-encryption-key", EncryptionKey);
+        _originalUsernameParameter = Environment.GetEnvironmentVariable(UsernameParameter);
+        _originalPasswordParameter = Environment.GetEnvironmentVariable(PasswordParameter);
+        _originalEncryptionKeyParameter = Environment.GetEnvironmentVariable(EncryptionKeyParameter);
+
+        Environment.SetEnvironmentVariable(UsernameParameter, BootstrapAdminUsername);
+        Environment.SetEnvironmentVariable(PasswordParameter, BootstrapAdminPassword);
+        Environment.SetEnvironmentVariable(EncryptionKeyParameter, EncryptionKey);
 
         var appHost = await DistributedApplicationTestingBuilder
             .CreateAsync<Projects.NatsManager_AppHost>(
@@ -114,6 +124,10 @@ public sealed class AppHostFixture : IAsyncLifetime
             try { File.Delete(_dbPath + "-wal"); } catch { /* best effort */ }
             try { File.Delete(_dbPath + "-shm"); } catch { /* best effort */ }
         }
+
+        Environment.SetEnvironmentVariable(UsernameParameter, _originalUsernameParameter);
+        Environment.SetEnvironmentVariable(PasswordParameter, _originalPasswordParameter);
+        Environment.SetEnvironmentVariable(EncryptionKeyParameter, _originalEncryptionKeyParameter);
 
         GC.SuppressFinalize(this);
     }
