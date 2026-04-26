@@ -30,6 +30,7 @@ internal sealed class EnvironmentMetricsBuffer(int maxCapacity)
 {
     private readonly Queue<MonitoringSnapshot> _queue = new();
     private readonly object _lock = new();
+    private MonitoringSnapshot? _latest;
 
     public void Add(MonitoringSnapshot snapshot)
     {
@@ -38,6 +39,7 @@ internal sealed class EnvironmentMetricsBuffer(int maxCapacity)
             while (_queue.Count >= maxCapacity)
                 _queue.Dequeue();
             _queue.Enqueue(snapshot);
+            _latest = snapshot;
         }
     }
 
@@ -50,6 +52,6 @@ internal sealed class EnvironmentMetricsBuffer(int maxCapacity)
     public MonitoringSnapshot? GetLatest()
     {
         lock (_lock)
-            return _queue.Count > 0 ? _queue.Last() : null;
+            return _latest;
     }
 }

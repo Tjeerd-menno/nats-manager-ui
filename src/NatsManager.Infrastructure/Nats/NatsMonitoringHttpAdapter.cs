@@ -57,9 +57,10 @@ public sealed partial class NatsMonitoringHttpAdapter(
         {
             LogFetchFailed($"{baseUrl}/jsz", ex.Message);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             // JSON parse error for jsz = degraded; continue with null JetStream
+            LogFetchFailed($"{baseUrl}/jsz", ex.Message);
         }
 
         var healthStatus = MonitoringStatus.Unavailable;

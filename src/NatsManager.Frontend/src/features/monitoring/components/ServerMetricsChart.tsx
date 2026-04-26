@@ -75,7 +75,7 @@ export function ServerMetricsChart({ snapshots }: Props) {
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="time" tick={{ fontSize: 11 }} />
           <YAxis tickFormatter={formatBytes} />
-          <Tooltip formatter={(value) => formatBytes(value as number)} />
+          <Tooltip formatter={(value) => typeof value === 'number' ? formatBytes(value) : String(value)} />
           <Legend />
           <Line type="monotone" dataKey="inBytesPerSec" stroke="#7950f2" name="In bytes/s" dot={false} />
           <Line type="monotone" dataKey="outBytesPerSec" stroke="#e64980" name="Out bytes/s" dot={false} />
