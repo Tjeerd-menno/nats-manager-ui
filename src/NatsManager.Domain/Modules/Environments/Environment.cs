@@ -16,6 +16,8 @@ public sealed class Environment
     public DateTimeOffset? LastSuccessfulContact { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
+    public string? MonitoringUrl { get; private set; }
+    public int? MonitoringPollingIntervalSeconds { get; private set; }
 
     private Environment() { }
 
@@ -109,6 +111,29 @@ public sealed class Environment
                 $"CredentialReference is required when CredentialType is {credentialType}.",
                 nameof(credentialReference));
         }
+    }
+
+    public void UpdateMonitoringSettings(string? monitoringUrl, int? pollingIntervalSeconds)
+    {
+        var normalizedMonitoringUrl = string.IsNullOrWhiteSpace(monitoringUrl)
+            ? null
+            : monitoringUrl.Trim();
+
+        if (normalizedMonitoringUrl is not null)
+        {
+            if (normalizedMonitoringUrl.Length > 500)
+                throw new ArgumentException("MonitoringUrl must not exceed 500 characters.", nameof(monitoringUrl));
+            if (!Uri.TryCreate(normalizedMonitoringUrl, UriKind.Absolute, out var uri) ||
+                (uri.Scheme != "http" && uri.Scheme != "https"))
+                throw new ArgumentException("MonitoringUrl must be a valid http:// or https:// URL.", nameof(monitoringUrl));
+        }
+
+        if (pollingIntervalSeconds.HasValue && (pollingIntervalSeconds.Value < 5 || pollingIntervalSeconds.Value > 300))
+            throw new ArgumentException("MonitoringPollingIntervalSeconds must be between 5 and 300.", nameof(pollingIntervalSeconds));
+
+        MonitoringUrl = normalizedMonitoringUrl;
+        MonitoringPollingIntervalSeconds = pollingIntervalSeconds;
+        UpdatedAt = DateTimeOffset.UtcNow;
     }
 
     public void UpdateConnectionStatus(ConnectionStatus status)

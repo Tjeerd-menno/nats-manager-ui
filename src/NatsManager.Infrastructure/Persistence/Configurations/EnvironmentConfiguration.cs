@@ -19,5 +19,7 @@ internal sealed class EnvironmentConfiguration : IEntityTypeConfiguration<Enviro
         builder.Property(e => e.CredentialType).HasConversion<string>().HasMaxLength(50);
         builder.Property(e => e.CredentialReference).HasMaxLength(500);
         builder.Property(e => e.ConnectionStatus).HasConversion<string>().HasMaxLength(50);
+        builder.Property(e => e.MonitoringUrl).HasMaxLength(500);
+        builder.Property(e => e.MonitoringPollingIntervalSeconds);
     }
 }

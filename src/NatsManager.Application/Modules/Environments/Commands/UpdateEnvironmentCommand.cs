@@ -16,6 +16,8 @@ public sealed record UpdateEnvironmentCommand : IAuditableCommand
     public string? Credential { get; init; }
     public bool IsProduction { get; init; }
     public bool IsEnabled { get; init; } = true;
+    public string? MonitoringUrl { get; init; }
+    public int? MonitoringPollingIntervalSeconds { get; init; }
 
     ActionType IAuditableCommand.ActionType => ActionType.Update;
     ResourceType IAuditableCommand.ResourceType => ResourceType.Environment;
@@ -32,6 +34,17 @@ public sealed class UpdateEnvironmentCommandValidator : AbstractValidator<Update
         RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
         RuleFor(x => x.ServerUrl).NotEmpty().MaximumLength(2048).MustBeValidNatsServerUrl();
         RuleFor(x => x.Description).MaximumLength(500);
+
+        When(x => !string.IsNullOrWhiteSpace(x.MonitoringUrl), () =>
+            RuleFor(x => x.MonitoringUrl!)
+                .Must(url => Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri) &&
+                              (uri.Scheme == "http" || uri.Scheme == "https"))
+                .WithMessage("MonitoringUrl must be a valid http:// or https:// URL")
+                .MaximumLength(500));
+
+        When(x => x.MonitoringPollingIntervalSeconds.HasValue, () =>
+            RuleFor(x => x.MonitoringPollingIntervalSeconds!.Value)
+                .InclusiveBetween(5, 300));
     }
 }
 
@@ -69,6 +82,8 @@ public sealed class UpdateEnvironmentCommandHandler(
             credentialType: request.CredentialType,
             credentialReference: credentialRef,
             isProduction: request.IsProduction);
+
+        environment.UpdateMonitoringSettings(request.MonitoringUrl, request.MonitoringPollingIntervalSeconds);
 
         if (request.IsEnabled && !environment.IsEnabled)
         {
