@@ -112,7 +112,7 @@ public sealed class CoreNatsTests(AppHostFixture fixture) : E2ETestBase(fixture)
         await Page.GetByLabel("Payload").FillAsync("""{"hello":"world"}""");
         await Page.GetByLabel("Reply-To (optional)").FillAsync("test.e2e.reply");
         await Page.GetByRole(AriaRole.Button, new() { Name = "Add Header" }).ClickAsync();
-        await Page.GetByPlaceholder("Key").FillAsync("X-E2E");
+        await Page.GetByPlaceholder("Key", new() { Exact = true }).FillAsync("X-E2E");
         await Page.GetByPlaceholder("Value").FillAsync("true");
 
         await Page.GetByRole(AriaRole.Button, new() { Name = "Publish", Exact = true }).ClickAsync();
@@ -404,7 +404,7 @@ public sealed class CoreNatsTests(AppHostFixture fixture) : E2ETestBase(fixture)
 
         await Expect(Page.GetByRole(AriaRole.Main).GetByText(subject))
             .ToBeVisibleAsync(new() { Timeout = 10_000 });
-        await Expect(Page.GetByText("Hello live viewer"))
+        await Expect(Page.GetByRole(AriaRole.Table).GetByText("Hello live viewer"))
             .ToBeVisibleAsync(new() { Timeout = 10_000 });
     }
 
