@@ -5,6 +5,8 @@ using NatsManager.Application.Modules.Environments.Ports;
 using NatsManager.Application.Modules.Monitoring;
 using NatsManager.Application.Modules.Monitoring.Models;
 using NatsManager.Application.Modules.Monitoring.Ports;
+using NatsManager.Domain.Modules.Environments;
+using NatsEnvironment = NatsManager.Domain.Modules.Environments.Environment;
 using NatsManager.Web.Hubs;
 
 namespace NatsManager.Web.BackgroundServices;
@@ -57,7 +59,7 @@ public sealed partial class MonitoringPoller(
         await Task.WhenAll(pollingTasks);
     }
 
-    private async Task PollEnvironmentAsync(Domain.Modules.Environments.Environment environment, CancellationToken ct)
+    private async Task PollEnvironmentAsync(NatsEnvironment environment, CancellationToken ct)
     {
         try
         {
