@@ -90,7 +90,9 @@ public static class EnvironmentEndpoints
             CredentialType = request.CredentialType,
             Credential = request.Credential,
             IsProduction = request.IsProduction,
-            IsEnabled = request.IsEnabled
+            IsEnabled = request.IsEnabled,
+            MonitoringUrl = request.MonitoringUrl,
+            MonitoringPollingIntervalSeconds = request.MonitoringPollingIntervalSeconds
         };
 
         var presenter = new Presenter<Unit>();
@@ -160,6 +162,8 @@ public sealed record UpdateEnvironmentRequest(
     Domain.Modules.Common.CredentialType CredentialType,
     string? Credential,
     bool IsProduction,
-    bool IsEnabled);
+    bool IsEnabled,
+    string? MonitoringUrl,
+    int? MonitoringPollingIntervalSeconds);
 
 public sealed record EnableDisableRequest(bool Enable);

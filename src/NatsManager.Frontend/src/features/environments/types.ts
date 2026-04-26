@@ -20,6 +20,8 @@ export interface EnvironmentDetail {
   lastSuccessfulContact: string | null;
   createdAt: string;
   updatedAt: string;
+  monitoringUrl: string | null;
+  monitoringPollingIntervalSeconds: number | null;
 }
 
 export interface RegisterEnvironmentRequest {
@@ -39,6 +41,8 @@ export interface UpdateEnvironmentRequest {
   credential?: string;
   isProduction: boolean;
   isEnabled: boolean;
+  monitoringUrl?: string | null;
+  monitoringPollingIntervalSeconds?: number | null;
 }
 
 export interface RegisterEnvironmentResult {

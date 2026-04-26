@@ -14,6 +14,7 @@ const Services = lazy(() => import('./features/services/ServicesPage'));
 const CoreNats = lazy(() => import('./features/corenats/CoreNatsPage'));
 const Audit = lazy(() => import('./features/audit/AuditPage'));
 const Users = lazy(() => import('./features/admin/UsersPage'));
+const Monitoring = lazy(() => import('./features/monitoring/MonitoringPage'));
 
 function App() {
   return (
@@ -143,6 +144,14 @@ function App() {
           element={
             <Suspense fallback={<LoadingState />}>
               <CoreNats />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/monitoring"
+          element={
+            <Suspense fallback={<LoadingState />}>
+              <Monitoring />
             </Suspense>
           }
         />
