@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Modal, TextInput, Select, Switch, Textarea, Button, Group, Stack } from '@mantine/core';
+import { Modal, TextInput, Select, Switch, Textarea, Button, Group, Stack, NumberInput, Divider } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useRegisterEnvironment, useUpdateEnvironment, useEnvironment } from '../hooks/useEnvironments';
 import type { CredentialType, EnvironmentListItem } from '../types';
@@ -22,6 +22,8 @@ interface FormValues {
   credsFile: string;
   isProduction: boolean;
   isEnabled: boolean;
+  monitoringUrl: string;
+  monitoringPollingIntervalSeconds: number | '';
 }
 
 const credentialTypeOptions = [
@@ -52,6 +54,8 @@ export function EnvironmentForm({ opened, onClose, environment }: EnvironmentFor
       credsFile: '',
       isProduction: false,
       isEnabled: true,
+      monitoringUrl: '',
+      monitoringPollingIntervalSeconds: '',
     },
     validate: {
       name: (value) => (value.trim().length === 0 ? 'Name is required' : null),
@@ -61,6 +65,22 @@ export function EnvironmentForm({ opened, onClose, environment }: EnvironmentFor
       token: (value, values) => (values.credentialType === 'Token' && value.trim().length === 0 ? 'Token is required' : null),
       nkeyFile: (value, values) => (values.credentialType === 'NKey' && value.trim().length === 0 ? 'NKey seed or file path is required' : null),
       credsFile: (value, values) => (values.credentialType === 'CredsFile' && value.trim().length === 0 ? 'Credentials file path is required' : null),
+      monitoringUrl: (value) => {
+        if (!value || value.trim().length === 0) return null;
+        try {
+          const url = new URL(value);
+          if (url.protocol !== 'http:' && url.protocol !== 'https:') return 'Monitoring URL must use http:// or https://';
+        } catch {
+          return 'Monitoring URL must be a valid http:// or https:// URL';
+        }
+        return null;
+      },
+      monitoringPollingIntervalSeconds: (value) => {
+        if (value === '' || value === undefined || value === null) return null;
+        const n = Number(value);
+        if (n < 5 || n > 300) return 'Polling interval must be between 5 and 300 seconds';
+        return null;
+      },
     },
   });
 
@@ -78,6 +98,8 @@ export function EnvironmentForm({ opened, onClose, environment }: EnvironmentFor
         credsFile: '',
         isProduction: envDetail.isProduction,
         isEnabled: envDetail.isEnabled,
+        monitoringUrl: envDetail.monitoringUrl ?? '',
+        monitoringPollingIntervalSeconds: envDetail.monitoringPollingIntervalSeconds ?? '',
       });
       form.resetDirty();
     } else if (!environment) {
@@ -108,6 +130,8 @@ export function EnvironmentForm({ opened, onClose, environment }: EnvironmentFor
         credential,
         isProduction: values.isProduction,
         isEnabled: values.isEnabled,
+        monitoringUrl: values.monitoringUrl || null,
+        monitoringPollingIntervalSeconds: values.monitoringPollingIntervalSeconds !== '' ? Number(values.monitoringPollingIntervalSeconds) : null,
       });
     } else {
       await registerMutation.mutateAsync({
@@ -203,6 +227,21 @@ export function EnvironmentForm({ opened, onClose, environment }: EnvironmentFor
               {...form.getInputProps('isEnabled', { type: 'checkbox' })}
             />
           )}
+          <Divider label="Monitoring (optional)" labelPosition="left" />
+          <TextInput
+            label="Monitoring URL"
+            placeholder="http://localhost:8222"
+            description="NATS HTTP monitoring endpoint URL"
+            {...form.getInputProps('monitoringUrl')}
+          />
+          <NumberInput
+            label="Polling Interval (seconds)"
+            placeholder="30"
+            description="Override default polling interval (5–300 seconds)"
+            min={5}
+            max={300}
+            {...form.getInputProps('monitoringPollingIntervalSeconds')}
+          />
           <Group justify="flex-end">
             <Button variant="subtle" onClick={onClose}>Cancel</Button>
             <Button

@@ -16,7 +16,9 @@ public sealed record EnvironmentDetailResult(
     string ConnectionStatus,
     DateTimeOffset? LastSuccessfulContact,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt,
+    string? MonitoringUrl,
+    int? MonitoringPollingIntervalSeconds);
 
 public sealed class GetEnvironmentDetailQueryHandler(
     IEnvironmentRepository environmentRepository) : IUseCase<GetEnvironmentDetailQuery, EnvironmentDetailResult>
@@ -37,6 +39,8 @@ public sealed class GetEnvironmentDetailQueryHandler(
             environment.ConnectionStatus.ToString(),
             environment.LastSuccessfulContact,
             environment.CreatedAt,
-            environment.UpdatedAt));
+            environment.UpdatedAt,
+            environment.MonitoringUrl,
+            environment.MonitoringPollingIntervalSeconds));
     }
 }

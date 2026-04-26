@@ -14,6 +14,7 @@ import {
   IconLogout,
   IconSun,
   IconMoon,
+  IconActivity,
 } from '@tabler/icons-react';
 import { useAuth } from '../features/auth/useAuth';
 import { EnvironmentSelector } from '../features/environments/components/EnvironmentSelector';
@@ -23,6 +24,7 @@ import { GlobalSearch } from '../features/search/SearchPage';
 const navItems = [
   { label: 'Dashboard', path: '/dashboard', icon: IconLayoutDashboard },
   { label: 'Environments', path: '/environments', icon: IconServer },
+  { label: 'Monitoring', path: '/monitoring', icon: IconActivity },
   { label: 'JetStream', path: '/jetstream/streams', icon: IconBolt },
   { label: 'Key-Value', path: '/kv/buckets', icon: IconKey },
   { label: 'Object Store', path: '/objectstore/buckets', icon: IconPackage },

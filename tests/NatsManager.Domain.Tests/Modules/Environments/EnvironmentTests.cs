@@ -238,4 +238,27 @@ public sealed class EnvironmentTests
 
         env.IsEnabled.ShouldBeFalse();
     }
+
+    [Fact]
+    public void UpdateMonitoringSettings_WithWhitespaceUrl_ShouldClearMonitoringUrl()
+    {
+        var env = Environment.Create("Test", "nats://localhost:4222");
+        env.UpdateMonitoringSettings(" http://localhost:8222 ", 30);
+
+        env.UpdateMonitoringSettings("   ", null);
+
+        env.MonitoringUrl.ShouldBeNull();
+        env.MonitoringPollingIntervalSeconds.ShouldBeNull();
+    }
+
+    [Fact]
+    public void UpdateMonitoringSettings_WithValidUrl_ShouldTrimMonitoringUrl()
+    {
+        var env = Environment.Create("Test", "nats://localhost:4222");
+
+        env.UpdateMonitoringSettings(" http://localhost:8222 ", 30);
+
+        env.MonitoringUrl.ShouldBe("http://localhost:8222");
+        env.MonitoringPollingIntervalSeconds.ShouldBe(30);
+    }
 }

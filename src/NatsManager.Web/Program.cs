@@ -4,18 +4,23 @@ using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using NatsManager.Application.Behaviors;
 using NatsManager.Application.Common;
 using NatsManager.Application.Modules.Audit.Ports;
 using NatsManager.Application.Modules.Auth.Services;
 using NatsManager.Application.Modules.Environments.Ports;
+using NatsManager.Application.Modules.Monitoring;
+using NatsManager.Application.Modules.Monitoring.Ports;
 using NatsManager.Domain.Modules.Auth;
 using NatsManager.Infrastructure.Auth;
 using NatsManager.Infrastructure.Configuration;
+using NatsManager.Infrastructure.Monitoring;
 using NatsManager.Infrastructure.Nats;
 using NatsManager.Infrastructure.Persistence;
 using NatsManager.Web.BackgroundServices;
 using NatsManager.Web.Endpoints;
+using NatsManager.Web.Hubs;
 using NatsManager.Web.Middleware;
 using NatsManager.Web.Security;
 using Serilog;
@@ -70,6 +75,22 @@ builder.Services.AddSingleton<NatsManager.Application.Modules.CoreNats.Ports.ICo
 
 builder.Services.Configure<BootstrapAdminOptions>(
     builder.Configuration.GetSection(BootstrapAdminOptions.SectionName));
+
+builder.Services.AddOptions<MonitoringOptions>()
+    .Bind(builder.Configuration.GetSection(MonitoringOptions.SectionName))
+    .Validate(MonitoringOptions.IsValid, "Monitoring options are invalid. DefaultPollingIntervalSeconds must be 5-300, MaxSnapshotsPerEnvironment must be 1-10000, and HttpTimeoutSeconds must be 1-60.")
+    .ValidateOnStart();
+
+builder.Services.AddHttpClient("NatsMonitoring", (sp, client) =>
+{
+    var opts = sp.GetRequiredService<IOptions<MonitoringOptions>>().Value;
+    client.Timeout = TimeSpan.FromSeconds(opts.HttpTimeoutSeconds);
+    client.DefaultRequestVersion = System.Net.HttpVersion.Version11;
+});
+
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<IMonitoringAdapter, NatsMonitoringHttpAdapter>();
+builder.Services.AddSingleton<IMonitoringMetricsStore, MonitoringMetricsStore>();
 
 builder.Services.AddSingleton<ICredentialEncryptionService>(_ =>
 {
@@ -226,6 +247,7 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 
 // Background services
 builder.Services.AddHostedService<EnvironmentHealthPoller>();
+builder.Services.AddHostedService<MonitoringPoller>();
 
 var app = builder.Build();
 
@@ -292,6 +314,9 @@ app.UseMiddleware<DataFreshnessMiddleware>();
 
 app.MapDefaultEndpoints();
 
+// Map SignalR hubs
+app.MapHub<MonitoringHub>("/hubs/monitoring");
+
 // Map API endpoints
 app.MapEnvironmentEndpoints();
 app.MapJetStreamEndpoints();
@@ -304,6 +329,7 @@ app.MapAuthEndpoints();
 app.MapAccessControlEndpoints();
 app.MapAuditEndpoints();
 app.MapSearchEndpoints();
+app.MapMonitoringEndpoints();
 
 app.Run();
 
