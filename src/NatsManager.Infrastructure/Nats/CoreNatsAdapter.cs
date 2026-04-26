@@ -78,13 +78,15 @@ public sealed partial class CoreNatsAdapter(
         try
         {
             var connection = (NatsConnection)await connectionFactory.GetConnectionAsync(environmentId, cancellationToken);
-            var host = ExtractHost(connection);
 
             var httpClient = httpClientFactory.CreateClient();
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             cts.CancelAfter(_monitoring.HttpTimeout);
 
-            var url = $"http://{host}:{_monitoring.DefaultPort}/subsz?subs=1";
+            var monitoringBase = !string.IsNullOrEmpty(_monitoring.BaseUrl)
+                ? _monitoring.BaseUrl.TrimEnd('/')
+                : $"http://{ExtractHost(connection)}:{_monitoring.DefaultPort}";
+            var url = $"{monitoringBase}/subsz?subs=1";
             var json = await httpClient.GetStringAsync(url, cts.Token);
 
             using var doc = JsonDocument.Parse(json);
