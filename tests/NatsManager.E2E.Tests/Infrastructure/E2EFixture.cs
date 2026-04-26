@@ -1,7 +1,6 @@
 using Aspire.Hosting;
 using Aspire.Hosting.Testing;
 using NatsManager.E2E.Tests.Infrastructure;
-using System.Text;
 
 #pragma warning disable CS8602 // Aspire configureBuilder parameters are non-null at runtime
 
@@ -22,8 +21,7 @@ public sealed class AppHostFixture : IAsyncLifetime
     private const string EncryptionKeyParameter = "Parameters__backend-encryption-key";
     public const string BootstrapAdminUsername = "admin";
     public const string BootstrapAdminPassword = "Admin123!";
-    public static string EncryptionKey { get; } =
-        Convert.ToBase64String(Encoding.UTF8.GetBytes("0123456789ABCDEF0123456789ABCDEF"));
+    public const string EncryptionKey = "JFar2auhLPoLfMvwy62dhRltrwY3EEPmFJ1svc17pn0=";
 
     private DistributedApplication app = default!;
     private ResourceNotificationService resourceNotificationService = default!;

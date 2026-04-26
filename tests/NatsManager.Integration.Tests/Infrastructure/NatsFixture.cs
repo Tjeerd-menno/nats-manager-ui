@@ -17,8 +17,7 @@ public sealed class NatsFixture : IAsyncLifetime
     private const string UsernameParameter = "Parameters__bootstrap-admin-username";
     private const string PasswordParameter = "Parameters__bootstrap-admin-password";
     private const string EncryptionKeyParameter = "Parameters__backend-encryption-key";
-    private static readonly string TestOnlyEncryptionKey =
-        Convert.ToBase64String("0123456789ABCDEF0123456789ABCDEF"u8.ToArray());
+    private const string TestOnlyEncryptionKey = "JFar2auhLPoLfMvwy62dhRltrwY3EEPmFJ1svc17pn0=";
 
     private DistributedApplication _app = default!;
     private string? _originalUsernameParameter;
