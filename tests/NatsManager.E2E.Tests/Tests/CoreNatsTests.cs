@@ -113,7 +113,7 @@ public sealed class CoreNatsTests(AppHostFixture fixture) : E2ETestBase(fixture)
         await Page.GetByLabel("Reply-To (optional)").FillAsync("test.e2e.reply");
         await Page.GetByRole(AriaRole.Button, new() { Name = "Add Header" }).ClickAsync();
         await Page.GetByPlaceholder("Key", new() { Exact = true }).FillAsync("X-E2E");
-        await Page.GetByPlaceholder("Value").FillAsync("true");
+        await Page.GetByPlaceholder("Value", new() { Exact = true }).FillAsync("true");
 
         await Page.GetByRole(AriaRole.Button, new() { Name = "Publish", Exact = true }).ClickAsync();
 

@@ -9,7 +9,7 @@ var encryptionKey = builder.AddParameter("backend-encryption-key", secret: true)
 
 var nats = builder.AddNats("nats")
     .WithArgs("-js", "-m", "8222")
-    .WithEndpoint(targetPort: 8222, name: "monitoring", scheme: "http", isProxied: false)
+    .WithEndpoint(targetPort: 8222, name: "monitoring", scheme: "http")
     .WithLifetime(ContainerLifetime.Persistent);
 
 var backend = builder.AddProject<Projects.NatsManager_Web>("backend")

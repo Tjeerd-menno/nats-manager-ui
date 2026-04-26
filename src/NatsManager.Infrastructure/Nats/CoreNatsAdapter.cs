@@ -90,7 +90,7 @@ public sealed partial class CoreNatsAdapter(
             var json = await httpClient.GetStringAsync(url, cts.Token);
 
             using var doc = JsonDocument.Parse(json);
-            if (!doc.RootElement.TryGetProperty("subslist", out var subslist)
+            if (!doc.RootElement.TryGetProperty("subscriptions", out var subslist)
                 || subslist.ValueKind != JsonValueKind.Array)
             {
                 return new ListSubjectsResult([], IsMonitoringAvailable: true);
