@@ -330,4 +330,17 @@ public sealed class PublishMessageCommandValidatorTests
         result.IsValid.ShouldBeFalse();
         result.Errors.ShouldContain(e => e.ErrorMessage.Contains("Header key"));
     }
+
+    [Fact]
+    public void Should_Fail_WhenHeaderKeyIsWhitespace()
+    {
+        var command = new PublishMessageCommand
+        {
+            Subject = "test.subject",
+            Headers = new Dictionary<string, string> { ["   "] = "value" },
+        };
+        var result = _validator.Validate(command);
+        result.IsValid.ShouldBeFalse();
+        result.Errors.ShouldContain(e => e.ErrorMessage.Contains("Header key"));
+    }
 }

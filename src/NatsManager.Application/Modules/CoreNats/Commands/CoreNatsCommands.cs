@@ -30,7 +30,7 @@ public sealed class PublishMessageCommandValidator : AbstractValidator<PublishMe
         RuleFor(x => x.Subject).NotEmpty();
 
         RuleForEach(x => x.Headers)
-            .Must(kvp => !string.IsNullOrEmpty(kvp.Key))
+            .Must(kvp => !string.IsNullOrWhiteSpace(kvp.Key))
             .WithMessage("Header key must not be empty.");
 
         When(x => x.PayloadFormat == PayloadFormat.Json && x.Payload != null, () =>

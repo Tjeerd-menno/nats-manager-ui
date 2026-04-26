@@ -25,6 +25,15 @@ const defaultState = {
   clear: mockClear,
 };
 
+function toBase64(value: string): string {
+  const bytes = new TextEncoder().encode(value);
+  let binary = '';
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+  return btoa(binary);
+}
+
 vi.mock('../hooks/useCoreNats', () => ({
   useLiveMessages: vi.fn(() => defaultState),
 }));
@@ -74,6 +83,41 @@ it('message appears in table', () => {
   renderWithProviders(<LiveMessageViewer environmentId="env-1" />);
 
   expect(screen.getByText('orders.created')).toBeInTheDocument();
+});
+
+it('renders UTF-8 payload preview decoded from Base64', () => {
+  const msg: NatsLiveMessage = {
+    subject: 'orders.utf8',
+    receivedAt: new Date().toISOString(),
+    payloadBase64: toBase64('Hello 👋'),
+    payloadSize: 10,
+    headers: {},
+    isBinary: false,
+  };
+  mockUseLiveMessages.mockReturnValue({ ...defaultState, isConnected: true, messages: [msg] });
+
+  renderWithProviders(<LiveMessageViewer environmentId="env-1" />);
+
+  expect(screen.getByText('Hello 👋')).toBeInTheDocument();
+});
+
+it('renders binary payload preview as labelled hex', async () => {
+  const user = userEvent.setup();
+  const msg: NatsLiveMessage = {
+    subject: 'orders.binary',
+    receivedAt: new Date().toISOString(),
+    payloadBase64: btoa(String.fromCharCode(0, 255, 16)),
+    payloadSize: 3,
+    headers: {},
+    isBinary: true,
+  };
+  mockUseLiveMessages.mockReturnValue({ ...defaultState, isConnected: true, messages: [msg] });
+
+  renderWithProviders(<LiveMessageViewer environmentId="env-1" />);
+
+  expect(screen.getByText(/binary payload \(3 bytes, hex\): 00 ff 10/i)).toBeInTheDocument();
+  await user.click(screen.getByText('orders.binary'));
+  expect(screen.getByText(/binary payload rendered as hex bytes/i)).toBeInTheDocument();
 });
 
 it('pause button calls pause when connected', async () => {

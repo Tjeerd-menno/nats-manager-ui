@@ -48,6 +48,43 @@ public sealed class CoreNatsAdapterTests(NatsFixture fixture) : NatsIntegrationT
     }
 
     [Fact]
+    public async Task SubscribeAsync_WhenMessagePublished_YieldsMessage()
+    {
+        var adapter = CreateAdapter();
+        var subject = $"test.subscribe.{Guid.NewGuid():N}";
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        await using var enumerator = adapter.SubscribeAsync(EnvironmentId, subject, cts.Token)
+            .GetAsyncEnumerator(cts.Token);
+
+        var next = enumerator.MoveNextAsync().AsTask();
+        await Task.Delay(250, cts.Token);
+        await adapter.PublishAsync(EnvironmentId, subject, "hello"u8.ToArray(), cancellationToken: cts.Token);
+
+        var yielded = await next.WaitAsync(cts.Token);
+
+        yielded.ShouldBeTrue();
+        enumerator.Current.Subject.ShouldBe(subject);
+        enumerator.Current.PayloadBase64.ShouldBe(Convert.ToBase64String("hello"u8.ToArray()));
+        enumerator.Current.IsBinary.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task SubscribeAsync_WhenCancelled_StopsEnumeration()
+    {
+        var adapter = CreateAdapter();
+        var subject = $"test.cancel.{Guid.NewGuid():N}";
+        using var cts = new CancellationTokenSource();
+        await using var enumerator = adapter.SubscribeAsync(EnvironmentId, subject, cts.Token)
+            .GetAsyncEnumerator(cts.Token);
+
+        var next = enumerator.MoveNextAsync().AsTask();
+        await cts.CancelAsync();
+
+        await Should.ThrowAsync<OperationCanceledException>(async () =>
+            await next.WaitAsync(TimeSpan.FromSeconds(5)));
+    }
+
+    [Fact]
     public async Task ListSubjectsAsync_ShouldReturnResult()
     {
         var adapter = CreateAdapter();

@@ -53,6 +53,18 @@ it('JSON format with invalid JSON disables submit', async () => {
   expect(button).toBeDisabled();
 });
 
+it('Hex Bytes format with invalid hex disables submit', async () => {
+  const user = userEvent.setup();
+  renderWithProviders(<PublishMessageForm environmentId="env-1" />);
+
+  await user.type(screen.getByLabelText(/subject/i), 'test.subject');
+  await user.click(screen.getByRole('radio', { name: /hex bytes/i }));
+  await user.type(screen.getByLabelText(/payload/i), 'not-hex');
+
+  expect(await screen.findByText(/not valid hex bytes/i)).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /publish/i })).toBeDisabled();
+});
+
 it('shows success notification after mutation success', async () => {
   const user = userEvent.setup();
   mockMutate.mockImplementation((_req: unknown, options: { onSuccess?: () => void }) => {
@@ -109,4 +121,32 @@ it('empty header key shows validation error', async () => {
   // Key is empty by default — button should be disabled
   const button = screen.getByRole('button', { name: /publish/i });
   expect(button).toBeDisabled();
+});
+
+it('whitespace-only header key shows validation error', async () => {
+  const user = userEvent.setup();
+  renderWithProviders(<PublishMessageForm environmentId="env-1" />);
+
+  await user.type(screen.getByLabelText(/subject/i), 'test.subject');
+  await user.click(screen.getByRole('button', { name: /add header/i }));
+  await user.type(screen.getByPlaceholderText(/key/i), '   ');
+
+  expect(screen.getByText(/key required/i)).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /publish/i })).toBeDisabled();
+});
+
+it('duplicate header keys show validation errors', async () => {
+  const user = userEvent.setup();
+  renderWithProviders(<PublishMessageForm environmentId="env-1" />);
+
+  await user.type(screen.getByLabelText(/subject/i), 'test.subject');
+  await user.click(screen.getByRole('button', { name: /add header/i }));
+  await user.click(screen.getByRole('button', { name: /add header/i }));
+
+  const keyInputs = screen.getAllByPlaceholderText(/key/i);
+  await user.type(keyInputs[0], 'X-Test');
+  await user.type(keyInputs[1], ' x-test ');
+
+  expect(screen.getAllByText(/duplicate key/i)).toHaveLength(2);
+  expect(screen.getByRole('button', { name: /publish/i })).toBeDisabled();
 });

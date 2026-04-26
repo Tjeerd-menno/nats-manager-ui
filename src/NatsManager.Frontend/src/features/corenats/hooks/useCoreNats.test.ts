@@ -96,13 +96,20 @@ describe('usePublishMessage', () => {
 
     const { result } = renderHook(() => usePublishMessage('env-1'), { wrapper });
 
-    result.current.mutate({ subject: 'test.subject', payload: 'hello' });
+    result.current.mutate({
+      subject: 'test.subject',
+      payload: 'hello',
+      payloadFormat: 'PlainText',
+      headers: {},
+    });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(apiClient.post).toHaveBeenCalledWith('/environments/env-1/core-nats/publish', {
       subject: 'test.subject',
       payload: 'hello',
+      payloadFormat: 'PlainText',
+      headers: {},
     });
 
     expect(invalidateSpy).toHaveBeenCalledWith(
@@ -120,7 +127,7 @@ describe('usePublishMessage', () => {
 
     const { result } = renderHook(() => usePublishMessage('env-1'), { wrapper });
 
-    result.current.mutate({ subject: 'test.subject' });
+    result.current.mutate({ subject: 'test.subject', payloadFormat: 'PlainText', headers: {} });
 
     await waitFor(() => expect(result.current.isError).toBe(true));
 
@@ -225,6 +232,20 @@ describe('useLiveMessages', () => {
 
     expect(es.closed).toBe(true);
     expect(result.current.isConnected).toBe(false);
+  });
+
+  it('unmount closes the EventSource', () => {
+    const { wrapper } = createWrapper();
+    const { result, unmount } = renderHook(() => useLiveMessages('env-1'), { wrapper });
+
+    act(() => {
+      result.current.subscribe('test.>');
+    });
+    const es = MockEventSource.instances[0];
+
+    unmount();
+
+    expect(es.closed).toBe(true);
   });
 
   it('messages are prepended and capped to cap value', () => {

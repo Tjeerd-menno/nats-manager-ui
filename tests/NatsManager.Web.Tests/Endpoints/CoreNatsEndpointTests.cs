@@ -146,6 +146,23 @@ public sealed class CoreNatsEndpointTests : IClassFixture<NatsManagerWebAppFacto
     }
 
     [Fact]
+    public async Task PublishMessage_WithWhitespaceHeaderKey_Returns422()
+    {
+        var envId = Guid.NewGuid();
+
+        var payload = new
+        {
+            Subject = "test.subject",
+            Payload = "hello",
+            Headers = new Dictionary<string, string> { ["   "] = "value" },
+        };
+
+        var response = await _client.PostAsJsonAsync($"/api/environments/{envId}/core-nats/publish", payload);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
+    }
+
+    [Fact]
     public async Task StreamEndpoint_WithValidSubject_ReturnsEventStreamContentType()
     {
         var envId = Guid.NewGuid();

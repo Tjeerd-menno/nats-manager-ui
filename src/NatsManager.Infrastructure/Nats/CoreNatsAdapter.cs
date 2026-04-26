@@ -179,11 +179,6 @@ public sealed partial class CoreNatsAdapter(
 
     private static string ExtractHost(NatsConnection connection)
     {
-        var serverInfo = connection.ServerInfo;
-        if (serverInfo?.Host is { Length: > 0 } host)
-            return host;
-
-        // Try to parse host from opts
         try
         {
             var opts = connection.Opts;
@@ -192,8 +187,13 @@ public sealed partial class CoreNatsAdapter(
         }
         catch
         {
-            return "localhost";
         }
+
+        var serverInfo = connection.ServerInfo;
+        if (serverInfo?.Host is { Length: > 0 } host)
+            return host;
+
+        return "localhost";
     }
 
     private static bool IsValidUtf8(byte[] bytes)

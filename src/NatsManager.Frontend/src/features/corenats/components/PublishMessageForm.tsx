@@ -23,6 +23,10 @@ function isValidJson(value: string): boolean {
   }
 }
 
+function isValidHexBytes(value: string): boolean {
+  return value.length % 2 === 0 && /^[0-9a-fA-F]*$/.test(value);
+}
+
 interface HeaderRow {
   id: string;
   key: string;
@@ -45,10 +49,16 @@ export function PublishMessageForm({ environmentId }: PublishMessageFormProps) {
   const publishMutation = usePublishMessage(environmentId);
 
   const jsonError = payloadFormat === 'Json' && payload.length > 0 && !isValidJson(payload);
-  const emptyKeyError = headers.some((h) => h.key === '');
+  const hexError = payloadFormat === 'HexBytes' && payload.length > 0 && !isValidHexBytes(payload);
+  const emptyKeyError = headers.some((h) => h.key.trim() === '');
+  const normalizedKeys = headers
+    .map((h) => h.key.trim().toLowerCase())
+    .filter((key) => key.length > 0);
+  const duplicateKeys = new Set(normalizedKeys.filter((key, index) => normalizedKeys.indexOf(key) !== index));
+  const duplicateKeyError = duplicateKeys.size > 0;
 
   const isSubmitDisabled =
-    !subject || publishMutation.isPending || jsonError || emptyKeyError;
+    !subject || publishMutation.isPending || jsonError || hexError || emptyKeyError || duplicateKeyError;
 
   const addHeader = () =>
     setHeaders((prev) => [...prev, { id: crypto.randomUUID(), key: '', value: '' }]);
@@ -65,7 +75,8 @@ export function PublishMessageForm({ environmentId }: PublishMessageFormProps) {
 
     const headersMap: Record<string, string> = {};
     for (const h of headers) {
-      if (h.key) headersMap[h.key] = h.value;
+      const key = h.key.trim();
+      if (key) headersMap[key] = h.value;
     }
 
     const request: PublishRequest = {
@@ -120,7 +131,13 @@ export function PublishMessageForm({ environmentId }: PublishMessageFormProps) {
         value={payload}
         onChange={(e) => setPayload(e.currentTarget.value)}
         minRows={3}
-        error={jsonError ? 'Payload is not valid JSON' : undefined}
+        error={
+          jsonError
+            ? 'Payload is not valid JSON'
+            : hexError
+              ? 'Payload is not valid hex bytes'
+              : undefined
+        }
       />
 
       <TextInput
@@ -151,7 +168,13 @@ export function PublishMessageForm({ environmentId }: PublishMessageFormProps) {
               placeholder="Key"
               value={h.key}
               onChange={(e) => updateHeader(h.id, 'key', e.currentTarget.value)}
-              error={h.key === '' ? 'Key required' : undefined}
+              error={
+                h.key.trim() === ''
+                  ? 'Key required'
+                  : duplicateKeys.has(h.key.trim().toLowerCase())
+                    ? 'Duplicate key'
+                    : undefined
+              }
               style={{ flex: 1 }}
             />
             <TextInput
@@ -184,7 +207,7 @@ export function PublishMessageForm({ environmentId }: PublishMessageFormProps) {
           title="Message published"
           onClose={() => setShowSuccess(false)}
         >
-          Message was sent successfully.
+          Message published successfully.
         </Notification>
       )}
 

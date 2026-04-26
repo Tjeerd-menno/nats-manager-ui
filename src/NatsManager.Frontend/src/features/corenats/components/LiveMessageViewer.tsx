@@ -17,12 +17,28 @@ import { useLiveMessages } from '../hooks/useCoreNats';
 import type { NatsLiveMessage } from '../types';
 import { EmptyState } from '../../../shared/EmptyState';
 
+function decodeBase64Bytes(base64: string): Uint8Array {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+function bytesToHex(bytes: Uint8Array): string {
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join(' ');
+}
+
 function formatPayload(msg: NatsLiveMessage): string {
+  const bytes = decodeBase64Bytes(msg.payloadBase64);
   if (msg.isBinary) {
-    return `<binary ${msg.payloadSize} bytes>`;
+    const hex = bytesToHex(bytes);
+    const preview = hex.length > 80 ? `${hex.slice(0, 80)}…` : hex;
+    return `Binary payload (${msg.payloadSize} bytes, hex): ${preview}`;
   }
   try {
-    const text = atob(msg.payloadBase64);
+    const text = new TextDecoder().decode(bytes);
     return text.length > 80 ? text.slice(0, 80) + '…' : text;
   } catch {
     return `<${msg.payloadSize} bytes>`;
@@ -30,11 +46,12 @@ function formatPayload(msg: NatsLiveMessage): string {
 }
 
 function decodePayload(msg: NatsLiveMessage): string {
+  const bytes = decodeBase64Bytes(msg.payloadBase64);
   if (msg.isBinary) {
-    return msg.payloadBase64;
+    return bytesToHex(bytes);
   }
   try {
-    return atob(msg.payloadBase64);
+    return new TextDecoder().decode(bytes);
   } catch {
     return msg.payloadBase64;
   }
@@ -83,7 +100,12 @@ function MessageRow({ msg }: { msg: NatsLiveMessage }) {
         <Table.Tr>
           <Table.Td colSpan={5} style={{ background: 'var(--mantine-color-default-hover)' }}>
             <Stack p="xs" gap="xs">
-              <PayloadViewer data={decodePayload(msg)} />
+              {msg.isBinary && (
+                <Text size="xs" fw={600}>
+                  Binary payload rendered as hex bytes
+                </Text>
+              )}
+              <PayloadViewer data={decodePayload(msg)} contentType={msg.isBinary ? 'hex' : undefined} />
               {headerCount > 0 && (
                 <div>
                   <Text size="xs" fw={600} mb={4}>
