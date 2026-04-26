@@ -18,7 +18,7 @@ Existing entity in `NatsManager.Domain.Modules.Environments`. Two new nullable f
 
 **State rules**:
 - If `MonitoringUrl` is null, the environment is excluded from polling — no monitoring data is collected.
-- If `MonitoringUrl` is set but unreachable, polling continues; errors are logged and the frontend receives `MonitoringUnavailable` status.
+- If `MonitoringUrl` is set but unreachable, polling continues; errors are logged and the frontend receives `Unavailable` status.
 - `MonitoringPollingIntervalSeconds` must be between 5 and 300 (inclusive) when provided.
 
 ---

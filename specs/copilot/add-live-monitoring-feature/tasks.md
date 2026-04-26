@@ -56,7 +56,7 @@
 - [ ] T011 [P] [US1] Unit tests for `MonitoringMetricsStore` in `tests/NatsManager.Infrastructure.Tests/Monitoring/MonitoringMetricsStoreTests.cs`: verify `AddSnapshot` stores snapshot; verify buffer caps at `MaxSnapshotsPerEnvironment` (oldest evicted); verify `GetHistory` returns snapshots in insertion order; verify `GetLatest` returns most recent
 - [ ] T012 [P] [US1] Unit tests for `MonitoringPoller` in `tests/NatsManager.Web.Tests/BackgroundServices/MonitoringPollerTests.cs`: mock `IEnvironmentRepository`, `IMonitoringAdapter`, `IMonitoringMetricsStore`, `IHubContext<MonitoringHub>`; verify only environments with `MonitoringUrl != null` are polled; verify `AddSnapshot` and hub broadcast are called on successful poll; verify polling continues after a single environment poll failure
 - [ ] T013 [P] [US1] Contract tests for monitoring history endpoint in `tests/NatsManager.Web.Tests/Endpoints/MonitoringEndpointTests.cs`: `GET /api/environments/{envId}/monitoring/metrics/history` returns `200` with history list; returns `404` for unknown environment; returns `400` when `MonitoringUrl` is null
-- [ ] T014 [P] [US1] Frontend hook tests in `src/NatsManager.Frontend/src/features/monitoring/hooks/useMonitoringHub.test.ts`: mock `@microsoft/signalr` `HubConnectionBuilder`; verify initial history is fetched on mount; verify `SubscribeToEnvironment` is invoked; verify `snapshots` state appends on `ReceiveMonitoringSnapshot` messages; verify connection is stopped on unmount
+- [ ] T014 [P] [US1] Frontend hook tests in `src/NatsManager.Frontend/src/features/monitoring/hooks/useMonitoringHub.test.ts`: mock `@microsoft/signalr` `HubConnectionBuilder`; verify initial history is fetched on mount; verify `SubscribeToEnvironment` is invoked; verify `snapshots` state prepends on `ReceiveMonitoringSnapshot` messages; verify connection is stopped on unmount
 - [ ] T015 [P] [US1] Frontend component tests in `src/NatsManager.Frontend/src/features/monitoring/MonitoringPage.test.tsx`: renders `LoadingState` while connecting; renders `ServerMetricsChart` when snapshots are available; renders error alert when `connectionStatus === 'disconnected'`; renders empty-state when environment has no monitoring URL
 
 ### Implementation for User Story 1
@@ -240,5 +240,5 @@ With two developers after Phase 2 is complete:
 - Each user story is independently demonstrable after its phase is complete
 - Rate fields (`inMsgsPerSec`, etc.) are `0.0` in the first snapshot per environment (no previous to diff against) — tests must account for this
 - The `MonitoringPoller` must track the last snapshot per environment in-memory (not via `IMonitoringMetricsStore.GetLatest`) to avoid a lock round-trip on every poll cycle
-- Do not add the `"Monitoring"` nav item to environments that have `monitoringUrl == null` — the page is accessible but shows the empty-state; the nav item is always visible for clarity
+- The `"Monitoring"` nav item is always visible for clarity; for environments where `monitoringUrl == null`, the page remains accessible but shows the empty-state
 - Commit after each task or logical group; verify `dotnet test` and `npm test` pass before each commit

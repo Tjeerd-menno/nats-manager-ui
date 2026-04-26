@@ -3,7 +3,7 @@
 **Feature Branch**: `copilot/add-live-monitoring-feature`  
 **Created**: 2026-04-25  
 **Status**: Draft  
-**Input**: User description: "I want to add live monitoring for the selected environment to the solution. The backend should poll the nats monitoring endpoints with a configurable polling interval. The Frontend should render graphs and show metric using websockets/SignalR."
+**Input**: User description: "I want to add live monitoring for the selected environment to the solution. The backend should poll the nats monitoring endpoints with a configurable polling interval. The Frontend should render graphs and show metrics using WebSockets/SignalR."
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -70,11 +70,11 @@ An operator can set an optional monitoring URL per environment (e.g., `http://na
 
 ### Edge Cases
 
-- What happens when the NATS monitoring endpoint returns an unexpected JSON structure? → The adapter should log a warning and skip that polling cycle; no crash.
+- What happens when the NATS monitoring endpoint returns an unexpected JSON structure? → The adapter logs a warning and emits a snapshot with `Status = Degraded`; no crash, and the frontend shows the degraded status while keeping the last known data.
 - How does the system handle a SignalR client that reconnects mid-session? → Reconnection restores group membership; the client re-receives the latest cached snapshot.
 - What happens if 10 environments all have monitoring enabled simultaneously? → Each has its own polling timer; memory is bounded by the per-environment ring buffer (max 120 snapshots × 10 environments = bounded constant).
 - What happens when the frontend page is closed while connected to the SignalR hub? → The SignalR connection is cleaned up automatically (browser unload / React `useEffect` cleanup); the server removes the client from the group.
-- What if the monitoring URL uses HTTPS with a self-signed certificate? → The HTTP client should be configurable to bypass certificate validation per environment (admin-only setting, off by default).
+- What if the monitoring URL uses HTTPS with a self-signed certificate? → Support for bypassing TLS certificate validation is out of scope for this feature and should be specified separately as future work with explicit security requirements, admin-only access controls, and audit constraints.
 
 ## Requirements *(mandatory)*
 
@@ -90,7 +90,7 @@ An operator can set an optional monitoring URL per environment (e.g., `http://na
 - **FR-MON-008**: The backend MUST expose a REST endpoint `GET /api/environments/{envId}/monitoring/metrics/history` that returns the current in-memory snapshot history (for initial page load before real-time updates begin).
 - **FR-MON-009**: The global default polling interval MUST be configurable via `appsettings.json` under `Monitoring:DefaultPollingIntervalSeconds`.
 - **FR-MON-010**: Administrators MUST be able to update `MonitoringUrl` and `MonitoringPollingIntervalSeconds` per environment through the existing environment update endpoint (or a dedicated sub-resource).
-- **FR-MON-011**: The frontend MUST display a Monitoring page accessible from the environment navigation for environments that have a monitoring URL configured.
+- **FR-MON-011**: The frontend MUST display a Monitoring entry in the environment navigation for all environments; when an environment does not have a monitoring URL configured, selecting it MUST show a disabled or empty-state experience indicating that monitoring is not configured.
 - **FR-MON-012**: The Monitoring page MUST display at minimum: a server metrics time-series graph (connections, msg/s in, msg/s out, bytes/s in, bytes/s out) and a JetStream summary card with trend indicators.
 - **FR-MON-013**: The frontend MUST gracefully handle SignalR disconnections with automatic reconnection and a visible "reconnecting…" status indicator.
 - **FR-MON-014**: The frontend MUST show the "last updated" timestamp alongside all metric displays.

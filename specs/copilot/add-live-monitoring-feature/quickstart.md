@@ -9,7 +9,7 @@
 
 - Working NATS Admin UI application (see `specs/001-nats-admin-app/quickstart.md`)
 - NATS server with monitoring HTTP API enabled (default port: 8222)
-- .NET 10 SDK, Node.js 20+
+- .NET 10 SDK, Node.js 22 LTS
 
 ---
 
@@ -65,11 +65,13 @@ This applies the `AddEnvironmentMonitoring` migration, which adds `MonitoringUrl
 
 Via the UI: navigate to **Environments → [your environment] → Edit**, then fill in the **Monitoring URL** field (e.g., `http://localhost:8222`).
 
-Or via the REST API:
+Or via the REST API (requires an authenticated session — use Swagger UI at `http://localhost:5000/swagger` for interactive testing with cookie auth, or include the session cookie and `X-XSRF-TOKEN` header):
 
 ```bash
 curl -X PUT http://localhost:5000/api/environments/{envId} \
   -H "Content-Type: application/json" \
+  -H "X-XSRF-TOKEN: <your-antiforgery-token>" \
+  --cookie "<your-session-cookie>" \
   -d '{
     "name": "local",
     "serverUrl": "nats://localhost:4222",
@@ -77,6 +79,8 @@ curl -X PUT http://localhost:5000/api/environments/{envId} \
     "monitoringPollingIntervalSeconds": 15
   }'
 ```
+
+> **Note**: The environment update endpoint requires `[Authorize]` and an antiforgery token. The easiest way to test locally is through **Swagger UI** (`/swagger`) after logging in, which handles both automatically.
 
 ---
 

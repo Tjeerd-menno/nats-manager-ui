@@ -83,8 +83,8 @@ New fields:
 **Validation errors `422 Unprocessable Entity`**:
 ```json
 {
-  "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
-  "title": "Validation failed",
+  "type": "https://tools.ietf.org/html/rfc9110#section-15.5.21",
+  "title": "Validation Error",
   "errors": {
     "monitoringUrl": ["MonitoringUrl must be a valid http:// or https:// URL"],
     "monitoringPollingIntervalSeconds": ["MonitoringPollingIntervalSeconds must be between 5 and 300"]

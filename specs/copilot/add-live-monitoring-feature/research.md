@@ -195,13 +195,13 @@ await connection.invoke('SubscribeToEnvironment', environmentId);
 
 | Layer | New files |
 |-------|-----------|
-| Domain | `MonitoringSnapshot.cs` (value object), `IMonitoringMetricsStore.cs` (domain service interface) |
+| Domain | None — this feature does not introduce new aggregates/value objects; monitoring contracts and read models live in Application. |
 | Application | `Monitoring/Ports/IMonitoringAdapter.cs`, `Monitoring/Ports/IMonitoringMetricsStore.cs`, `Monitoring/Queries/GetMonitoringHistoryQuery.cs`, `Monitoring/Models/MonitoringModels.cs` |
 | Infrastructure | `Nats/NatsMonitoringHttpAdapter.cs`, `Monitoring/MonitoringMetricsStore.cs` |
 | Web | `BackgroundServices/MonitoringPoller.cs`, `Hubs/MonitoringHub.cs`, `Endpoints/MonitoringEndpoints.cs` |
 | Frontend | `src/features/monitoring/` (MonitoringPage, hooks, types, components) |
 
-**Rationale**: Consistent with the existing 9 bounded context modules. A new module avoids polluting the Dashboard module (which is a read-once summary) with continuous real-time data.
+**Rationale**: Consistent with the existing 9 bounded context modules. A new module avoids polluting the Dashboard module (which is a read-once summary) with continuous real-time data. Placing monitoring ports and read models in Application preserves the intended Clean Architecture boundary: Domain remains focused on core business concepts, while monitoring data retrieval and history access stay as application-level contracts.
 
 ---
 

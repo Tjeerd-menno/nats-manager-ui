@@ -102,7 +102,7 @@ export function useMonitoringHub(environmentId: string | null): UseMonitoringHub
 
   return {
     snapshots,
-    latestSnapshot: snapshots.length > 0 ? snapshots[0] : null,
+    latestSnapshot: snapshots[0] ?? null,
     connectionStatus,
     error,
   };
