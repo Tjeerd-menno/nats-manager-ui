@@ -80,7 +80,7 @@ it('shows success notification after mutation success', async () => {
   await user.click(button);
 
   await waitFor(() => {
-    expect(screen.getByText(/message published/i)).toBeInTheDocument();
+    expect(screen.getByText('Message published successfully.')).toBeInTheDocument();
   });
 });
 
