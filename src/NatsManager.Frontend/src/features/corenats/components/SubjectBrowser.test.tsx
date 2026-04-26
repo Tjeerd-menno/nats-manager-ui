@@ -1,4 +1,5 @@
-import { screen, fireEvent, act } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../../test-utils';
 import { SubjectBrowser } from './SubjectBrowser';
 
@@ -32,7 +33,7 @@ it('renders subject table with data', () => {
 });
 
 it('filter reduces visible rows', async () => {
-  vi.useFakeTimers();
+  const user = userEvent.setup();
 
   mockUseSubjects.mockReturnValue({
     data: [
@@ -44,20 +45,18 @@ it('filter reduces visible rows', async () => {
     isMonitoringAvailable: true,
   });
 
-  renderWithProviders(<SubjectBrowser environmentId="env-1" />);
+  const { unmount } = renderWithProviders(<SubjectBrowser environmentId="env-1" />);
 
   const filter = screen.getByRole('textbox', { name: /filter subjects/i });
-  fireEvent.change(filter, { target: { value: 'orders' } });
+  await user.type(filter, 'orders');
 
-  // Advance timer past the 300ms debounce and flush React state
-  await act(async () => {
-    vi.advanceTimersByTime(400);
-  });
+  // Wait for the 300ms debounce to fire and the component to re-render
+  await waitFor(() => {
+    expect(screen.queryByText('events.created')).not.toBeInTheDocument();
+  }, { timeout: 1000 });
 
-  expect(screen.queryByText('events.created')).not.toBeInTheDocument();
-
-  vi.useRealTimers();
-});
+  unmount();
+}, 3000);
 
 it('shows unavailable placeholder when monitoring not available', () => {
   mockUseSubjects.mockReturnValue({

@@ -146,6 +146,28 @@ public sealed class CoreNatsEndpointTests : IClassFixture<NatsManagerWebAppFacto
     }
 
     [Fact]
+    public async Task StreamEndpoint_WithValidSubject_ReturnsEventStreamContentType()
+    {
+        var envId = Guid.NewGuid();
+        _factory.CoreNatsAdapter.SubscribeAsync(envId, "test.>", Arg.Any<CancellationToken>())
+            .Returns(EmptyMessages());
+
+        var response = await _client.GetAsync(
+            $"/api/environments/{envId}/core-nats/stream?subject=test.%3E",
+            HttpCompletionOption.ResponseHeadersRead);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe("text/event-stream");
+    }
+
+    private static async IAsyncEnumerable<NatsLiveMessage> EmptyMessages(
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken _ = default)
+    {
+        await Task.CompletedTask;
+        yield break;
+    }
+
+    [Fact]
     public async Task StreamEndpoint_WithEmptySubject_Returns400()
     {
         var envId = Guid.NewGuid();

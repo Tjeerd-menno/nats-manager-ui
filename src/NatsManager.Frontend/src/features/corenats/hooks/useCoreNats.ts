@@ -23,28 +23,27 @@ export interface UseSubjectsResult {
 }
 
 export function useSubjects(environmentId: string | null): UseSubjectsResult {
-  const [isMonitoringAvailable, setIsMonitoringAvailable] = useState(true);
-
   const query = useQuery({
     queryKey: ['core-nats-subjects', environmentId],
     queryFn: async () => {
       const response = await apiClient.get<NatsSubjectInfo[]>(
-        `/environments/${environmentId}/core-nats/subjects`,
-        { validateStatus: () => true }
+        `/environments/${environmentId}/core-nats/subjects`
       );
       const source = response.headers['x-subjects-source'];
-      setIsMonitoringAvailable(source !== 'unavailable');
-      return response.data;
+      return {
+        data: response.data,
+        isMonitoringAvailable: source !== 'unavailable',
+      };
     },
     enabled: !!environmentId,
     refetchInterval: 15000,
   });
 
   return {
-    data: query.data,
+    data: query.data?.data,
     isLoading: query.isLoading,
     error: query.error,
-    isMonitoringAvailable,
+    isMonitoringAvailable: query.data?.isMonitoringAvailable ?? true,
   };
 }
 
@@ -121,7 +120,10 @@ export function useLiveMessages(environmentId: string | null): UseLiveMessagesRe
         const msg = JSON.parse(event.data as string) as NatsLiveMessage;
         if (isPausedRef.current) {
           pendingBufferRef.current.unshift(msg);
-          setPendingCount((c) => c + 1);
+          if (pendingBufferRef.current.length > capRef.current) {
+            pendingBufferRef.current = pendingBufferRef.current.slice(0, capRef.current);
+          }
+          setPendingCount(pendingBufferRef.current.length);
         } else {
           setMessages((prev) => [msg, ...prev].slice(0, capRef.current));
         }

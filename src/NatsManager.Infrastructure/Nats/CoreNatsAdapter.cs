@@ -201,10 +201,11 @@ public sealed partial class CoreNatsAdapter(
         if (bytes.Length == 0) return true;
         try
         {
-            Encoding.UTF8.GetString(bytes);
+            var utf8 = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
+            _ = utf8.GetString(bytes);
             return true;
         }
-        catch
+        catch (DecoderFallbackException)
         {
             return false;
         }

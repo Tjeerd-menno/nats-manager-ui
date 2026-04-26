@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { TextInput, Table, Alert, Text, Stack } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { LoadingState } from '../../../shared/LoadingState';
@@ -21,6 +21,12 @@ export function SubjectBrowser({ environmentId }: SubjectBrowserProps) {
     debounceRef.current = setTimeout(() => setDebouncedFilter(value), 300);
   };
 
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
+
   const filtered = useMemo(
     () =>
       (data ?? []).filter((s) =>
@@ -29,7 +35,7 @@ export function SubjectBrowser({ environmentId }: SubjectBrowserProps) {
     [data, debouncedFilter]
   );
 
-  if (isLoading) return <LoadingState label="Loading subjects…" />;
+  if (isLoading) return <LoadingState message="Loading subjects…" />;
 
   if (!isMonitoringAvailable) {
     return (
