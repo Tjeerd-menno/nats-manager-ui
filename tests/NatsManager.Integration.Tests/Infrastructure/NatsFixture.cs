@@ -20,6 +20,12 @@ public sealed class NatsFixture : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
+        Environment.SetEnvironmentVariable("Parameters__bootstrap-admin-username", "admin");
+        Environment.SetEnvironmentVariable("Parameters__bootstrap-admin-password", "Admin123!");
+        Environment.SetEnvironmentVariable(
+            "Parameters__backend-encryption-key",
+            Convert.ToBase64String("0123456789ABCDEF0123456789ABCDEF"u8.ToArray()));
+
         var appHost = await DistributedApplicationTestingBuilder
             .CreateAsync<Projects.NatsManager_AppHost>(
                 args: [],

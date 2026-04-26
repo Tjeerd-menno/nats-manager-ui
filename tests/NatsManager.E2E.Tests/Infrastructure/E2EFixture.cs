@@ -35,13 +35,14 @@ public sealed class AppHostFixture : IAsyncLifetime
         // Use an ephemeral SQLite database so each test run starts clean
         _dbPath = Path.Combine(Path.GetTempPath(), $"natsmanager-e2e-{Guid.NewGuid():N}.db");
 
+        Environment.SetEnvironmentVariable("Parameters__bootstrap-admin-username", BootstrapAdminUsername);
+        Environment.SetEnvironmentVariable("Parameters__bootstrap-admin-password", BootstrapAdminPassword);
+        Environment.SetEnvironmentVariable("Parameters__backend-encryption-key", EncryptionKey);
+
         var appHost = await DistributedApplicationTestingBuilder
             .CreateAsync<Projects.NatsManager_AppHost>(
                 args: [],
-                configureBuilder: (appOptions, _) =>
-                {
-                    appOptions.DisableDashboard = true;
-                });
+                configureBuilder: (appOptions, _) => appOptions.DisableDashboard = true);
 
         // Override the NATS resource to use session lifetime (not persistent)
         // so each test run gets a fresh NATS server
