@@ -102,7 +102,7 @@ public sealed partial class CoreNatsAdapter(
                 if (!entry.TryGetProperty("subject", out var subjectProp))
                     continue;
                 var subject = subjectProp.GetString() ?? string.Empty;
-                if (string.IsNullOrEmpty(subject) || IsInternalSubject(subject))
+                if (CoreNatsSubjectFilter.IsInternalSubject(subject))
                     continue;
                 groups[subject] = groups.GetValueOrDefault(subject) + 1;
             }
@@ -125,11 +125,6 @@ public sealed partial class CoreNatsAdapter(
         root.TryGetProperty("subscriptions_list", out subscriptions)
         || root.TryGetProperty("subscriptions", out subscriptions)
         || root.TryGetProperty("subslist", out subscriptions);
-
-    private static bool IsInternalSubject(string subject) =>
-        subject[0] == '$'
-        || subject.StartsWith("_INBOX.", StringComparison.Ordinal)
-        || subject.Equals("_INBOX", StringComparison.Ordinal);
 
     public Task<IReadOnlyList<NatsClientInfo>> ListClientsAsync(Guid environmentId, CancellationToken cancellationToken = default)
     {
@@ -266,4 +261,13 @@ public sealed partial class CoreNatsAdapter(
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Published message to {Subject} in environment {EnvironmentId}")]
     private partial void LogMessagePublished(string subject, Guid environmentId);
+}
+
+internal static class CoreNatsSubjectFilter
+{
+    public static bool IsInternalSubject(string subject) =>
+        string.IsNullOrEmpty(subject)
+        || subject[0] == '$'
+        || subject.StartsWith("_INBOX.", StringComparison.Ordinal)
+        || subject.Equals("_INBOX", StringComparison.Ordinal);
 }
