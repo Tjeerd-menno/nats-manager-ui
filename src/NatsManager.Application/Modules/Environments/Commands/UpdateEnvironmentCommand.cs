@@ -37,8 +37,8 @@ public sealed class UpdateEnvironmentCommandValidator : AbstractValidator<Update
 
         When(x => !string.IsNullOrWhiteSpace(x.MonitoringUrl), () =>
             RuleFor(x => x.MonitoringUrl!)
-                .Must(url => Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
-                             (uri.Scheme == "http" || uri.Scheme == "https"))
+                .Must(url => Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri) &&
+                              (uri.Scheme == "http" || uri.Scheme == "https"))
                 .WithMessage("MonitoringUrl must be a valid http:// or https:// URL")
                 .MaximumLength(500));
 

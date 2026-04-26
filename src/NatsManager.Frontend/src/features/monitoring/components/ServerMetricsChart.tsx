@@ -28,12 +28,14 @@ function formatBytes(value: number): string {
 }
 
 export function ServerMetricsChart({ snapshots }: Props) {
-  if (snapshots.length === 0) {
+  const availableSnapshots = snapshots.filter(s => s.status !== 'Unavailable');
+
+  if (availableSnapshots.length === 0) {
     return <EmptyState message="No monitoring data yet." icon={IconChartLine} />;
   }
 
   // Charts display oldest→newest, so reverse the newest-first array
-  const chartData = [...snapshots].reverse().map(s => ({
+  const chartData = [...availableSnapshots].reverse().map(s => ({
     time: formatTime(s.timestamp),
     connections: s.server.connections,
     inMsgsPerSec: Number(s.server.inMsgsPerSec.toFixed(2)),

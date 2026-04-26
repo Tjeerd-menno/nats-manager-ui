@@ -1,9 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using NatsManager.Application.Modules.Monitoring;
 using NatsManager.Application.Modules.Monitoring.Models;
 using NatsManager.Application.Modules.Monitoring.Ports;
 
@@ -11,7 +10,6 @@ namespace NatsManager.Infrastructure.Nats;
 
 public sealed partial class NatsMonitoringHttpAdapter(
     IHttpClientFactory httpClientFactory,
-    IOptions<MonitoringOptions> options,
     ILogger<NatsMonitoringHttpAdapter> logger) : IMonitoringAdapter
 {
     public async Task<MonitoringSnapshot> FetchSnapshotAsync(
@@ -25,16 +23,25 @@ public sealed partial class NatsMonitoringHttpAdapter(
 
         NatsVarzResponse? varz = null;
         NatsJszResponse? jsz = null;
-        NatsHealthzResponse? healthz = null;
+        var degraded = false;
 
         try
         {
             varz = await client.GetFromJsonAsync<NatsVarzResponse>($"{baseUrl}/varz", ct);
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or OperationCanceledException)
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
             LogFetchFailed(baseUrl, ex.Message);
             return CreateUnavailableSnapshot(environment.Id);
+        }
+        catch (JsonException ex)
+        {
+            LogFetchFailed($"{baseUrl}/varz", ex.Message);
+            return CreateDegradedSnapshot(environment.Id);
         }
 
         if (varz is null)
@@ -51,15 +58,21 @@ public sealed partial class NatsMonitoringHttpAdapter(
             {
                 jszResponse.EnsureSuccessStatusCode();
                 jsz = await jszResponse.Content.ReadFromJsonAsync<NatsJszResponse>(ct);
+                degraded = jsz is null;
             }
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or OperationCanceledException)
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
+            throw;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            degraded = true;
             LogFetchFailed($"{baseUrl}/jsz", ex.Message);
         }
         catch (Exception ex)
         {
-            // JSON parse error for jsz = degraded; continue with null JetStream
+            degraded = true;
             LogFetchFailed($"{baseUrl}/jsz", ex.Message);
         }
 
@@ -69,7 +82,7 @@ public sealed partial class NatsMonitoringHttpAdapter(
             var healthzResponse = await client.GetAsync($"{baseUrl}/healthz", ct);
             if (healthzResponse.IsSuccessStatusCode)
             {
-                healthz = await healthzResponse.Content.ReadFromJsonAsync<NatsHealthzResponse>(ct);
+                var healthz = await healthzResponse.Content.ReadFromJsonAsync<NatsHealthzResponse>(ct);
                 healthStatus = string.Equals(healthz?.Status, "ok", StringComparison.OrdinalIgnoreCase)
                     ? MonitoringStatus.Ok
                     : MonitoringStatus.Degraded;
@@ -79,25 +92,35 @@ public sealed partial class NatsMonitoringHttpAdapter(
                 healthStatus = MonitoringStatus.Degraded;
             }
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or OperationCanceledException)
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
             healthStatus = MonitoringStatus.Unavailable;
+            LogFetchFailed($"{baseUrl}/healthz", ex.Message);
+        }
+        catch (Exception ex)
+        {
+            healthStatus = MonitoringStatus.Degraded;
             LogFetchFailed($"{baseUrl}/healthz", ex.Message);
         }
 
         var latencyMs = (long)(DateTimeOffset.UtcNow - startTime).TotalMilliseconds;
         LogFetchSuccess(baseUrl, latencyMs);
 
-        var intervalSeconds = environment.MonitoringPollingIntervalSeconds ?? options.Value.DefaultPollingIntervalSeconds;
-        var server = BuildServerMetrics(varz, previous, intervalSeconds);
+        var timestamp = DateTimeOffset.UtcNow;
+        degraded = degraded || healthStatus != MonitoringStatus.Ok;
+        var server = BuildServerMetrics(varz, previous, timestamp);
         var jetStream = jsz is not null ? BuildJetStreamMetrics(jsz) : null;
 
         return new MonitoringSnapshot(
             EnvironmentId: environment.Id,
-            Timestamp: DateTimeOffset.UtcNow,
+            Timestamp: timestamp,
             Server: server,
             JetStream: jetStream,
-            Status: MonitoringStatus.Ok,
+            Status: degraded ? MonitoringStatus.Degraded : MonitoringStatus.Ok,
             HealthStatus: healthStatus);
     }
 
@@ -111,15 +134,19 @@ public sealed partial class NatsMonitoringHttpAdapter(
             new ServerMetrics("", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
             null, MonitoringStatus.Degraded, MonitoringStatus.Unavailable);
 
-    private static ServerMetrics BuildServerMetrics(NatsVarzResponse varz, MonitoringSnapshot? previous, int intervalSeconds)
+    private static ServerMetrics BuildServerMetrics(NatsVarzResponse varz, MonitoringSnapshot? previous, DateTimeOffset timestamp)
     {
         double inMsgsPerSec = 0, outMsgsPerSec = 0, inBytesPerSec = 0, outBytesPerSec = 0;
-        if (previous?.Server is { } prev && intervalSeconds > 0)
+        if (previous is { Status: not MonitoringStatus.Unavailable, Server: { } prev })
         {
-            inMsgsPerSec = (varz.InMsgs - prev.InMsgsTotal) / (double)intervalSeconds;
-            outMsgsPerSec = (varz.OutMsgs - prev.OutMsgsTotal) / (double)intervalSeconds;
-            inBytesPerSec = (varz.InBytes - prev.InBytesTotal) / (double)intervalSeconds;
-            outBytesPerSec = (varz.OutBytes - prev.OutBytesTotal) / (double)intervalSeconds;
+            var elapsedSeconds = (timestamp - previous.Timestamp).TotalSeconds;
+            if (elapsedSeconds > 0)
+            {
+                inMsgsPerSec = (varz.InMsgs - prev.InMsgsTotal) / elapsedSeconds;
+                outMsgsPerSec = (varz.OutMsgs - prev.OutMsgsTotal) / elapsedSeconds;
+                inBytesPerSec = (varz.InBytes - prev.InBytesTotal) / elapsedSeconds;
+                outBytesPerSec = (varz.OutBytes - prev.OutBytesTotal) / elapsedSeconds;
+            }
         }
 
         return new ServerMetrics(

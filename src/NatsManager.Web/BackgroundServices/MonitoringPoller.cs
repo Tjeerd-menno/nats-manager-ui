@@ -20,6 +20,7 @@ public sealed partial class MonitoringPoller(
     ILogger<MonitoringPoller> logger) : BackgroundService
 {
     private readonly ConcurrentDictionary<Guid, MonitoringSnapshot?> _lastSnapshots = new();
+    private readonly ConcurrentDictionary<Guid, DateTimeOffset> _nextPollTimes = new();
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -29,7 +30,7 @@ public sealed partial class MonitoringPoller(
         {
             try
             {
-                await PollAllEnvironmentsAsync(stoppingToken);
+                await PollDueEnvironmentsAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -40,23 +41,50 @@ public sealed partial class MonitoringPoller(
                 LogPollerError(ex.Message);
             }
 
-            await Task.Delay(TimeSpan.FromSeconds(options.Value.DefaultPollingIntervalSeconds), stoppingToken);
+            await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken);
         }
 
         LogPollerStopped();
     }
 
-    private async Task PollAllEnvironmentsAsync(CancellationToken ct)
+    private async Task PollDueEnvironmentsAsync(CancellationToken ct)
     {
         using var scope = scopeFactory.CreateScope();
         var environmentRepository = scope.ServiceProvider.GetRequiredService<IEnvironmentRepository>();
         var environments = await environmentRepository.GetEnabledAsync(ct);
-
-        var pollingTasks = environments
+        var monitorableEnvironments = environments
             .Where(e => e.MonitoringUrl is not null)
-            .Select(e => PollEnvironmentAsync(e, ct));
+            .ToArray();
+
+        var configuredIds = monitorableEnvironments.Select(e => e.Id).ToHashSet();
+        foreach (var trackedId in _nextPollTimes.Keys)
+        {
+            if (!configuredIds.Contains(trackedId))
+            {
+                _nextPollTimes.TryRemove(trackedId, out _);
+                _lastSnapshots.TryRemove(trackedId, out _);
+            }
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var pollingTasks = monitorableEnvironments
+            .Where(e => !_nextPollTimes.TryGetValue(e.Id, out var nextPoll) || nextPoll <= now)
+            .Select(e => PollEnvironmentAndScheduleNextAsync(e, ct));
 
         await Task.WhenAll(pollingTasks);
+    }
+
+    private async Task PollEnvironmentAndScheduleNextAsync(NatsEnvironment environment, CancellationToken ct)
+    {
+        try
+        {
+            await PollEnvironmentAsync(environment, ct);
+        }
+        finally
+        {
+            var intervalSeconds = environment.MonitoringPollingIntervalSeconds ?? options.Value.DefaultPollingIntervalSeconds;
+            _nextPollTimes[environment.Id] = DateTimeOffset.UtcNow.AddSeconds(intervalSeconds);
+        }
     }
 
     private async Task PollEnvironmentAsync(NatsEnvironment environment, CancellationToken ct)

@@ -18,7 +18,7 @@ function formatHealthStatus(status: 'Ok' | 'Degraded' | 'Unavailable'): { color:
 
 export default function MonitoringPage() {
   const { selectedEnvironmentId } = useEnvironmentContext();
-  const { snapshots, latestSnapshot, connectionStatus, error } = useMonitoringHub(selectedEnvironmentId);
+  const { snapshots, latestSnapshot, connectionStatus, isNotConfigured, error } = useMonitoringHub(selectedEnvironmentId);
 
   if (!selectedEnvironmentId) {
     return (
@@ -33,13 +33,14 @@ export default function MonitoringPage() {
     return <LoadingState message="Connecting to monitoring…" />;
   }
 
-  if (error && connectionStatus === 'disconnected' && snapshots.length === 0) {
+  if (isNotConfigured) {
     return (
       <Stack>
         <Title order={2}>Monitoring</Title>
-        <Alert color="blue" icon={<IconAlertTriangle size={16} />} title="Monitoring Not Configured">
-          Monitoring is not configured for this environment. Edit the environment to add a Monitoring URL.
-        </Alert>
+        <EmptyState
+          message="Monitoring is not configured for this environment. Edit the environment to add a Monitoring URL."
+          icon={IconActivity}
+        />
       </Stack>
     );
   }
@@ -69,7 +70,13 @@ export default function MonitoringPage() {
 
       {connectionStatus === 'disconnected' && (
         <Alert color="red" icon={<IconAlertTriangle size={16} />} title="Monitoring Unavailable">
-          Connection lost. Attempting to reconnect…
+          {error ?? 'Connection lost. Attempting to reconnect…'}
+        </Alert>
+      )}
+
+      {latestSnapshot?.status === 'Unavailable' && (
+        <Alert color="red" icon={<IconAlertTriangle size={16} />} title="Monitoring Endpoint Unavailable">
+          The NATS monitoring endpoint is currently unreachable. Charts keep the last usable metrics.
         </Alert>
       )}
 
@@ -80,7 +87,7 @@ export default function MonitoringPage() {
       )}
 
       <ServerMetricsChart snapshots={snapshots} />
-      <JetStreamMetricsCard snapshots={snapshots} latestSnapshot={latestSnapshot} />
+      <JetStreamMetricsCard snapshots={snapshots} />
     </Stack>
   );
 }

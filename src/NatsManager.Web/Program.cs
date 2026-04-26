@@ -76,8 +76,10 @@ builder.Services.AddSingleton<NatsManager.Application.Modules.CoreNats.Ports.ICo
 builder.Services.Configure<BootstrapAdminOptions>(
     builder.Configuration.GetSection(BootstrapAdminOptions.SectionName));
 
-builder.Services.Configure<MonitoringOptions>(
-    builder.Configuration.GetSection(MonitoringOptions.SectionName));
+builder.Services.AddOptions<MonitoringOptions>()
+    .Bind(builder.Configuration.GetSection(MonitoringOptions.SectionName))
+    .Validate(MonitoringOptions.IsValid, "Monitoring options are invalid. DefaultPollingIntervalSeconds must be 5-300, MaxSnapshotsPerEnvironment must be 1-10000, and HttpTimeoutSeconds must be 1-60.")
+    .ValidateOnStart();
 
 builder.Services.AddHttpClient("NatsMonitoring", (sp, client) =>
 {

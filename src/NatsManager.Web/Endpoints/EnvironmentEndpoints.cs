@@ -1,7 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using NatsManager.Application.Common;
 using NatsManager.Application.Modules.Environments.Commands;
+using NatsManager.Application.Modules.Environments.Ports;
 using NatsManager.Application.Modules.Environments.Queries;
+using NatsManager.Domain.Modules.Auth;
 using NatsManager.Web.Presenters;
 using NatsManager.Web.Security;
 
@@ -78,9 +81,19 @@ public static class EnvironmentEndpoints
     private static async Task<IResult> UpdateEnvironment(
         Guid id,
         [FromBody] UpdateEnvironmentRequest request,
+        ClaimsPrincipal user,
+        IEnvironmentRepository environmentRepository,
         IUseCase<UpdateEnvironmentCommand, Unit> useCase,
         CancellationToken cancellationToken)
     {
+        var environment = await environmentRepository.GetByIdAsync(id, cancellationToken);
+        if (environment is not null
+            && HasMonitoringUrlChanged(environment.MonitoringUrl, request.MonitoringUrl)
+            && !user.IsInRole(Role.PredefinedNames.Administrator))
+        {
+            return Results.Forbid();
+        }
+
         var command = new UpdateEnvironmentCommand
         {
             Id = id,
@@ -99,6 +112,12 @@ public static class EnvironmentEndpoints
         await useCase.ExecuteAsync(command, presenter, cancellationToken);
         return presenter.ToResult();
     }
+
+    private static bool HasMonitoringUrlChanged(string? current, string? requested) =>
+        !string.Equals(NormalizeMonitoringUrl(current), NormalizeMonitoringUrl(requested), StringComparison.Ordinal);
+
+    private static string? NormalizeMonitoringUrl(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private static async Task<IResult> DeleteEnvironment(
         Guid id,
