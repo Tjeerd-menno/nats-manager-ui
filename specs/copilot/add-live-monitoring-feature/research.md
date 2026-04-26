@@ -48,7 +48,7 @@
 }
 ```
 
-**Rate derivation**: NATS reports cumulative counters, not rates. The backend computes per-second rates from consecutive snapshot deltas: `rate = (current - previous) / intervalSeconds`.
+**Rate derivation**: NATS reports cumulative counters, not rates. The backend computes per-second rates from consecutive usable snapshot deltas: `rate = (current - previous) / actualElapsedSeconds`; synthetic `Unavailable` snapshots are not used as rate baselines.
 
 **Alternatives considered**:
 - **NATS system subjects (`$SYS.REQ.SERVER.*`)**: Requires an authenticated NATS connection and operator-level permissions. The monitoring HTTP API is simpler and read-only. Rejected for monitoring data.
@@ -64,7 +64,7 @@
 
 **Hub design**:
 - Hub class: `MonitoringHub` at route `/hubs/monitoring`
-- Group-per-environment pattern: clients join `$"env-{environmentId}"` on connect
+- Group-per-environment pattern: clients join `$"env-{environmentId}"` only after the environment id is parsed and verified to exist
 - Server-to-client method: `ReceiveMonitoringSnapshot(MonitoringSnapshot snapshot)`
 - Client-to-server method: `SubscribeToEnvironment(string environmentId)`
 

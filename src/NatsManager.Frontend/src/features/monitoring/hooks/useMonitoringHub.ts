@@ -25,11 +25,12 @@ export function useMonitoringHub(environmentId: string | null): UseMonitoringHub
     if (!environmentId) return;
 
     let cancelled = false;
-    setConnectionStatus('connecting');
-    setIsNotConfigured(false);
-    setError(null);
 
     const start = async () => {
+      setConnectionStatus('connecting');
+      setIsNotConfigured(false);
+      setError(null);
+
       // Fetch initial history
       try {
         const response = await apiClient.get<MonitoringHistoryResult>(

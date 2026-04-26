@@ -42,7 +42,7 @@ MonitoringSnapshot
 │   ├── OutMsgsTotal   : long
 │   ├── InBytesTotal   : long
 │   ├── OutBytesTotal  : long
-│   ├── InMsgsPerSec   : double   (derived: delta / intervalSeconds)
+│   ├── InMsgsPerSec   : double   (derived: delta / actual elapsed seconds)
 │   ├── OutMsgsPerSec  : double
 │   ├── InBytesPerSec  : double
 │   ├── OutBytesPerSec : double
@@ -53,10 +53,11 @@ MonitoringSnapshot
 │   ├── ConsumerCount  : int
 │   ├── TotalMessages  : long
 │   └── TotalBytes     : long
-└── Status             : MonitoringStatus (enum: Ok | Degraded | Unavailable)
+├── Status             : MonitoringStatus (enum: Ok | Degraded | Unavailable)
+└── HealthStatus       : MonitoringStatus (enum: Ok | Degraded | Unavailable)
 ```
 
-**Derivation**: `InMsgsPerSec = (current.InMsgsTotal - previous.InMsgsTotal) / intervalSeconds`. If there is no previous snapshot, rate fields are `0`.
+**Derivation**: `InMsgsPerSec = (current.InMsgsTotal - previous.InMsgsTotal) / actualElapsedSeconds`. If there is no previous usable snapshot, or the previous snapshot is `Unavailable`, rate fields are `0`.
 
 ---
 
@@ -169,6 +170,7 @@ export interface MonitoringSnapshot {
   server: ServerMetrics;
   jetStream: JetStreamMetrics | null;
   status: 'Ok' | 'Degraded' | 'Unavailable';
+  healthStatus: 'Ok' | 'Degraded' | 'Unavailable';
 }
 
 export interface ServerMetrics {
@@ -176,6 +178,10 @@ export interface ServerMetrics {
   connections: number;
   totalConnections: number;
   maxConnections: number;
+  inMsgsTotal: number;
+  outMsgsTotal: number;
+  inBytesTotal: number;
+  outBytesTotal: number;
   inMsgsPerSec: number;
   outMsgsPerSec: number;
   inBytesPerSec: number;

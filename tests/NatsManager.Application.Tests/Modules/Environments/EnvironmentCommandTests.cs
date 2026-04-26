@@ -268,6 +268,43 @@ public sealed class UpdateEnvironmentCommandTests
     }
 }
 
+public sealed class UpdateEnvironmentCommandValidatorTests
+{
+    private readonly UpdateEnvironmentCommandValidator _validator = new();
+
+    [Fact]
+    public void Validate_WithWhitespaceMonitoringUrl_ShouldPass()
+    {
+        var command = new UpdateEnvironmentCommand
+        {
+            Id = Guid.NewGuid(),
+            Name = "Test",
+            ServerUrl = "nats://localhost:4222",
+            MonitoringUrl = "   "
+        };
+
+        var result = _validator.Validate(command);
+
+        result.IsValid.ShouldBeTrue(string.Join("; ", result.Errors.Select(e => e.ErrorMessage)));
+    }
+
+    [Fact]
+    public void Validate_WithTrimmedHttpMonitoringUrl_ShouldPass()
+    {
+        var command = new UpdateEnvironmentCommand
+        {
+            Id = Guid.NewGuid(),
+            Name = "Test",
+            ServerUrl = "nats://localhost:4222",
+            MonitoringUrl = " http://localhost:8222 "
+        };
+
+        var result = _validator.Validate(command);
+
+        result.IsValid.ShouldBeTrue(string.Join("; ", result.Errors.Select(e => e.ErrorMessage)));
+    }
+}
+
 public sealed class DeleteEnvironmentCommandTests
 {
     private readonly IEnvironmentRepository _repository = Substitute.For<IEnvironmentRepository>();

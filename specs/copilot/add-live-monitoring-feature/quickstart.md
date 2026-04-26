@@ -63,7 +63,7 @@ This applies the `AddEnvironmentMonitoring` migration, which adds `MonitoringUrl
 
 ## 4. Set Monitoring URL on an Environment
 
-Via the UI: navigate to **Environments → [your environment] → Edit**, then fill in the **Monitoring URL** field (e.g., `http://localhost:8222`).
+Via the UI as an Administrator: navigate to **Environments → [your environment] → Edit**, then fill in the **Monitoring URL** field (e.g., `http://localhost:8222`).
 
 Or via the REST API (requires an authenticated session — use Swagger UI at `http://localhost:5000/swagger` for interactive testing with cookie auth, or include the session cookie and `X-XSRF-TOKEN` header):
 
@@ -74,13 +74,18 @@ curl -X PUT http://localhost:5000/api/environments/{envId} \
   --cookie "<your-session-cookie>" \
   -d '{
     "name": "local",
+    "description": null,
     "serverUrl": "nats://localhost:4222",
+    "credentialType": "None",
+    "credential": null,
+    "isProduction": false,
+    "isEnabled": true,
     "monitoringUrl": "http://localhost:8222",
     "monitoringPollingIntervalSeconds": 15
   }'
 ```
 
-> **Note**: The environment update endpoint requires `[Authorize]` and an antiforgery token. The easiest way to test locally is through **Swagger UI** (`/swagger`) after logging in, which handles both automatically.
+> **Note**: Changing `monitoringUrl` requires the Administrator role. The environment update endpoint requires `[Authorize]` and an antiforgery token. The easiest way to test locally is through **Swagger UI** (`/swagger`) after logging in, which handles both automatically.
 
 ---
 
@@ -111,7 +116,7 @@ dotnet run
 3. Navigate to **Monitoring** in the left sidebar.
 4. The Monitoring page connects to the SignalR hub and begins displaying live graphs:
    - **Server Metrics** — connections, message rate (in/out per second), byte rate
-   - **JetStream** — stream count, consumer count, total messages trend
+   - **JetStream** — stream count, consumer count, total messages and total bytes trends
 5. A green **Connected** badge in the top-right of the Monitoring page confirms the real-time connection.
 
 ---

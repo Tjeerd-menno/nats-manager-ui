@@ -30,6 +30,10 @@ GET /api/environments/{envId:guid}/monitoring/metrics/history
         "connections": 42,
         "totalConnections": 1500,
         "maxConnections": 65536,
+        "inMsgsTotal": 100000,
+        "outMsgsTotal": 98000,
+        "inBytesTotal": 5242880,
+        "outBytesTotal": 4194304,
         "inMsgsPerSec": 125.3,
         "outMsgsPerSec": 118.7,
         "inBytesPerSec": 65536.0,
@@ -43,7 +47,8 @@ GET /api/environments/{envId:guid}/monitoring/metrics/history
         "totalMessages": 50000,
         "totalBytes": 2097152
       },
-      "status": "Ok"
+      "status": "Ok",
+      "healthStatus": "Ok"
     }
   ]
 }
@@ -69,15 +74,16 @@ PUT /api/environments/{envId:guid}
   "serverUrl": "nats://prod-server:4222",
   "description": "Production cluster",
   "credentialType": "Token",
-  "credentialReference": null,
+  "credential": null,
   "isProduction": true,
+  "isEnabled": true,
   "monitoringUrl": "http://prod-server:8222",
   "monitoringPollingIntervalSeconds": 15
 }
 ```
 
 New fields:
-- `monitoringUrl` (string | null): HTTP URL of NATS monitoring API. Set to `null` to disable monitoring.
+- `monitoringUrl` (string | null): HTTP URL of NATS monitoring API. Set to `null` to disable monitoring. Setting or changing this value requires the Administrator role; non-admin operators receive `403 Forbidden` when the normalized URL changes.
 - `monitoringPollingIntervalSeconds` (integer | null): Per-environment polling interval. Set to `null` to use global default.
 
 **Validation errors `422 Unprocessable Entity`**:
@@ -120,7 +126,7 @@ connection.invoke('SubscribeToEnvironment', environmentId: string): Promise<void
 **Parameters**:
 - `environmentId` (string): GUID of the environment to subscribe to.
 
-**Behavior**: The hub adds the connection to the `env-{environmentId}` group. Subsequent `ReceiveMonitoringSnapshot` messages for that environment are delivered to this connection.
+**Behavior**: The hub validates that `environmentId` is a GUID and that the environment exists, adds the connection to the `env-{environmentId}` group, and immediately sends the latest cached snapshot when one exists. Subsequent `ReceiveMonitoringSnapshot` messages for that environment are delivered to this connection.
 
 #### `UnsubscribeFromEnvironment`
 
@@ -152,6 +158,10 @@ connection.on('ReceiveMonitoringSnapshot', (snapshot: MonitoringSnapshot) => voi
     "connections": 43,
     "totalConnections": 1501,
     "maxConnections": 65536,
+    "inMsgsTotal": 100130,
+    "outMsgsTotal": 98122,
+    "inBytesTotal": 5310464,
+    "outBytesTotal": 4228096,
     "inMsgsPerSec": 130.1,
     "outMsgsPerSec": 122.5,
     "inBytesPerSec": 67584.0,
@@ -165,7 +175,8 @@ connection.on('ReceiveMonitoringSnapshot', (snapshot: MonitoringSnapshot) => voi
     "totalMessages": 50130,
     "totalBytes": 2099200
   },
-  "status": "Ok"
+  "status": "Ok",
+  "healthStatus": "Ok"
 }
 ```
 
@@ -180,6 +191,7 @@ interface UseMonitoringHubResult {
   snapshots: MonitoringSnapshot[];        // ring buffer (last 120)
   latestSnapshot: MonitoringSnapshot | null;
   connectionStatus: MonitoringConnectionStatus;  // 'connecting' | 'connected' | 'reconnecting' | 'disconnected'
+  isNotConfigured: boolean;
   error: string | null;
 }
 
@@ -211,5 +223,5 @@ function useMonitoringHub(environmentId: string | null): UseMonitoringHubResult
 | Key | Type | Default | Constraints |
 |-----|------|---------|-------------|
 | `DefaultPollingIntervalSeconds` | int | 30 | 5–300 |
-| `MaxSnapshotsPerEnvironment` | int | 120 | 10–1000 |
-| `HttpTimeoutSeconds` | int | 10 | 1–30 |
+| `MaxSnapshotsPerEnvironment` | int | 120 | 1–10000 |
+| `HttpTimeoutSeconds` | int | 10 | 1–60 |

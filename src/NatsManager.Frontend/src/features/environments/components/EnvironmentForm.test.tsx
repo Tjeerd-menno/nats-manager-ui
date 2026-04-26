@@ -41,6 +41,13 @@ describe('EnvironmentForm', () => {
     expect(screen.getByText('Edit Environment')).toBeInTheDocument();
   });
 
+  it('renders monitoring fields', () => {
+    renderWithProviders(<EnvironmentForm {...defaultProps} />);
+
+    expect(screen.getByLabelText('Monitoring URL')).toBeInTheDocument();
+    expect(screen.getByLabelText('Polling Interval (seconds)')).toBeInTheDocument();
+  });
+
   it('does not render when opened is false', () => {
     renderWithProviders(<EnvironmentForm {...defaultProps} opened={false} />);
     expect(screen.queryByText('Register Environment')).not.toBeInTheDocument();

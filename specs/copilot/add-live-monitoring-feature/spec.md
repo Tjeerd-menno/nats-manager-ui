@@ -3,7 +3,7 @@
 **Feature Branch**: `copilot/add-live-monitoring-feature`  
 **Created**: 2026-04-25  
 **Status**: Draft  
-**Input**: User description: "I want to add live monitoring for the selected environment to the solution. The backend should poll the nats monitoring endpoints with a configurable polling interval. The Frontend should render graphs and show metrics using WebSockets/SignalR."
+**Input**: User description: "I want to add live monitoring for the selected environment to the solution. The backend should poll the NATS monitoring endpoints with a configurable polling interval. The Frontend should render graphs and show metrics using WebSockets/SignalR."
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -40,7 +40,7 @@ An operator wants to see live JetStream metrics: stream count, consumer count, t
 
 ### User Story 3 — Configure Polling Interval (Priority: P3)
 
-An operator or administrator can configure the polling interval for a specific environment (e.g., 10 s, 30 s, 60 s). The default is 30 seconds. Changes take effect without restarting the application.
+An administrator can configure the monitoring URL, and an operator or administrator can configure the polling interval for a specific environment (e.g., 10 s, 30 s, 60 s). The default is 30 seconds. Changes take effect without restarting the application.
 
 **Why this priority**: Operational teams have different needs; high-frequency polling during incidents, low-frequency polling for stable environments.
 
@@ -55,7 +55,7 @@ An operator or administrator can configure the polling interval for a specific e
 
 ### User Story 4 — Configure Monitoring URL per Environment (Priority: P4)
 
-An operator can set an optional monitoring URL per environment (e.g., `http://nats-server:8222`) in the environment settings. If not set, monitoring is disabled for that environment.
+An administrator can set an optional monitoring URL per environment (e.g., `http://nats-server:8222`) in the environment settings. If not set, monitoring is disabled for that environment.
 
 **Why this priority**: NATS monitoring HTTP API runs on a separate port from the NATS connection. Environments that don't expose it should gracefully disable this feature.
 
@@ -83,22 +83,25 @@ An operator can set an optional monitoring URL per environment (e.g., `http://na
 - **FR-MON-001**: Each `Environment` entity MUST have an optional `MonitoringUrl` field (nullable string) and an optional `MonitoringPollingIntervalSeconds` (nullable int).
 - **FR-MON-002**: The backend MUST provide a `BackgroundService` that polls each enabled environment's monitoring URL at its configured interval (or the global default of 30 s).
 - **FR-MON-003**: The backend MUST fetch `/varz` from the NATS monitoring HTTP API to obtain server-level metrics (connections, in/out messages, in/out bytes, uptime, version).
-- **FR-MON-004**: The backend MUST fetch `/jsz` from the NATS monitoring HTTP API to obtain JetStream-level metrics (stream count, consumer count, total messages, total bytes).
+- **FR-MON-004**: The backend MUST fetch `/jsz` from the NATS monitoring HTTP API to obtain JetStream-level metrics (stream count, consumer count, total messages, total bytes), treating a 404 as JetStream unavailable.
+- **FR-MON-004a**: The backend MUST fetch `/healthz` from the NATS monitoring HTTP API and expose the result as `healthStatus` on each snapshot.
 - **FR-MON-005**: The backend MUST maintain an in-memory circular buffer of up to 120 metric snapshots per environment (approx. 1 hour at 30 s default interval).
-- **FR-MON-006**: The backend MUST expose a SignalR hub at `/hubs/monitoring` that allows clients to subscribe to a specific environment's metric stream.
+- **FR-MON-006**: The backend MUST expose a SignalR hub at `/hubs/monitoring` that allows authenticated clients to subscribe to a valid existing environment's metric stream and receive the latest cached snapshot immediately after subscription.
 - **FR-MON-007**: The SignalR hub MUST push a `MonitoringSnapshot` message to subscribed clients whenever a new polling cycle completes.
 - **FR-MON-008**: The backend MUST expose a REST endpoint `GET /api/environments/{envId}/monitoring/metrics/history` that returns the current in-memory snapshot history (for initial page load before real-time updates begin).
 - **FR-MON-009**: The global default polling interval MUST be configurable via `appsettings.json` under `Monitoring:DefaultPollingIntervalSeconds`.
-- **FR-MON-010**: Administrators MUST be able to update `MonitoringUrl` and `MonitoringPollingIntervalSeconds` per environment through the existing environment update endpoint (or a dedicated sub-resource).
+- **FR-MON-010**: Only Administrators MUST be able to set or change `MonitoringUrl`; `MonitoringPollingIntervalSeconds` remains part of the existing environment update payload and is validated in the 5–300 second range.
 - **FR-MON-011**: The frontend MUST display a Monitoring entry in the environment navigation for all environments; when an environment does not have a monitoring URL configured, selecting it MUST show a disabled or empty-state experience indicating that monitoring is not configured.
 - **FR-MON-012**: The Monitoring page MUST display at minimum: a server metrics time-series graph (connections, msg/s in, msg/s out, bytes/s in, bytes/s out) and a JetStream summary card with trend indicators.
 - **FR-MON-013**: The frontend MUST gracefully handle SignalR disconnections with automatic reconnection and a visible "reconnecting…" status indicator.
 - **FR-MON-014**: The frontend MUST show the "last updated" timestamp alongside all metric displays.
 - **FR-MON-015**: Monitoring data MUST NOT be persisted to SQLite — it is purely in-memory (ring buffer) and real-time.
+- **FR-MON-016**: Invalid monitoring option ranges MUST fail application startup with a clear options-validation error.
+- **FR-MON-017**: Unreachable monitoring endpoints MUST emit an `Unavailable` snapshot; charts MUST ignore unavailable synthetic metrics so the last usable trend remains visible.
 
 ### Key Entities
 
-- **MonitoringSnapshot**: A point-in-time metric capture per environment. Contains timestamp, server vars (connections, message rates, byte rates, uptime, version), and JetStream stats (stream count, consumer count, total messages, total bytes).
+- **MonitoringSnapshot**: A point-in-time metric capture per environment. Contains timestamp, server vars (connections, message rates, byte rates, uptime, version), JetStream stats (stream count, consumer count, total messages, total bytes), status, and healthStatus.
 - **MonitoringMetricsStore**: An in-memory store keyed by environment ID, holding a circular buffer of `MonitoringSnapshot` records.
 - **MonitoringConfiguration**: The polling interval and monitoring URL associated with each environment (extends the `Environment` entity).
 
