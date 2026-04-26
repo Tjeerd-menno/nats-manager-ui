@@ -45,8 +45,8 @@ public sealed class CoreNatsTests(AppHostFixture fixture) : E2ETestBase(fixture)
         // Click Publish Message button
         await Page.GetByRole(AriaRole.Button, new() { Name = "Publish Message" }).ClickAsync();
 
-        // Fill in the publish form (use Exact = true to avoid matching the LiveMessageViewer's "Subject pattern" input)
-        await Page.GetByLabel("Subject", new() { Exact = true }).FillAsync("test.e2e.subject");
+        // Fill in the publish form (use placeholder to avoid ambiguity with the LiveMessageViewer's "Subject pattern" input)
+        await Page.GetByPlaceholder("e.g. orders.created").FillAsync("test.e2e.subject");
         await Page.GetByLabel("Payload").FillAsync("Hello from E2E tests!");
 
         // Submit
@@ -107,7 +107,7 @@ public sealed class CoreNatsTests(AppHostFixture fixture) : E2ETestBase(fixture)
         await LoginAndSetupEnvironmentAsync("/core-nats");
 
         await Page.GetByRole(AriaRole.Button, new() { Name = "Publish Message" }).ClickAsync();
-        await Page.GetByLabel("Subject", new() { Exact = true }).FillAsync("test.e2e.headers");
+        await Page.GetByPlaceholder("e.g. orders.created").FillAsync("test.e2e.headers");
         await Page.GetByText("JSON").ClickAsync();
         await Page.GetByLabel("Payload").FillAsync("""{"hello":"world"}""");
         await Page.GetByLabel("Reply-To (optional)").FillAsync("test.e2e.reply");
@@ -395,7 +395,7 @@ public sealed class CoreNatsTests(AppHostFixture fixture) : E2ETestBase(fixture)
         await Page.GetByLabel("Subject pattern").FillAsync(subject);
         await Page.GetByRole(AriaRole.Button, new() { Name = "Subscribe" }).ClickAsync();
         await Page.GetByRole(AriaRole.Button, new() { Name = "Publish Message" }).ClickAsync();
-        await Page.GetByLabel("Subject", new() { Exact = true }).FillAsync(subject);
+        await Page.GetByPlaceholder("e.g. orders.created").FillAsync(subject);
         await Page.GetByLabel("Payload").FillAsync("Hello live viewer");
         await Page.GetByRole(AriaRole.Button, new() { Name = "Publish", Exact = true }).ClickAsync();
         await Expect(Page.GetByText("Message published successfully"))
