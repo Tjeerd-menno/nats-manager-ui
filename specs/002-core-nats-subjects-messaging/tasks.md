@@ -21,12 +21,12 @@
 
 **⚠️ CRITICAL**: No user story tasks can begin until this phase is complete.
 
-- [ ] T001 Add `PayloadFormat` enum and `NatsLiveMessage` record to `src/NatsManager.Application/Modules/CoreNats/Models/CoreNatsModels.cs`
-- [ ] T002 Update `ICoreNatsAdapter` in `src/NatsManager.Application/Modules/CoreNats/Ports/ICoreNatsAdapter.cs`: extend `PublishAsync` signature with `IReadOnlyDictionary<string, string>? headers = null, string? replyTo = null`; add `IAsyncEnumerable<NatsLiveMessage> SubscribeAsync(Guid environmentId, string subject, CancellationToken cancellationToken = default)`
-- [ ] T003 Add `CoreNatsMonitoringOptions` class in `src/NatsManager.Infrastructure/Configuration/CoreNatsMonitoringOptions.cs` with `DefaultPort` (int, 8222) and `HttpTimeout` (TimeSpan, 3s) properties and `SectionName = "CoreNats:Monitoring"` constant
-- [ ] T004 Register `CoreNatsMonitoringOptions` and `IHttpClientFactory` in `src/NatsManager.Web/Program.cs`: `builder.Services.Configure<CoreNatsMonitoringOptions>(builder.Configuration.GetSection(CoreNatsMonitoringOptions.SectionName))` and `builder.Services.AddHttpClient()`
-- [ ] T005 [P] Add `CoreNats:Monitoring:DefaultPort` and `CoreNats:Monitoring:HttpTimeout` config entries to `src/NatsManager.Web/appsettings.json` and `src/NatsManager.Web/appsettings.Development.json`
-- [ ] T006 [P] Fix `NatsSubjectInfo` type in `src/NatsManager.Frontend/src/features/corenats/types.ts`: rename `name`→`subject`, `messageCount`→`subscriptions`; add `PayloadFormat`, `PublishRequest`, `NatsLiveMessage` types per data-model.md
+- [x] T001 Add `PayloadFormat` enum and `NatsLiveMessage` record to `src/NatsManager.Application/Modules/CoreNats/Models/CoreNatsModels.cs`
+- [x] T002 Update `ICoreNatsAdapter` in `src/NatsManager.Application/Modules/CoreNats/Ports/ICoreNatsAdapter.cs`: extend `PublishAsync` signature with `IReadOnlyDictionary<string, string>? headers = null, string? replyTo = null`; add `IAsyncEnumerable<NatsLiveMessage> SubscribeAsync(Guid environmentId, string subject, CancellationToken cancellationToken = default)`
+- [x] T003 Add `CoreNatsMonitoringOptions` class in `src/NatsManager.Infrastructure/Configuration/CoreNatsMonitoringOptions.cs` with `DefaultPort` (int, 8222) and `HttpTimeout` (TimeSpan, 3s) properties and `SectionName = "CoreNats:Monitoring"` constant
+- [x] T004 Register `CoreNatsMonitoringOptions` and `IHttpClientFactory` in `src/NatsManager.Web/Program.cs`: `builder.Services.Configure<CoreNatsMonitoringOptions>(builder.Configuration.GetSection(CoreNatsMonitoringOptions.SectionName))` and `builder.Services.AddHttpClient()`
+- [x] T005 [P] Add `CoreNats:Monitoring:DefaultPort` and `CoreNats:Monitoring:HttpTimeout` config entries to `src/NatsManager.Web/appsettings.json` and `src/NatsManager.Web/appsettings.Development.json`
+- [x] T006 [P] Fix `NatsSubjectInfo` type in `src/NatsManager.Frontend/src/features/corenats/types.ts`: rename `name`→`subject`, `messageCount`→`subscriptions`; add `PayloadFormat`, `PublishRequest`, `NatsLiveMessage` types per data-model.md
 
 **Checkpoint**: Foundation ready — all shared types, ports, and configuration in place; user story work can now begin in parallel
 
@@ -40,19 +40,19 @@
 
 ### Tests for User Story 1
 
-- [ ] T007 [P] [US1] Unit tests for `ListSubjectsAsync` in `tests/NatsManager.Application.Tests/Modules/CoreNats/CoreNatsQueryCommandTests.cs`: test `GetSubjectsQueryHandler` returns subject list; test returns empty list when adapter returns empty
-- [ ] T008 [P] [US1] Integration test for `ListSubjectsAsync` in `tests/NatsManager.Integration.Tests/Nats/CoreNatsAdapterTests.cs`: verify method returns a list (not null) against real NATS server
-- [ ] T009 [P] [US1] Web endpoint tests in `tests/NatsManager.Web.Tests/Endpoints/CoreNatsEndpointTests.cs`: `GetSubjects_WhenMonitoringAvailable_Returns200WithSubjectList`, `GetSubjects_WhenMonitoringUnavailable_Returns200WithEmptyListAndUnavailableHeader`
-- [ ] T010 [P] [US1] Component test `src/NatsManager.Frontend/src/features/corenats/components/SubjectBrowser.test.tsx`: renders subject table with data; filter reduces rows; shows "unavailable" placeholder when `X-Subjects-Source: unavailable`; shows "no subjects" empty state when zero results
+- [x] T007 [P] [US1] Unit tests for `ListSubjectsAsync` in `tests/NatsManager.Application.Tests/Modules/CoreNats/CoreNatsQueryCommandTests.cs`: test `GetSubjectsQueryHandler` returns subject list; test returns empty list when adapter returns empty
+- [x] T008 [P] [US1] Integration test for `ListSubjectsAsync` in `tests/NatsManager.Integration.Tests/Nats/CoreNatsAdapterTests.cs`: verify method returns a list (not null) against real NATS server
+- [x] T009 [P] [US1] Web endpoint tests in `tests/NatsManager.Web.Tests/Endpoints/CoreNatsEndpointTests.cs`: `GetSubjects_WhenMonitoringAvailable_Returns200WithSubjectList`, `GetSubjects_WhenMonitoringUnavailable_Returns200WithEmptyListAndUnavailableHeader`
+- [x] T010 [P] [US1] Component test `src/NatsManager.Frontend/src/features/corenats/components/SubjectBrowser.test.tsx`: renders subject table with data; filter reduces rows; shows "unavailable" placeholder when `X-Subjects-Source: unavailable`; shows "no subjects" empty state when zero results
 
 ### Implementation for User Story 1
 
-- [ ] T011 [US1] Implement `ListSubjectsAsync` in `src/NatsManager.Infrastructure/Nats/CoreNatsAdapter.cs`: inject `IOptions<CoreNatsMonitoringOptions>` and `IHttpClientFactory`; extract host from `Environment.ServerUrl`; `GET http://{host}:{DefaultPort}/subsz?subs=1`; parse `subslist` array grouping by subject; return `NatsSubjectInfo[]`; on any exception log warning and return empty list (depends on T003, T004)
-- [ ] T012 [US1] Introduce `ListSubjectsResult` wrapper in `src/NatsManager.Application/Modules/CoreNats/Models/CoreNatsModels.cs` with `IReadOnlyList<NatsSubjectInfo> Subjects` and `bool IsMonitoringAvailable`; update `GetSubjectsQuery` handler in `src/NatsManager.Application/Modules/CoreNats/Queries/CoreNatsQueries.cs` to return this wrapper (depends on T001)
-- [ ] T013 [US1] Update `GetSubjects` in `src/NatsManager.Web/Endpoints/CoreNatsEndpoints.cs` to add `X-Subjects-Source` response header (`monitoring` or `unavailable`) based on `ListSubjectsResult.IsMonitoringAvailable` (depends on T012)
-- [ ] T014 [P] [US1] Add `useSubjects` hook to `src/NatsManager.Frontend/src/features/corenats/hooks/useCoreNats.ts`: query key `['core-nats-subjects', environmentId]`; `refetchInterval: 15000`; reads `X-Subjects-Source` response header to derive `isMonitoringAvailable` (depends on T006)
-- [ ] T015 [US1] Create `src/NatsManager.Frontend/src/features/corenats/components/SubjectBrowser.tsx`: `TextInput` filter (client-side, 300ms debounce); `Table` with Subject/Subscriptions columns; `LoadingState` while loading; "No subjects match your filter" empty state; "Subject discovery unavailable — monitoring endpoint not reachable" `Alert` when `isMonitoringAvailable === false`; "No active subscriptions found" empty state when monitoring available but zero subjects (depends on T014)
-- [ ] T016 [US1] Integrate `<SubjectBrowser environmentId={selectedEnvironmentId} />` into `src/NatsManager.Frontend/src/features/corenats/CoreNatsPage.tsx` below the server info `SimpleGrid` (depends on T015)
+- [x] T011 [US1] Implement `ListSubjectsAsync` in `src/NatsManager.Infrastructure/Nats/CoreNatsAdapter.cs`: inject `IOptions<CoreNatsMonitoringOptions>` and `IHttpClientFactory`; extract host from the configured NATS URL; `GET http://{host}:{DefaultPort}/subsz?subs=1`; parse `subslist` array grouping by subject; return `ListSubjectsResult`; on any exception log warning and return empty result with monitoring unavailable (depends on T003, T004)
+- [x] T012 [US1] Introduce `ListSubjectsResult` wrapper in `src/NatsManager.Application/Modules/CoreNats/Models/CoreNatsModels.cs` with `IReadOnlyList<NatsSubjectInfo> Subjects` and `bool IsMonitoringAvailable`; update `GetSubjectsQuery` handler in `src/NatsManager.Application/Modules/CoreNats/Queries/CoreNatsQueries.cs` to return this wrapper (depends on T001)
+- [x] T013 [US1] Update `GetSubjects` in `src/NatsManager.Web/Endpoints/CoreNatsEndpoints.cs` to add `X-Subjects-Source` response header (`monitoring` or `unavailable`) based on `ListSubjectsResult.IsMonitoringAvailable` (depends on T012)
+- [x] T014 [P] [US1] Add `useSubjects` hook to `src/NatsManager.Frontend/src/features/corenats/hooks/useCoreNats.ts`: query key `['core-nats-subjects', environmentId]`; `refetchInterval: 15000`; reads `X-Subjects-Source` response header to derive `isMonitoringAvailable` (depends on T006)
+- [x] T015 [US1] Create `src/NatsManager.Frontend/src/features/corenats/components/SubjectBrowser.tsx`: `TextInput` filter (client-side, 300ms debounce); `Table` with Subject/Subscriptions columns; `LoadingState` while loading; "No subjects match your filter" empty state; "Subject discovery unavailable — monitoring endpoint not reachable" `Alert` when `isMonitoringAvailable === false`; "No active subscriptions found" empty state when monitoring available but zero subjects (depends on T014)
+- [x] T016 [US1] Integrate `<SubjectBrowser environmentId={selectedEnvironmentId} />` into `src/NatsManager.Frontend/src/features/corenats/CoreNatsPage.tsx` below the server info `SimpleGrid` (depends on T015)
 
 **Checkpoint**: User Story 1 complete — subject browser visible, filter working, graceful monitoring unavailability handled
 
@@ -66,19 +66,19 @@
 
 ### Tests for User Story 2
 
-- [ ] T017 [P] [US2] Unit tests in `tests/NatsManager.Application.Tests/Modules/CoreNats/CoreNatsQueryCommandTests.cs`: `PublishCommand_WithHeaders_PassesHeadersToAdapter`; `PublishCommand_WithJsonFormat_ValidJson_Succeeds`; `PublishCommand_WithJsonFormat_InvalidJson_FailsValidation`; `PublishCommand_WithHexBytesFormat_InvalidHex_FailsValidation`; `PublishCommand_WithEmptyHeaderKey_FailsValidation`; `PublishCommand_WithReplyTo_PassesReplyToToAdapter`
-- [ ] T018 [P] [US2] Web endpoint tests in `tests/NatsManager.Web.Tests/Endpoints/CoreNatsEndpointTests.cs`: `PublishMessage_WithHeadersAndReplyTo_Returns200`; `PublishMessage_WithInvalidJsonFormat_Returns422`; `PublishMessage_WithInvalidHexFormat_Returns422`
-- [ ] T019 [P] [US2] Integration test in `tests/NatsManager.Integration.Tests/Nats/CoreNatsAdapterTests.cs`: `PublishAsync_WithHeaders_ShouldNotThrow`; `PublishAsync_WithReplyTo_ShouldNotThrow`
-- [ ] T020 [P] [US2] Component test `src/NatsManager.Frontend/src/features/corenats/components/PublishMessageForm.test.tsx`: JSON format + invalid JSON disables submit; empty header key shows validation error; success notification shown after mutation success; error notification shown after mutation failure with fields preserved; double-click publish only fires once
+- [x] T017 [P] [US2] Unit tests in `tests/NatsManager.Application.Tests/Modules/CoreNats/CoreNatsQueryCommandTests.cs`: `PublishCommand_WithHeaders_PassesHeadersToAdapter`; `PublishCommand_WithJsonFormat_ValidJson_Succeeds`; `PublishCommand_WithJsonFormat_InvalidJson_FailsValidation`; `PublishCommand_WithHexBytesFormat_InvalidHex_FailsValidation`; `PublishCommand_WithEmptyHeaderKey_FailsValidation`; `PublishCommand_WithReplyTo_PassesReplyToToAdapter`
+- [x] T018 [P] [US2] Web endpoint tests in `tests/NatsManager.Web.Tests/Endpoints/CoreNatsEndpointTests.cs`: `PublishMessage_WithHeadersAndReplyTo_Returns200`; `PublishMessage_WithInvalidJsonFormat_Returns422`; `PublishMessage_WithInvalidHexFormat_Returns422`
+- [x] T019 [P] [US2] Integration test in `tests/NatsManager.Integration.Tests/Nats/CoreNatsAdapterTests.cs`: `PublishAsync_WithHeaders_ShouldNotThrow`; `PublishAsync_WithReplyTo_ShouldNotThrow`
+- [x] T020 [P] [US2] Component test `src/NatsManager.Frontend/src/features/corenats/components/PublishMessageForm.test.tsx`: JSON format + invalid JSON disables submit; empty header key shows validation error; success notification shown after mutation success; error notification shown after mutation failure with fields preserved; double-click publish only fires once
 
 ### Implementation for User Story 2
 
-- [ ] T021 [US2] Update `PublishMessageCommand` in `src/NatsManager.Application/Modules/CoreNats/Commands/CoreNatsCommands.cs`: add `PayloadFormat PayloadFormat`, `IReadOnlyDictionary<string, string> Headers`, `string? ReplyTo`; update `PublishMessageCommandValidator` with header-key-not-empty rule, JSON validation (`JsonDocument.Parse`), hex validation rule; update handler to encode payload per format and pass headers/replyTo to adapter (depends on T001, T002)
-- [ ] T022 [US2] Update `CoreNatsAdapter.PublishAsync` in `src/NatsManager.Infrastructure/Nats/CoreNatsAdapter.cs`: build `NatsHeaders` from dictionary when non-empty; pass `replyTo` to `connection.PublishAsync` (depends on T002)
-- [ ] T023 [US2] Update `PublishMessageBody` and `PublishMessage` handler in `src/NatsManager.Web/Endpoints/CoreNatsEndpoints.cs`: expand record with `PayloadFormat`, `Dictionary<string, string>? Headers`, `string? ReplyTo`; map all fields to command (depends on T002)
-- [ ] T024 [P] [US2] Update `usePublishMessage` in `src/NatsManager.Frontend/src/features/corenats/hooks/useCoreNats.ts` to accept `PublishRequest` (instead of `{subject, payload}`) (depends on T006)
-- [ ] T025 [US2] Create `src/NatsManager.Frontend/src/features/corenats/components/PublishMessageForm.tsx`: `SegmentedControl` for `PayloadFormat`; `Textarea` for payload with inline JSON validation error; dynamic header rows (key + value `TextInput` + delete button) with "Add Header" button; `TextInput` for reply-to; `Button` disabled while `isPending` or JSON invalid; green `Notification` on success (form not cleared); red `Notification` on error (fields preserved) (depends on T024)
-- [ ] T026 [US2] Replace inline publish modal in `src/NatsManager.Frontend/src/features/corenats/CoreNatsPage.tsx` with `<PublishMessageForm>` inside the existing `<Modal>` (depends on T025)
+- [x] T021 [US2] Update `PublishMessageCommand` in `src/NatsManager.Application/Modules/CoreNats/Commands/CoreNatsCommands.cs`: add `PayloadFormat PayloadFormat`, `IReadOnlyDictionary<string, string> Headers`, `string? ReplyTo`; update `PublishMessageCommandValidator` with header-key-not-empty rule, JSON validation (`JsonDocument.Parse`), hex validation rule; update handler to encode payload per format and pass headers/replyTo to adapter (depends on T001, T002)
+- [x] T022 [US2] Update `CoreNatsAdapter.PublishAsync` in `src/NatsManager.Infrastructure/Nats/CoreNatsAdapter.cs`: build `NatsHeaders` from dictionary when non-empty; pass `replyTo` to `connection.PublishAsync` (depends on T002)
+- [x] T023 [US2] Update `PublishMessageBody` and `PublishMessage` handler in `src/NatsManager.Web/Endpoints/CoreNatsEndpoints.cs`: expand record with `PayloadFormat`, `Dictionary<string, string>? Headers`, `string? ReplyTo`; map all fields to command (depends on T002)
+- [x] T024 [P] [US2] Update `usePublishMessage` in `src/NatsManager.Frontend/src/features/corenats/hooks/useCoreNats.ts` to accept `PublishRequest` (instead of `{subject, payload}`) (depends on T006)
+- [x] T025 [US2] Create `src/NatsManager.Frontend/src/features/corenats/components/PublishMessageForm.tsx`: `SegmentedControl` for `PayloadFormat`; `Textarea` for payload with inline JSON and hex validation errors; dynamic header rows (key + value `TextInput` + delete button) with "Add Header" button; `TextInput` for reply-to; `Button` disabled while `isPending` or validation fails; green `Notification` on success (form not cleared); red `Notification` on error (fields preserved) (depends on T024)
+- [x] T026 [US2] Replace inline publish modal in `src/NatsManager.Frontend/src/features/corenats/CoreNatsPage.tsx` with `<PublishMessageForm>` inside the existing `<Modal>` (depends on T025)
 
 **Checkpoint**: User Story 2 complete — expanded publish form working with headers, format selection, reply-to, and proper success/error UX
 
@@ -92,19 +92,19 @@
 
 ### Tests for User Story 3
 
-- [ ] T027 [P] [US3] Unit tests in `tests/NatsManager.Application.Tests/Modules/CoreNats/CoreNatsQueryCommandTests.cs` (if any application-layer query is added for subscribe validation)
-- [ ] T028 [P] [US3] Web endpoint tests in `tests/NatsManager.Web.Tests/Endpoints/CoreNatsEndpointTests.cs`: `StreamEndpoint_WithEmptySubject_Returns400`; `StreamEndpoint_WithSubjectContainingSpaces_Returns400`; `StreamEndpoint_WithValidSubject_ReturnsTextEventStream`
-- [ ] T029 [P] [US3] Integration test in `tests/NatsManager.Integration.Tests/Nats/CoreNatsAdapterTests.cs`: `SubscribeAsync_WhenMessagePublished_YieldsMessage`; cancellation stops enumeration
-- [ ] T030 [P] [US3] Hook tests in `src/NatsManager.Frontend/src/features/corenats/hooks/useCoreNats.test.ts`: `subscribe_OpensEventSource`; `unsubscribe_ClosesEventSource`; `pause_StopsDisplayUpdates_IncrementsPendingCount`; `resume_FlushesBufferedMessages`; `cap_TrimsOldestMessages`; `unmount_ClosesEventSource`
-- [ ] T031 [P] [US3] Component test `src/NatsManager.Frontend/src/features/corenats/components/LiveMessageViewer.test.tsx`: Subscribe button triggers SSE; message appears in table; Pause/Resume flow works; clear empties list; invalid subject pattern shows inline warning
+- [x] T027 [P] [US3] Unit tests in `tests/NatsManager.Application.Tests/Modules/CoreNats/CoreNatsQueryCommandTests.cs` (not required; no application-layer query was added for subscribe validation)
+- [x] T028 [P] [US3] Web endpoint tests in `tests/NatsManager.Web.Tests/Endpoints/CoreNatsEndpointTests.cs`: `StreamEndpoint_WithEmptySubject_Returns400`; `StreamEndpoint_WithSubjectContainingSpaces_Returns400`; `StreamEndpoint_WithValidSubject_ReturnsTextEventStream`
+- [x] T029 [P] [US3] Integration test in `tests/NatsManager.Integration.Tests/Nats/CoreNatsAdapterTests.cs`: `SubscribeAsync_WhenMessagePublished_YieldsMessage`; cancellation stops enumeration
+- [x] T030 [P] [US3] Hook tests in `src/NatsManager.Frontend/src/features/corenats/hooks/useCoreNats.test.ts`: `subscribe_OpensEventSource`; `unsubscribe_ClosesEventSource`; `pause_StopsDisplayUpdates_IncrementsPendingCount`; `resume_FlushesBufferedMessages`; `cap_TrimsOldestMessages`; `unmount_ClosesEventSource`
+- [x] T031 [P] [US3] Component test `src/NatsManager.Frontend/src/features/corenats/components/LiveMessageViewer.test.tsx`: Subscribe button triggers SSE; message appears in table; Pause/Resume flow works; clear empties list; invalid subject pattern shows inline warning
 
 ### Implementation for User Story 3
 
-- [ ] T032 [US3] Implement `SubscribeAsync` in `src/NatsManager.Infrastructure/Nats/CoreNatsAdapter.cs`: get connection; call `connection.SubscribeAsync<byte[]>(subject, cancellationToken: cancellationToken)`; for each `NatsMsg<byte[]>` yield a `NatsLiveMessage` with subject, `DateTimeOffset.UtcNow`, Base64 payload, size, flattened headers, replyTo, and `IsBinary` flag (depends on T002)
-- [ ] T033 [US3] Add `GET /stream` endpoint in `src/NatsManager.Web/Endpoints/CoreNatsEndpoints.cs`: validate `subject` query param (non-empty, no spaces → `400`); set `Content-Type: text/event-stream`, `Cache-Control: no-cache`, `X-Accel-Buffering: no`; iterate `SubscribeAsync` writing `event: message\ndata: {json}\n\n` per message, flushing after each; loop exits when `HttpContext.RequestAborted` fires (depends on T002, T032)
-- [ ] T034 [US3] Add `useLiveMessages` hook in `src/NatsManager.Frontend/src/features/corenats/hooks/useCoreNats.ts`: manage `EventSource` via `useEffect`; expose `messages`, `isConnected`, `isPaused`, `pendingCount`, `cap`, `setCap`, `subscribe`, `unsubscribe`, `pause`, `resume`, `clear`; on each SSE `message` event route to display list or `pendingBuffer` ref based on `isPaused`; flush buffer on `resume()`; trim to cap on new message; close `EventSource` on unmount (depends on T006)
-- [ ] T035 [US3] Create `src/NatsManager.Frontend/src/features/corenats/components/LiveMessageViewer.tsx`: subject pattern `TextInput` + Subscribe/Unsubscribe buttons + connection status `Badge`; `NumberInput` for cap (100–500); Pause/Resume `Button` + pending count `Badge`; Clear button; `Table` (most-recent-first) with Subject/Time/Payload Preview/Headers count columns; expandable rows showing full payload via `<PayloadViewer>` and header key/value list; empty state; inline warning for subject patterns containing spaces (depends on T034)
-- [ ] T036 [US3] Integrate `<LiveMessageViewer environmentId={selectedEnvironmentId} />` into `src/NatsManager.Frontend/src/features/corenats/CoreNatsPage.tsx` as a new section below the subject browser (depends on T035)
+- [x] T032 [US3] Implement `SubscribeAsync` in `src/NatsManager.Infrastructure/Nats/CoreNatsAdapter.cs`: get connection; call `connection.SubscribeAsync<byte[]>(subject, cancellationToken: cancellationToken)`; for each `NatsMsg<byte[]>` yield a `NatsLiveMessage` with subject, `DateTimeOffset.UtcNow`, Base64 payload, size, flattened headers, replyTo, and `IsBinary` flag (depends on T002)
+- [x] T033 [US3] Add `GET /stream` endpoint in `src/NatsManager.Web/Endpoints/CoreNatsEndpoints.cs`: validate `subject` query param (non-empty, no spaces → `400`); set `Content-Type: text/event-stream`, `Cache-Control: no-cache`, `X-Accel-Buffering: no`; iterate `SubscribeAsync` writing `event: message\ndata: {json}\n\n` per message, flushing after each; loop exits when `HttpContext.RequestAborted` fires (depends on T002, T032)
+- [x] T034 [US3] Add `useLiveMessages` hook in `src/NatsManager.Frontend/src/features/corenats/hooks/useCoreNats.ts`: manage `EventSource` via `useEffect`; expose `messages`, `isConnected`, `isPaused`, `pendingCount`, `cap`, `setCap`, `subscribe`, `unsubscribe`, `pause`, `resume`, `clear`; on each SSE `message` event route to display list or `pendingBuffer` ref based on `isPaused`; flush buffer on `resume()`; trim to cap on new message; close `EventSource` on unmount (depends on T006)
+- [x] T035 [US3] Create `src/NatsManager.Frontend/src/features/corenats/components/LiveMessageViewer.tsx`: subject pattern `TextInput` + Subscribe/Unsubscribe buttons + connection status `Badge`; `NumberInput` for cap (100–500); Pause/Resume `Button` + pending count `Badge`; Clear button; `Table` (most-recent-first) with Subject/Time/Payload Preview/Headers count columns; expandable rows showing full payload via `<PayloadViewer>` and header key/value list; empty state; inline warning for subject patterns containing spaces (depends on T034)
+- [x] T036 [US3] Integrate `<LiveMessageViewer environmentId={selectedEnvironmentId} />` into `src/NatsManager.Frontend/src/features/corenats/CoreNatsPage.tsx` as a new section below the subject browser (depends on T035)
 
 **Checkpoint**: User Story 3 complete — live message viewer works end-to-end with pause/resume, cap enforcement, expandable rows, and automatic subscription teardown
 
@@ -114,14 +114,14 @@
 
 **Purpose**: Playwright E2E tests covering acceptance scenarios for all three user stories against a real running stack.
 
-- [ ] T037 [P] [US1] Add E2E test `GetSubjectsViaApi_ReturnsSubjectsWhenMonitoringAvailable` to `tests/NatsManager.E2E.Tests/Tests/CoreNatsTests.cs`: start a NATS subscriber, call `GET /subjects`, assert at least one entry returned
-- [ ] T038 [P] [US1] Add E2E test `CoreNatsPage_ShowsSubjectTable_WhenSubscriberActive`: navigate to Core NATS, start NATS subscriber, wait for subject table row to appear within 20s auto-refresh window
-- [ ] T039 [P] [US1] Add E2E test `SubjectFilter_ReducesVisibleRows`: subject table visible, type filter string, assert fewer rows visible
-- [ ] T040 [P] [US2] Add E2E test `CanPublishMessage_WithHeadersAndReplyTo` to `tests/NatsManager.E2E.Tests/Tests/CoreNatsTests.cs`: open publish dialog, select JSON format, enter JSON payload, add header, add reply-to, click Publish, assert success notification
-- [ ] T041 [P] [US2] Add E2E test `CanPublishMessage_WithJsonAndHeaders_ViaApi`: HTTP API test publishing with `payloadFormat: Json`, `headers`, `replyTo`; assert `200` and `published: true`
-- [ ] T042 [P] [US3] Add E2E test `CanPublishMessage_ViaApi_WithHexBytesFormat`: HTTP API test with `payloadFormat: HexBytes` and valid hex payload; assert `200`
-- [ ] T043 [P] [US3] Add E2E test `StreamEndpoint_Returns400_ForEmptySubject`: HTTP API test calling `GET /stream` with no subject query param; assert `400`
-- [ ] T044 [P] [US3] Add E2E test `LiveViewer_ReceivesPublishedMessage` (Playwright UI test): subscribe to `test.e2e.>` in viewer, publish message via publish dialog, assert message row appears in viewer table within 5s
+- [x] T037 [P] [US1] Add E2E test `GetSubjectsViaApi_ReturnsSubjectsWhenMonitoringAvailable` to `tests/NatsManager.E2E.Tests/Tests/CoreNatsTests.cs`: start a NATS subscriber, call `GET /subjects`, assert at least one entry returned
+- [x] T038 [P] [US1] Add E2E test `CoreNatsPage_ShowsSubjectTable_WhenSubscriberActive`: navigate to Core NATS, start NATS subscriber, wait for subject table row to appear within 20s auto-refresh window
+- [x] T039 [P] [US1] Add E2E test `SubjectFilter_ReducesVisibleRows`: subject table visible, type filter string, assert fewer rows visible
+- [x] T040 [P] [US2] Add E2E test `CanPublishMessage_WithHeadersAndReplyTo` to `tests/NatsManager.E2E.Tests/Tests/CoreNatsTests.cs`: open publish dialog, select JSON format, enter JSON payload, add header, add reply-to, click Publish, assert success notification
+- [x] T041 [P] [US2] Add E2E test `CanPublishMessage_WithJsonAndHeaders_ViaApi`: HTTP API test publishing with `payloadFormat: Json`, `headers`, `replyTo`; assert `200` and `published: true`
+- [x] T042 [P] [US3] Add E2E test `CanPublishMessage_ViaApi_WithHexBytesFormat`: HTTP API test with `payloadFormat: HexBytes` and valid hex payload; assert `200`
+- [x] T043 [P] [US3] Add E2E test `StreamEndpoint_Returns400_ForEmptySubject`: HTTP API test calling `GET /stream` with no subject query param; assert `400`
+- [x] T044 [P] [US3] Add E2E test `LiveViewer_ReceivesPublishedMessage` (Playwright UI test): subscribe to `test.e2e.>` in viewer, publish message via publish dialog, assert message row appears in viewer table within 5s
 
 ---
 

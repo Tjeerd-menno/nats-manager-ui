@@ -54,8 +54,9 @@ Extended with three new optional fields:
 
 **Encoding rules**:
 - `PlainText` → `Encoding.UTF8.GetBytes(payload)`
-- `Json` → validated with `JsonDocument.Parse`; if invalid → `400`; encoded as UTF-8 bytes
-- `HexBytes` → `Convert.FromHexString(payload)`; if invalid hex → `400`
+- `Json` → validated with `JsonDocument.Parse`; if invalid → validation failure (`422`); encoded as UTF-8 bytes
+- `HexBytes` → `Convert.FromHexString(payload)`; if invalid hex → validation failure (`422`)
+- Header keys must not be empty or whitespace-only. The frontend rejects duplicate keys before submit; JSON object duplicate keys received by the backend follow standard JSON deserialization semantics where the last value wins before validation.
 
 ---
 
@@ -98,7 +99,7 @@ public sealed record PublishMessageBody(
 public interface ICoreNatsAdapter
 {
     Task<NatsServerInfo?> GetServerInfoAsync(Guid environmentId, CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<NatsSubjectInfo>> ListSubjectsAsync(Guid environmentId, CancellationToken cancellationToken = default);
+    Task<ListSubjectsResult> ListSubjectsAsync(Guid environmentId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<NatsClientInfo>> ListClientsAsync(Guid environmentId, CancellationToken cancellationToken = default);
     Task PublishAsync(Guid environmentId, string subject, byte[] data,
         IReadOnlyDictionary<string, string>? headers = null,

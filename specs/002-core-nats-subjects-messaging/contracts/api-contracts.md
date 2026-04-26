@@ -66,7 +66,7 @@ X-Subjects-Source: unavailable       # monitoring endpoint unreachable; empty ar
 | `subject` | string | ✅ | — | Non-empty NATS subject |
 | `payload` | string | ❌ | `null` | Encoded per `payloadFormat` |
 | `payloadFormat` | `"PlainText" \| "Json" \| "HexBytes"` | ❌ | `"PlainText"` | Controls byte encoding |
-| `headers` | `object` | ❌ | `{}` | String key → string value pairs |
+| `headers` | `object` | ❌ | `{}` | String key → string value pairs; keys must not be empty or whitespace-only. The UI rejects duplicate keys, while duplicate JSON object keys received by the backend follow standard last-value-wins deserialization before validation. |
 | `replyTo` | string | ❌ | `null` | Optional reply-to subject |
 
 **Response: `200 OK`**
@@ -87,13 +87,15 @@ X-Subjects-Source: unavailable       # monitoring endpoint unreachable; empty ar
 }
 ```
 
-**Response: `400 Bad Request`** (invalid hex or JSON when format demands valid encoding)
+**Response: `422 Unprocessable Entity`** (invalid hex or JSON when format demands valid encoding)
 ```json
 {
-  "type": "https://tools.ietf.org/html/rfc9110#section-15.5.5",
-  "title": "Bad Request",
-  "status": 400,
-  "detail": "Payload is not valid hex-encoded bytes."
+  "type": "https://tools.ietf.org/html/rfc9110#section-15.5.21",
+  "title": "Validation failed",
+  "status": 422,
+  "errors": {
+    "Payload": ["Payload is not valid hex-encoded bytes."]
+  }
 }
 ```
 
@@ -157,11 +159,19 @@ data: {"code":"INVALID_SUBJECT","message":"Subject pattern must not contain spac
 
 ### `useSubjects(environmentId)`
 ```typescript
-function useSubjects(environmentId: string | null): UseQueryResult<NatsSubjectInfo[], Error>
+interface UseSubjectsResult {
+  data: NatsSubjectInfo[] | undefined;
+  isLoading: boolean;
+  error: Error | null;
+  isMonitoringAvailable: boolean;
+}
+
+function useSubjects(environmentId: string | null): UseSubjectsResult
 ```
 - Query key: `['core-nats-subjects', environmentId]`
 - `refetchInterval: 15000`
 - `enabled: !!environmentId`
+- Reads `X-Subjects-Source` to expose `isMonitoringAvailable`.
 
 ### `usePublishMessage(environmentId)` (updated)
 ```typescript
