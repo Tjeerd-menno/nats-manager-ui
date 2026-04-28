@@ -73,6 +73,10 @@ builder.Services.AddSingleton<NatsManager.Application.Modules.Services.Ports.ISe
 builder.Services.AddSingleton<NatsManager.Application.Modules.ObjectStore.Ports.IObjectStoreAdapter, NatsManager.Infrastructure.Nats.ObjectStoreAdapter>();
 builder.Services.AddSingleton<NatsManager.Application.Modules.CoreNats.Ports.ICoreNatsAdapter, NatsManager.Infrastructure.Nats.CoreNatsAdapter>();
 
+builder.Services.Configure<CoreNatsMonitoringOptions>(
+    builder.Configuration.GetSection(CoreNatsMonitoringOptions.SectionName));
+builder.Services.AddHttpClient();
+
 builder.Services.Configure<BootstrapAdminOptions>(
     builder.Configuration.GetSection(BootstrapAdminOptions.SectionName));
 

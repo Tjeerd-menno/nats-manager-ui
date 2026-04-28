@@ -5,6 +5,25 @@ import CoreNatsPage from './CoreNatsPage';
 vi.mock('./hooks/useCoreNats', () => ({
   useCoreNatsStatus: vi.fn(),
   usePublishMessage: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+  useSubjects: vi.fn(() => ({
+    data: [],
+    isLoading: false,
+    error: null,
+    isMonitoringAvailable: true,
+  })),
+  useLiveMessages: vi.fn(() => ({
+    messages: [],
+    isConnected: false,
+    isPaused: false,
+    pendingCount: 0,
+    cap: 100,
+    setCap: vi.fn(),
+    subscribe: vi.fn(),
+    unsubscribe: vi.fn(),
+    pause: vi.fn(),
+    resume: vi.fn(),
+    clear: vi.fn(),
+  })),
 }));
 
 vi.mock('../environments/EnvironmentContext', () => ({

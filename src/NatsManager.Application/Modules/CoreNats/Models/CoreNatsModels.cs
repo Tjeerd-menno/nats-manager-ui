@@ -30,3 +30,23 @@ public sealed record NatsClientInfo(
     long InBytes,
     long OutBytes,
     TimeSpan Uptime);
+
+public sealed record ListSubjectsResult(
+    IReadOnlyList<NatsSubjectInfo> Subjects,
+    bool IsMonitoringAvailable);
+
+public enum PayloadFormat
+{
+    PlainText,
+    Json,
+    HexBytes,
+}
+
+public sealed record NatsLiveMessage(
+    string Subject,
+    DateTimeOffset ReceivedAt,
+    string PayloadBase64,
+    int PayloadSize,
+    IReadOnlyDictionary<string, string> Headers,
+    string? ReplyTo,
+    bool IsBinary);

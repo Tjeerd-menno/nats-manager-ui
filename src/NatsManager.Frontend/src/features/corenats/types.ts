@@ -15,8 +15,8 @@ export interface NatsServerInfo {
 }
 
 export interface NatsSubjectInfo {
-  name: string;
-  messageCount: number;
+  subject: string;
+  subscriptions: number;
 }
 
 export interface NatsClientInfo {
@@ -24,4 +24,24 @@ export interface NatsClientInfo {
   name: string;
   address: string;
   subscriptions: number;
+}
+
+export type PayloadFormat = 'PlainText' | 'Json' | 'HexBytes';
+
+export interface PublishRequest {
+  subject: string;
+  payload?: string;
+  payloadFormat: PayloadFormat;
+  headers: Record<string, string>;
+  replyTo?: string;
+}
+
+export interface NatsLiveMessage {
+  subject: string;
+  receivedAt: string;
+  payloadBase64: string;
+  payloadSize: number;
+  headers: Record<string, string>;
+  replyTo?: string;
+  isBinary: boolean;
 }
