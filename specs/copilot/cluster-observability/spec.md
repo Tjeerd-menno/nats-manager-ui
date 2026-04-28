@@ -94,7 +94,7 @@ An operator inspects discovered topology relationships such as routes, gateways,
 - **SC-CLU-001**: Operators can identify whether a selected cluster is healthy, degraded, or unavailable within 10 seconds of opening the view.
 - **SC-CLU-002**: Operators can identify the most concerning server in a degraded cluster within 30 seconds using visual status and sorting.
 - **SC-CLU-003**: 95% of cluster overview refreshes show updated freshness indicators within one configured monitoring interval.
-- **SC-CLU-004**: Server lists remain usable for at least 250 observed servers, with search/filter interactions completing within 1 second.
+- **SC-CLU-004**: Server lists remain usable for at least 250 observed servers, with local search/filter interactions completing within 300 ms and any server-backed refresh query completing within 1 second.
 - **SC-CLU-005**: No account/operator JWT content or message payload content is displayed unless exposed as safe non-sensitive metadata.
 
 ## Assumptions
