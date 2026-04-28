@@ -15,6 +15,7 @@ import {
 } from '@mantine/core';
 import { useCoreNatsStatus } from './hooks/useCoreNats';
 import { useEnvironmentContext } from '../environments/EnvironmentContext';
+import { OpenRelationshipMapButton } from '../relationships/components/OpenRelationshipMapButton';
 import { SubjectBrowser } from './components/SubjectBrowser';
 import { PublishMessageForm } from './components/PublishMessageForm';
 import { LiveMessageViewer } from './components/LiveMessageViewer';
@@ -52,7 +53,14 @@ export default function CoreNatsPage() {
     <Stack>
       <Group justify="space-between">
         <Title order={2}>Core NATS</Title>
-        <Button onClick={() => setPublishOpen(true)}>Publish Message</Button>
+        <Group>
+          <OpenRelationshipMapButton
+            environmentId={selectedEnvironmentId}
+            resourceId={serverInfo.serverId}
+            resourceType="Server"
+          />
+          <Button onClick={() => setPublishOpen(true)}>Publish Message</Button>
+        </Group>
       </Group>
 
       <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }}>

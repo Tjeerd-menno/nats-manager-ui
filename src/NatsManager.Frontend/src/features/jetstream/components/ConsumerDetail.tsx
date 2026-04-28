@@ -3,6 +3,7 @@ import { useConsumer } from '../hooks/useJetStream';
 import { useEnvironmentContext } from '../../environments/EnvironmentContext';
 import { ConsumerHealthBadge } from './ConsumerHealthBadge';
 import { LoadingState } from '../../../shared/LoadingState';
+import { OpenRelationshipMapButton } from '../../relationships/components/OpenRelationshipMapButton';
 
 interface ConsumerDetailProps {
   streamName: string;
@@ -22,6 +23,14 @@ export function ConsumerDetail({ streamName, consumerName }: ConsumerDetailProps
       <Group>
         <Title order={2}>{consumer.name}</Title>
         <ConsumerHealthBadge isHealthy={consumer.isHealthy} />
+        <div style={{ flex: 1 }} />
+        {selectedEnvironmentId && (
+          <OpenRelationshipMapButton
+            environmentId={selectedEnvironmentId}
+            resourceId={`${streamName}/${consumerName}`}
+            resourceType="Consumer"
+          />
+        )}
       </Group>
 
       {consumer.description && <Text c="dimmed">{consumer.description}</Text>}

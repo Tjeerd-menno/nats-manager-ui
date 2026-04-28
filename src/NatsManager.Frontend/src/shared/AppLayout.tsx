@@ -15,6 +15,7 @@ import {
   IconSun,
   IconMoon,
   IconActivity,
+  IconNetwork,
 } from '@tabler/icons-react';
 import { useAuth } from '../features/auth/useAuth';
 import { EnvironmentSelector } from '../features/environments/components/EnvironmentSelector';
@@ -103,6 +104,16 @@ export function AppLayout() {
             onClick={() => handleNavigate(item.path)}
           />
         ))}
+        {selectedEnvironmentId && (
+          <NavLink
+            key="cluster-observability"
+            label="Cluster Observability"
+            leftSection={<IconNetwork size={18} stroke={1.5} />}
+            active={location.pathname.startsWith(`/environments/${selectedEnvironmentId}/monitoring/cluster`)}
+            onClick={() => handleNavigate(`/environments/${selectedEnvironmentId}/monitoring/cluster`)}
+            pl="xl"
+          />
+        )}
 
         {hasRole('Administrator') && (
           <>

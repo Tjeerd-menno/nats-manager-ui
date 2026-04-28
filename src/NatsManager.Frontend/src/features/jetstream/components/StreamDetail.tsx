@@ -10,6 +10,7 @@ import { ConsumerForm } from './ConsumerForm';
 import { ConsumerActions } from './ConsumerActions';
 import { MessageBrowser } from './MessageBrowser';
 import { LoadingState } from '../../../shared/LoadingState';
+import { OpenRelationshipMapButton } from '../../relationships/components/OpenRelationshipMapButton';
 
 interface StreamDetailProps {
   streamName: string;
@@ -44,6 +45,13 @@ export function StreamDetail({ streamName, onConsumerSelect, onDeleted }: Stream
         <Badge variant="outline">{config.retentionPolicy}</Badge>
         <Badge variant="outline">{config.storageType}</Badge>
         <div style={{ flex: 1 }} />
+        {selectedEnvironmentId && (
+          <OpenRelationshipMapButton
+            environmentId={selectedEnvironmentId}
+            resourceId={streamName}
+            resourceType="Stream"
+          />
+        )}
         <Button variant="outline" size="xs" onClick={() => setEditFormOpened(true)}>Edit</Button>
         <StreamActions streamName={streamName} onDeleted={onDeleted} />
       </Group>

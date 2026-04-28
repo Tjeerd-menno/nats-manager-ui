@@ -12,12 +12,19 @@ using NatsManager.Application.Modules.Auth.Services;
 using NatsManager.Application.Modules.Environments.Ports;
 using NatsManager.Application.Modules.Monitoring;
 using NatsManager.Application.Modules.Monitoring.Ports;
+using NatsManager.Application.Modules.Monitoring.Ports.ClusterObservability;
+using NatsManager.Application.Modules.Relationships.Ports;
+using NatsManager.Application.Modules.Relationships.Queries;
 using NatsManager.Domain.Modules.Auth;
 using NatsManager.Infrastructure.Auth;
 using NatsManager.Infrastructure.Configuration;
 using NatsManager.Infrastructure.Monitoring;
+using NatsManager.Infrastructure.Monitoring.ClusterObservability;
 using NatsManager.Infrastructure.Nats;
+using NatsManager.Infrastructure.Nats.ClusterObservability;
 using NatsManager.Infrastructure.Persistence;
+using NatsManager.Infrastructure.Relationships;
+using NatsManager.Infrastructure.Relationships.Sources;
 using NatsManager.Web.BackgroundServices;
 using NatsManager.Web.Endpoints;
 using NatsManager.Web.Hubs;
@@ -92,9 +99,32 @@ builder.Services.AddHttpClient("NatsMonitoring", (sp, client) =>
     client.DefaultRequestVersion = System.Net.HttpVersion.Version11;
 });
 
+builder.Services.AddHttpClient("NatsClusterMonitoring", (sp, client) =>
+{
+    var opts = sp.GetRequiredService<IOptions<MonitoringOptions>>().Value;
+    client.Timeout = TimeSpan.FromSeconds(opts.ClusterEndpointTimeoutSeconds);
+    client.DefaultRequestVersion = System.Net.HttpVersion.Version11;
+});
+
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<IMonitoringAdapter, NatsMonitoringHttpAdapter>();
 builder.Services.AddSingleton<IMonitoringMetricsStore, MonitoringMetricsStore>();
+
+// Cluster Observability
+builder.Services.AddSingleton<IClusterMonitoringAdapter, NatsClusterMonitoringHttpAdapter>();
+builder.Services.AddSingleton<IClusterObservationStore, ClusterObservationStore>();
+
+// Relationships
+builder.Services.AddSingleton<IRelationshipSource, JetStreamRelationshipSource>();
+builder.Services.AddSingleton<IRelationshipSource, KeyValueRelationshipSource>();
+builder.Services.AddSingleton<IRelationshipSource, ObjectStoreRelationshipSource>();
+builder.Services.AddSingleton<IRelationshipSource, ServicesRelationshipSource>();
+builder.Services.AddSingleton<IRelationshipSource, CoreNatsRelationshipSource>();
+builder.Services.AddSingleton<IRelationshipSource, MonitoringRelationshipSource>();
+builder.Services.AddSingleton<IRelationshipSource, AlertsRelationshipSource>();
+builder.Services.AddSingleton<IFocalResourceResolver, FocalResourceResolver>();
+builder.Services.AddSingleton<RelationshipProjectionService>();
+builder.Services.AddScoped<GetRelationshipMapQueryHandler>();
 
 builder.Services.AddSingleton<ICredentialEncryptionService>(_ =>
 {
@@ -252,6 +282,7 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 // Background services
 builder.Services.AddHostedService<EnvironmentHealthPoller>();
 builder.Services.AddHostedService<MonitoringPoller>();
+builder.Services.AddHostedService<ClusterObservationPoller>();
 
 var app = builder.Build();
 
@@ -334,6 +365,7 @@ app.MapAccessControlEndpoints();
 app.MapAuditEndpoints();
 app.MapSearchEndpoints();
 app.MapMonitoringEndpoints();
+app.MapRelationshipMapEndpoints();
 
 app.Run();
 

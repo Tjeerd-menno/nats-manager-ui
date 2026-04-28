@@ -3,6 +3,7 @@ import { Title, Text, Table, Badge, Card, Stack, Group, Button, TextInput, Modal
 import { useServices, useService, useTestService } from './hooks/useServices';
 import { useEnvironmentContext } from '../environments/EnvironmentContext';
 import { useParams, useNavigate } from 'react-router-dom';
+import { OpenRelationshipMapButton } from '../relationships/components/OpenRelationshipMapButton';
 
 export default function ServicesPage() {
   const { serviceName } = useParams();
@@ -87,7 +88,16 @@ function ServiceDetail({ environmentId, serviceName }: { environmentId: string |
     <Stack>
       <Group justify="space-between">
         <Title order={2}>{service.name}</Title>
-        <Button onClick={() => setTestModalOpen(true)}>Test Request</Button>
+        <Group>
+          {environmentId && (
+            <OpenRelationshipMapButton
+              environmentId={environmentId}
+              resourceId={serviceName}
+              resourceType="Service"
+            />
+          )}
+          <Button onClick={() => setTestModalOpen(true)}>Test Request</Button>
+        </Group>
       </Group>
 
       <Text c="dimmed">{service.description}</Text>

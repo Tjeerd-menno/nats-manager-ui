@@ -3,6 +3,7 @@ import { Title, Text, Table, Badge, Card, Stack, Group, Button, TextInput, Modal
 import { useObjectBuckets, useObjects, useObjectInfo, useCreateObjectBucket, useDeleteObjectBucket, useUploadObject, useDeleteObject } from './hooks/useObjectStore';
 import { useEnvironmentContext } from '../environments/EnvironmentContext';
 import { useParams, useNavigate } from 'react-router-dom';
+import { OpenRelationshipMapButton } from '../relationships/components/OpenRelationshipMapButton';
 
 export default function ObjectStorePage() {
   const { bucketName, objectName } = useParams();
@@ -114,7 +115,16 @@ function ObjectList({ environmentId, bucketName }: { environmentId: string | nul
     <Stack>
       <Group justify="space-between">
         <Title order={2}>Bucket: {bucketName}</Title>
-        <Button onClick={() => setUploadOpen(true)}>Upload Object</Button>
+        <Group>
+          {environmentId && (
+            <OpenRelationshipMapButton
+              environmentId={environmentId}
+              resourceId={bucketName}
+              resourceType="ObjectBucket"
+            />
+          )}
+          <Button onClick={() => setUploadOpen(true)}>Upload Object</Button>
+        </Group>
       </Group>
       <Table striped highlightOnHover>
         <Table.Thead>
@@ -164,7 +174,16 @@ function ObjectDetail({ environmentId, bucketName, objectName }: { environmentId
 
   return (
     <Stack>
-      <Title order={2}>{obj.name}</Title>
+      <Group justify="space-between">
+        <Title order={2}>{obj.name}</Title>
+        {environmentId && (
+          <OpenRelationshipMapButton
+            environmentId={environmentId}
+            resourceId={`${bucketName}/${objectName}`}
+            resourceType="ObjectStoreObject"
+          />
+        )}
+      </Group>
       <Card shadow="sm" padding="lg" radius="md" withBorder>
         <Group>
           <div><Text size="sm" c="dimmed">Size</Text><Text fw={700}>{(obj.size / 1024).toFixed(1)} KB</Text></div>

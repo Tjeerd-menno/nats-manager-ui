@@ -6,6 +6,7 @@ import { useKvKey, useKvKeyHistory, useDeleteKvKey } from '../hooks/useKv';
 import { useEnvironmentContext } from '../../environments/EnvironmentContext';
 import { LoadingState } from '../../../shared/LoadingState';
 import { KvKeyEditor } from './KvKeyEditor';
+import { OpenRelationshipMapButton } from '../../relationships/components/OpenRelationshipMapButton';
 
 interface KvKeyDetailProps {
   bucketName: string;
@@ -54,6 +55,13 @@ export function KvKeyDetail({ bucketName, keyName }: KvKeyDetailProps) {
       <Group justify="space-between">
         <Title order={3}>{keyName}</Title>
         <Group>
+          {selectedEnvironmentId && (
+            <OpenRelationshipMapButton
+              environmentId={selectedEnvironmentId}
+              resourceId={`${bucketName}/${keyName}`}
+              resourceType="KvKey"
+            />
+          )}
           <Button leftSection={<IconPencil size={16} />} variant="light" onClick={() => setEditorOpened(true)}>
             Edit
           </Button>
