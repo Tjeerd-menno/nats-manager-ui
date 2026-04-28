@@ -10,7 +10,16 @@ import { CollapsedBranchCount } from './components/CollapsedBranchCount';
 import { EmptyFilterState } from './components/EmptyFilterState';
 import { LoadingState } from '../../shared/LoadingState';
 import { EmptyState } from '../../shared/EmptyState';
-import type { MapFilter, RelationshipConfidence, RelationshipType, ResourceHealthStatus, ResourceType } from './types';
+import { StaleDataBanner } from '../../shared/StaleDataBanner';
+import type {
+  MapFilter,
+  RelationshipConfidence,
+  RelationshipFreshness,
+  RelationshipType,
+  ResourceHealthStatus,
+  ResourceType,
+  RelationshipMap,
+} from './types';
 
 const defaultFilters: MapFilter = {
   depth: 1,
@@ -38,6 +47,25 @@ function numberParam(value: string | null, fallback: number): number {
 function boolParam(value: string | null, fallback: boolean): boolean {
   if (value === null) return fallback;
   return value.toLowerCase() !== 'false';
+}
+
+function getMapConnectionStatus(map: RelationshipMap): 'Available' | 'Degraded' | 'Unavailable' {
+  const freshnessValues: RelationshipFreshness[] = [
+    ...map.nodes.map((node) => node.freshness),
+    ...map.edges.map((edge) => edge.freshness),
+    ...map.edges.flatMap((edge) => edge.evidence.map((evidence) => evidence.freshness)),
+  ];
+
+  if (freshnessValues.includes('Unavailable')) return 'Unavailable';
+  if (
+    freshnessValues.includes('Partial') ||
+    freshnessValues.includes('Stale') ||
+    map.omittedCounts.unsafeRelationships > 0
+  ) {
+    return 'Degraded';
+  }
+
+  return 'Available';
 }
 
 export default function ResourceRelationshipMapPage() {
@@ -163,6 +191,11 @@ export default function ResourceRelationshipMapPage() {
           </Text>
         </Group>
       </Group>
+
+      <StaleDataBanner
+        connectionStatus={getMapConnectionStatus(data)}
+        lastUpdated={data.generatedAt}
+      />
 
       {hasOmissions && (
         <Alert color="yellow" icon={<IconAlertTriangle size={14} />} title="Some relationships omitted">

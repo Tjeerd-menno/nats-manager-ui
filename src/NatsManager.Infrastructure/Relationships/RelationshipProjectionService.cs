@@ -21,6 +21,8 @@ public sealed partial class RelationshipProjectionService(
         MapFilter filters,
         CancellationToken ct)
     {
+        LogProjectionStarted(focal.EnvironmentId, focal.ResourceType, filters.Depth, filters.MaxNodes, filters.MaxEdges);
+
         var generatedAt = DateTimeOffset.UtcNow;
         var allEdges = new List<RelationshipEdge>();
         var unsafeCount = 0;
@@ -45,9 +47,11 @@ public sealed partial class RelationshipProjectionService(
                     }
                     catch (Exception ex) when (ex is not OperationCanceledException)
                     {
-                        LogSourceFailed(source.SourceModule.ToString(), ex.Message);
+                        LogSourceFailed(focal.EnvironmentId, source.SourceModule);
                         continue;
                     }
+
+                    LogSourceSucceeded(focal.EnvironmentId, source.SourceModule, edges.Count);
 
                     foreach (var edge in edges)
                     {
@@ -55,6 +59,11 @@ public sealed partial class RelationshipProjectionService(
                         if (edge.EnvironmentId != focal.EnvironmentId)
                         {
                             unsafeCount++;
+                            LogRelationshipOmitted(
+                                focal.EnvironmentId,
+                                source.SourceModule,
+                                "CrossEnvironment",
+                                edge.RelationshipType);
                             continue;
                         }
 
@@ -146,7 +155,7 @@ public sealed partial class RelationshipProjectionService(
 
         var finalNodes = resolvedNodes.Values.ToList();
 
-        return new RelationshipMap(
+        var relationshipMap = new RelationshipMap(
             EnvironmentId: focal.EnvironmentId,
             FocalResource: focal,
             GeneratedAt: generatedAt,
@@ -160,6 +169,18 @@ public sealed partial class RelationshipProjectionService(
                 CollapsedNodes: 0,
                 CollapsedEdges: 0,
                 UnsafeRelationships: unsafeCount));
+
+        LogProjectionCompleted(
+            focal.EnvironmentId,
+            finalNodes.Count,
+            includedEdges.Count,
+            relationshipMap.OmittedCounts.FilteredNodes,
+            relationshipMap.OmittedCounts.FilteredEdges,
+            relationshipMap.OmittedCounts.CollapsedNodes,
+            relationshipMap.OmittedCounts.CollapsedEdges,
+            relationshipMap.OmittedCounts.UnsafeRelationships);
+
+        return relationshipMap;
     }
 
     private static bool PassesFilters(RelationshipEdge edge, MapFilter filters)
@@ -211,7 +232,7 @@ public sealed partial class RelationshipProjectionService(
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                LogNodeResolutionFailed(source.SourceModule.ToString(), ex.Message);
+                LogNodeResolutionFailed(focal.EnvironmentId, source.SourceModule);
             }
         }
 
@@ -230,9 +251,21 @@ public sealed partial class RelationshipProjectionService(
         _ = focalNodeId;
     }
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Relationship source {Module} failed: {Reason}")]
-    private partial void LogSourceFailed(string module, string reason);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Building relationship map for environment {EnvironmentId}, resource type {ResourceType}, depth {Depth}, max nodes {MaxNodes}, max edges {MaxEdges}.")]
+    private partial void LogProjectionStarted(Guid environmentId, ResourceType resourceType, int depth, int maxNodes, int maxEdges);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Node resolution failed for source {Module}: {Reason}")]
-    private partial void LogNodeResolutionFailed(string module, string reason);
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Relationship source {Module} returned {EdgeCount} edge(s) for environment {EnvironmentId}.")]
+    private partial void LogSourceSucceeded(Guid environmentId, RelationshipSourceModule module, int edgeCount);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Relationship source {Module} failed for environment {EnvironmentId}.")]
+    private partial void LogSourceFailed(Guid environmentId, RelationshipSourceModule module);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Omitted relationship for environment {EnvironmentId} from source {Module}; reason {Reason}, relationship type {RelationshipType}.")]
+    private partial void LogRelationshipOmitted(Guid environmentId, RelationshipSourceModule module, string reason, RelationshipType relationshipType);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Node resolution failed for source {Module} in environment {EnvironmentId}.")]
+    private partial void LogNodeResolutionFailed(Guid environmentId, RelationshipSourceModule module);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Relationship map built for environment {EnvironmentId}: {NodeCount} node(s), {EdgeCount} edge(s), omitted filtered nodes {FilteredNodes}, filtered edges {FilteredEdges}, collapsed nodes {CollapsedNodes}, collapsed edges {CollapsedEdges}, unsafe relationships {UnsafeRelationships}.")]
+    private partial void LogProjectionCompleted(Guid environmentId, int nodeCount, int edgeCount, int filteredNodes, int filteredEdges, int collapsedNodes, int collapsedEdges, int unsafeRelationships);
 }
