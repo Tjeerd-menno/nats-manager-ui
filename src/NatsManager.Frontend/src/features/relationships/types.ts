@@ -83,27 +83,41 @@ export interface RelationshipEdge {
 }
 
 export interface OmittedCounts {
-  omittedByMaxNodes: number;
-  omittedByMaxEdges: number;
-  omittedByConfidence: number;
-  omittedByType: number;
+  filteredNodes: number;
+  filteredEdges: number;
+  collapsedNodes: number;
+  collapsedEdges: number;
   unsafeRelationships: number;
+}
+
+export interface FocalResource {
+  environmentId: string;
+  resourceType: ResourceType;
+  resourceId: string;
+  displayName: string;
+  route: string | null;
+}
+
+export interface MapFilter {
+  depth: number;
+  resourceTypes: ResourceType[] | null;
+  relationshipTypes: RelationshipType[] | null;
+  healthStates: ResourceHealthStatus[] | null;
+  minimumConfidence: RelationshipConfidence;
+  includeInferred: boolean;
+  includeStale: boolean;
+  maxNodes: number;
+  maxEdges: number;
 }
 
 export interface RelationshipMap {
   environmentId: string;
-  focalNodeId: string;
+  focalResource: FocalResource;
   generatedAt: string;
-  appliedFilter: {
-    depth: number;
-    maxNodes: number;
-    maxEdges: number;
-    minimumConfidence: RelationshipConfidence;
-    includeInferred: boolean;
-    includeStale: boolean;
-  };
+  depth: number;
   nodes: ResourceNode[];
   edges: RelationshipEdge[];
+  filters: MapFilter;
   omittedCounts: OmittedCounts;
 }
 

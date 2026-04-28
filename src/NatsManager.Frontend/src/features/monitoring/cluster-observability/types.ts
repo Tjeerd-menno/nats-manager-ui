@@ -1,9 +1,11 @@
 export type ClusterStatus = 'Healthy' | 'Degraded' | 'Unavailable' | 'Unknown';
-export type ServerStatus = 'Healthy' | 'Warning' | 'Degraded' | 'Unreachable' | 'Unknown';
-export type ObservationFreshness = 'Live' | 'Stale' | 'Unavailable';
-export type MetricState = 'Normal' | 'Warning' | 'Critical' | 'Unknown';
+export type ServerStatus = 'Healthy' | 'Warning' | 'Stale' | 'Unavailable' | 'Unknown';
+export type RelationshipStatus = 'Healthy' | 'Warning' | 'Stale' | 'Unavailable' | 'Unknown';
+export type ObservationFreshness = 'Live' | 'Stale' | 'Partial' | 'Unavailable';
+export type MetricState = 'Live' | 'Derived' | 'Stale' | 'Unavailable';
 export type TopologyRelationshipType = 'Route' | 'Gateway' | 'LeafNode' | 'ClusterPeer';
 export type RelationshipDirectionType = 'Inbound' | 'Outbound' | 'Bidirectional' | 'Unknown';
+export type MonitoringEndpoint = 'Healthz' | 'Varz' | 'Jsz' | 'Routez' | 'Gatewayz' | 'Leafz' | 'Other';
 
 export interface ClusterWarning {
   code: string;
@@ -16,39 +18,39 @@ export interface ClusterWarning {
 }
 
 export interface ServerObservation {
+  environmentId: string;
   serverId: string;
-  serverName: string;
-  host: string;
-  clusterId: string;
+  serverName: string | null;
   clusterName: string | null;
   version: string | null;
-  observedAt: string;
-  status: ServerStatus;
-  isJetStreamEnabled: boolean;
-  connections: number | null;
-  slowConsumers: number | null;
-  inMsgsPerSec: number | null;
-  outMsgsPerSec: number | null;
-  inBytesPerSec: number | null;
-  outBytesPerSec: number | null;
-  memoryBytes: number | null;
   uptimeSeconds: number | null;
-  activeAccounts: number | null;
-  totalStreams: number | null;
-  totalConsumers: number | null;
-  jetStreamStorageUsedBytes: number | null;
-  jetStreamStorageLimitBytes: number | null;
+  status: ServerStatus;
+  freshness: ObservationFreshness;
+  connections: number | null;
+  maxConnections: number | null;
+  slowConsumers: number | null;
+  memoryBytes: number | null;
+  storageBytes: number | null;
+  inMsgsPerSecond: number | null;
+  outMsgsPerSecond: number | null;
+  inBytesPerSecond: number | null;
+  outBytesPerSecond: number | null;
+  lastObservedAt: string;
+  metricStates: MetricState[];
 }
 
 export interface TopologyRelationship {
-  relationshipType: TopologyRelationshipType;
-  direction: RelationshipDirectionType;
+  environmentId: string;
+  relationshipId: string;
   sourceNodeId: string;
   targetNodeId: string;
-  sourceLabel: string;
-  targetLabel: string;
-  status: 'Active' | 'Inactive' | 'Unknown';
-  metadata: Record<string, string>;
+  type: TopologyRelationshipType;
+  direction: RelationshipDirectionType;
+  status: RelationshipStatus;
+  freshness: ObservationFreshness;
+  observedAt: string;
+  sourceEndpoint: MonitoringEndpoint;
+  safeLabel: string;
 }
 
 export interface ClusterObservation {
@@ -58,30 +60,28 @@ export interface ClusterObservation {
   freshness: ObservationFreshness;
   serverCount: number;
   degradedServerCount: number;
-  isJetStreamEnabled: boolean;
-  totalConnections: number;
-  totalInMsgsPerSec: number;
-  totalOutMsgsPerSec: number;
+  jetStreamAvailable: boolean | null;
+  connectionCount: number | null;
+  inMsgsPerSecond: number | null;
+  outMsgsPerSecond: number | null;
   servers: ServerObservation[];
-  topologyRelationships: TopologyRelationship[];
+  topology: TopologyRelationship[];
   warnings: ClusterWarning[];
 }
 
 export interface ClusterTopologyNode {
-  nodeId: string;
-  nodeType: 'server' | 'gateway' | 'leafnode' | 'routePeer' | 'external';
+  id: string;
+  type: string;
   label: string;
-  status: ClusterStatus;
-  metadata: Record<string, string>;
+  status: string;
+  serverId: string | null;
+  metadata: Record<string, unknown>;
 }
 
-export interface ClusterTopologyEdge {
-  edgeId: string;
-  sourceNodeId: string;
-  targetNodeId: string;
-  relationshipType: TopologyRelationshipType;
-  direction: RelationshipDirectionType;
-  status: 'Active' | 'Inactive' | 'Unknown';
+export interface ClusterTopologyOmittedCounts {
+  filteredNodes: number;
+  filteredEdges: number;
+  unsafeRelationships: number;
 }
 
 export interface ClusterTopologyGraph {
@@ -89,6 +89,6 @@ export interface ClusterTopologyGraph {
   observedAt: string;
   freshness: ObservationFreshness;
   nodes: ClusterTopologyNode[];
-  edges: ClusterTopologyEdge[];
-  omittedCounts: { filteredNodes: number; filteredEdges: number; unavailableServers: number };
+  edges: TopologyRelationship[];
+  omittedCounts: ClusterTopologyOmittedCounts;
 }

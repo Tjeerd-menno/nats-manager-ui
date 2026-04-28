@@ -8,6 +8,7 @@ interface ClusterFreshnessBadgeProps {
 const freshnessConfig: Record<ObservationFreshness, { color: string; label: string }> = {
   Live: { color: 'green', label: 'Live' },
   Stale: { color: 'yellow', label: 'Stale' },
+  Partial: { color: 'orange', label: 'Partial' },
   Unavailable: { color: 'red', label: 'Unavailable' },
 };
 

@@ -19,12 +19,15 @@ const clusterStatusConfig: Record<ClusterStatus, { color: string; label: string 
 function freshnessToIndicator(freshness: ClusterObservation['freshness']): 'live' | 'recent' | 'stale' {
   switch (freshness) {
     case 'Live': return 'live';
-    case 'Stale': return 'stale';
+    case 'Stale':
+    case 'Partial':
+      return 'stale';
     default: return 'stale';
   }
 }
 
-function formatRate(value: number): string {
+function formatRate(value: number | null): string {
+  if (value === null) return '—';
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M/s`;
   if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K/s`;
   return `${value.toFixed(1)}/s`;
@@ -78,31 +81,37 @@ export function ClusterOverviewCard({ observation }: ClusterOverviewCardProps) {
 
           <Stack gap={2}>
             <Text size="xs" c="dimmed">JetStream</Text>
-            <Badge
-              color={observation.isJetStreamEnabled ? 'green' : 'gray'}
-              variant="light"
-              size="sm"
-            >
-              {observation.isJetStreamEnabled ? 'Enabled' : 'Disabled'}
-            </Badge>
+            {observation.jetStreamAvailable === null ? (
+              <Badge color="gray" variant="light" size="sm">Unknown</Badge>
+            ) : (
+              <Badge
+                color={observation.jetStreamAvailable ? 'green' : 'gray'}
+                variant="light"
+                size="sm"
+              >
+                {observation.jetStreamAvailable ? 'Enabled' : 'Disabled'}
+              </Badge>
+            )}
           </Stack>
 
           <Stack gap={2}>
             <Text size="xs" c="dimmed">Connections</Text>
             <Group gap="xs" align="baseline">
-              <Text size="xl" fw={700}>{observation.totalConnections.toLocaleString()}</Text>
+              <Text size="xl" fw={700}>
+                {observation.connectionCount?.toLocaleString() ?? '—'}
+              </Text>
               <IconPlugConnected size={14} stroke={1.5} />
             </Group>
           </Stack>
 
           <Stack gap={2}>
             <Text size="xs" c="dimmed">In Msgs</Text>
-            <Text size="xl" fw={700}>{formatRate(observation.totalInMsgsPerSec)}</Text>
+            <Text size="xl" fw={700}>{formatRate(observation.inMsgsPerSecond)}</Text>
           </Stack>
 
           <Stack gap={2}>
             <Text size="xs" c="dimmed">Out Msgs</Text>
-            <Text size="xl" fw={700}>{formatRate(observation.totalOutMsgsPerSec)}</Text>
+            <Text size="xl" fw={700}>{formatRate(observation.outMsgsPerSecond)}</Text>
           </Stack>
         </SimpleGrid>
 
