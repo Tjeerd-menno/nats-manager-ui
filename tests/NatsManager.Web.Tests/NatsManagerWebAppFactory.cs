@@ -18,6 +18,7 @@ using NatsManager.Application.Modules.Environments.Ports;
 using NatsManager.Application.Modules.JetStream.Ports;
 using NatsManager.Application.Modules.KeyValue.Ports;
 using NatsManager.Application.Modules.Monitoring.Ports;
+using NatsManager.Application.Modules.Monitoring.Ports.ClusterObservability;
 using NatsManager.Application.Modules.ObjectStore.Ports;
 using NatsManager.Application.Modules.Services.Ports;
 using NatsManager.Infrastructure.Persistence;
@@ -41,6 +42,8 @@ public sealed class NatsManagerWebAppFactory : WebApplicationFactory<Program>
     public IAuditEventRepository AuditEventRepository { get; } = Substitute.For<IAuditEventRepository>();
     public IMonitoringAdapter MonitoringAdapter { get; } = Substitute.For<IMonitoringAdapter>();
     public IMonitoringMetricsStore MonitoringMetricsStore { get; } = Substitute.For<IMonitoringMetricsStore>();
+    public IClusterMonitoringAdapter ClusterMonitoringAdapter { get; } = Substitute.For<IClusterMonitoringAdapter>();
+    public IClusterObservationStore ClusterObservationStore { get; } = Substitute.For<IClusterObservationStore>();
     public const string BootstrapAdminUsername = "bootstrap-admin";
     public const string BootstrapAdminPassword = "Bootstrap123!";
     public static string EncryptionKey { get; } = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("0123456789ABCDEF0123456789ABCDEF"));
@@ -93,6 +96,8 @@ public sealed class NatsManagerWebAppFactory : WebApplicationFactory<Program>
             ReplaceService<IAuditEventRepository>(services, AuditEventRepository);
             ReplaceService<IMonitoringAdapter>(services, MonitoringAdapter);
             ReplaceService<IMonitoringMetricsStore>(services, MonitoringMetricsStore);
+            ReplaceService<IClusterMonitoringAdapter>(services, ClusterMonitoringAdapter);
+            ReplaceService<IClusterObservationStore>(services, ClusterObservationStore);
         });
     }
 
