@@ -5,6 +5,8 @@ import { useClusterOverview } from './hooks/useClusterOverview';
 import { ClusterOverviewCard } from './components/ClusterOverviewCard';
 import { ClusterWarningList } from './components/ClusterWarningList';
 import { ClusterUnavailableState } from './components/ClusterUnavailableState';
+import { ClusterServerList } from './components/ClusterServerList';
+import { ClusterTopologyGraph } from './ClusterTopologyGraph';
 import { LoadingState } from '../../../shared/LoadingState';
 import { EmptyState } from '../../../shared/EmptyState';
 
@@ -77,11 +79,11 @@ export default function ClusterObservabilityPage() {
         </Tabs.List>
 
         <Tabs.Panel value="servers" pt="md">
-          <EmptyState message="Server details coming soon (US2)." icon={IconServer} />
+          <ClusterServerList envId={envId} />
         </Tabs.Panel>
 
         <Tabs.Panel value="topology" pt="md">
-          <EmptyState message="Topology view coming soon (US3)." icon={IconNetwork} />
+          <ClusterTopologyGraph relationships={data.topology} envId={envId} />
         </Tabs.Panel>
       </Tabs>
     </Stack>
