@@ -1,28 +1,103 @@
+import { useCallback, useMemo } from 'react';
 import { useSearchParams, useParams } from 'react-router-dom';
 import { Stack, Title, Grid, Alert, Text, Badge, Group } from '@mantine/core';
 import { IconShare2, IconAlertTriangle } from '@tabler/icons-react';
 import { useResourceRelationshipMap } from './hooks/useResourceRelationshipMap';
 import { RelationshipFlow } from './RelationshipFlow';
 import { RelationshipEvidencePanel } from './RelationshipEvidencePanel';
+import { RelationshipFilters } from './RelationshipFilters';
+import { CollapsedBranchCount } from './components/CollapsedBranchCount';
+import { EmptyFilterState } from './components/EmptyFilterState';
 import { LoadingState } from '../../shared/LoadingState';
 import { EmptyState } from '../../shared/EmptyState';
-import type { ResourceType } from './types';
+import type { MapFilter, RelationshipConfidence, RelationshipType, ResourceHealthStatus, ResourceType } from './types';
+
+const defaultFilters: MapFilter = {
+  depth: 1,
+  resourceTypes: null,
+  relationshipTypes: null,
+  healthStates: null,
+  minimumConfidence: 'Low',
+  includeInferred: true,
+  includeStale: true,
+  maxNodes: 100,
+  maxEdges: 500,
+};
+
+function splitParam<T extends string>(value: string | null): T[] | null {
+  if (!value) return null;
+  const values = value.split(',').map((item) => item.trim()).filter(Boolean);
+  return values.length > 0 ? (values as T[]) : null;
+}
+
+function numberParam(value: string | null, fallback: number): number {
+  const parsed = value ? Number(value) : Number.NaN;
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function boolParam(value: string | null, fallback: boolean): boolean {
+  if (value === null) return fallback;
+  return value.toLowerCase() !== 'false';
+}
 
 export default function ResourceRelationshipMapPage() {
   const { envId } = useParams<{ envId: string }>();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const typeParam = searchParams.get('type');
-  const idParam = searchParams.get('id');
+  const typeParam = searchParams.get('resourceType') ?? searchParams.get('type');
+  const idParam = searchParams.get('resourceId') ?? searchParams.get('id');
 
   const resourceType = typeParam as ResourceType | null;
   const resourceId = idParam;
+  const filters = useMemo<MapFilter>(() => ({
+    depth: Math.min(3, Math.max(1, numberParam(searchParams.get('depth'), defaultFilters.depth))),
+    resourceTypes: splitParam<ResourceType>(searchParams.get('resourceTypes')),
+    relationshipTypes: splitParam<RelationshipType>(searchParams.get('relationshipTypes')),
+    healthStates: splitParam<ResourceHealthStatus>(searchParams.get('healthStates')),
+    minimumConfidence: (searchParams.get('minimumConfidence') ??
+      searchParams.get('minConfidence') ??
+      defaultFilters.minimumConfidence) as RelationshipConfidence,
+    includeInferred: boolParam(searchParams.get('includeInferred'), defaultFilters.includeInferred),
+    includeStale: boolParam(searchParams.get('includeStale'), defaultFilters.includeStale),
+    maxNodes: Math.min(500, Math.max(1, numberParam(searchParams.get('maxNodes'), defaultFilters.maxNodes))),
+    maxEdges: Math.min(2000, Math.max(1, numberParam(searchParams.get('maxEdges'), defaultFilters.maxEdges))),
+  }), [searchParams]);
+
+  const updateFilters = useCallback((nextFilters: MapFilter) => {
+    const next = new URLSearchParams(searchParams);
+    if (resourceType) next.set('resourceType', resourceType);
+    if (resourceId) next.set('resourceId', resourceId);
+    next.delete('type');
+    next.delete('id');
+    next.delete('minConfidence');
+    next.set('depth', String(nextFilters.depth));
+    next.set('minimumConfidence', nextFilters.minimumConfidence);
+    next.set('includeInferred', String(nextFilters.includeInferred));
+    next.set('includeStale', String(nextFilters.includeStale));
+    next.set('maxNodes', String(nextFilters.maxNodes));
+    next.set('maxEdges', String(nextFilters.maxEdges));
+
+    const setList = (key: string, values: readonly string[] | null) => {
+      if (values?.length) next.set(key, values.join(','));
+      else next.delete(key);
+    };
+
+    setList('resourceTypes', nextFilters.resourceTypes);
+    setList('relationshipTypes', nextFilters.relationshipTypes);
+    setList('healthStates', nextFilters.healthStates);
+    setSearchParams(next, { replace: true });
+  }, [resourceId, resourceType, searchParams, setSearchParams]);
+
+  const clearFilters = useCallback(() => {
+    updateFilters(defaultFilters);
+  }, [updateFilters]);
 
   const { data, isLoading, isError, error, selectedNode, setSelectedNode, recenter, openDetails } =
     useResourceRelationshipMap({
       environmentId: envId ?? null,
       resourceType,
       resourceId,
+      filters,
     });
 
   if (!envId || !resourceType || !resourceId) {
@@ -99,20 +174,37 @@ export default function ResourceRelationshipMapPage() {
         </Alert>
       )}
 
+      {data.nodes.length === 0 && <EmptyFilterState onClearFilters={clearFilters} />}
+
       <Grid>
         <Grid.Col span={{ base: 12, md: 8 }}>
-          <RelationshipFlow
-            map={data}
-            selectedNode={selectedNode}
-            onNodeSelect={setSelectedNode}
-            onRecenter={recenter}
-          />
+          {data.nodes.length > 0 && (
+            <RelationshipFlow
+              map={data}
+              selectedNode={selectedNode}
+              onNodeSelect={setSelectedNode}
+              onRecenter={recenter}
+            />
+          )}
         </Grid.Col>
         <Grid.Col span={{ base: 12, md: 4 }}>
-          <RelationshipEvidencePanel
-            selectedNode={selectedNode}
-            onOpenDetails={openDetails}
-          />
+          <Stack>
+            <RelationshipFilters
+              filters={filters}
+              onChange={updateFilters}
+              onClear={clearFilters}
+            />
+            <CollapsedBranchCount
+              omittedCounts={data.omittedCounts}
+              maxNodes={filters.maxNodes}
+              maxEdges={filters.maxEdges}
+              onIncreaseLimits={(limits) => updateFilters({ ...filters, ...limits })}
+            />
+            <RelationshipEvidencePanel
+              selectedNode={selectedNode}
+              onOpenDetails={openDetails}
+            />
+          </Stack>
         </Grid.Col>
       </Grid>
     </Stack>

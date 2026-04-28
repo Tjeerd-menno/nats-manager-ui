@@ -16,6 +16,7 @@ const Audit = lazy(() => import('./features/audit/AuditPage'));
 const Users = lazy(() => import('./features/admin/UsersPage'));
 const Monitoring = lazy(() => import('./features/monitoring/MonitoringPage'));
 const ClusterObservability = lazy(() => import('./features/monitoring/cluster-observability/ClusterObservabilityPage'));
+const ResourceRelationshipMap = lazy(() => import('./features/relationships/ResourceRelationshipMapPage'));
 
 function App() {
   return (
@@ -161,6 +162,14 @@ function App() {
           element={
             <Suspense fallback={<LoadingState />}>
               <ClusterObservability />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/environments/:envId/relationships"
+          element={
+            <Suspense fallback={<LoadingState />}>
+              <ResourceRelationshipMap />
             </Suspense>
           }
         />

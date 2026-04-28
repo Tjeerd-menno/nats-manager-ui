@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Title, Text, Card, Stack, Group, Badge, Button, TextInput, Textarea, Modal, Loader, Center, SimpleGrid, Code } from '@mantine/core';
 import { useCoreNatsStatus, usePublishMessage } from './hooks/useCoreNats';
 import { useEnvironmentContext } from '../environments/EnvironmentContext';
+import { OpenRelationshipMapButton } from '../relationships/components/OpenRelationshipMapButton';
 
 export default function CoreNatsPage() {
   const { selectedEnvironmentId } = useEnvironmentContext();
@@ -41,7 +42,14 @@ export default function CoreNatsPage() {
     <Stack>
       <Group justify="space-between">
         <Title order={2}>Core NATS</Title>
-        <Button onClick={() => setPublishOpen(true)}>Publish Message</Button>
+        <Group>
+          <OpenRelationshipMapButton
+            environmentId={selectedEnvironmentId}
+            resourceId={serverInfo.serverId}
+            resourceType="Server"
+          />
+          <Button onClick={() => setPublishOpen(true)}>Publish Message</Button>
+        </Group>
       </Group>
 
       <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }}>

@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -13,7 +13,9 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Badge, Box, Text } from '@mantine/core';
-import type { RelationshipMap, ResourceNode, RelationshipEdge } from './types';
+import type { RelationshipMap, ResourceNode } from './types';
+import { WarningOverlay } from './components/WarningOverlay';
+import { AlertHighlight } from './components/AlertHighlight';
 
 interface RelationshipFlowProps {
   map: RelationshipMap;
@@ -45,7 +47,18 @@ function buildFlowNodes(rrm: RelationshipMap, selectedNodeId?: string): Node[] {
       position: n.isFocal
         ? { x: 0, y: 0 }
         : { x: radius * Math.cos(angle), y: radius * Math.sin(angle) },
-      data: { label: n.displayName, node: n },
+        data: {
+          label: (
+            <Box>
+              <Text size="xs" fw={n.isFocal ? 700 : 500}>{n.displayName}</Text>
+              <Box mt={4} style={{ display: 'flex', gap: 4, justifyContent: 'center', flexWrap: 'wrap' }}>
+                <AlertHighlight resourceType={n.resourceType} />
+                <WarningOverlay status={n.status} />
+              </Box>
+            </Box>
+          ),
+          node: n,
+        },
       style: {
         background: COLORS[n.resourceType] ?? '#868e96',
         color: '#fff',
@@ -90,13 +103,21 @@ function RelationshipFlowInner({
 }: RelationshipFlowProps) {
   const initialNodes = useMemo(
     () => buildFlowNodes(map, selectedNode?.nodeId),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [map]
+    [map, selectedNode?.nodeId]
   );
   const initialEdges = useMemo(() => buildFlowEdges(map), [map]);
 
-  const [nodes, , onNodesChange] = useNodesState(initialNodes);
-  const [edges, , onEdgesChange] = useEdgesState(initialEdges);
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const [announcement, setAnnouncement] = useState('');
+
+  useEffect(() => {
+    setNodes(initialNodes);
+  }, [initialNodes, setNodes]);
+
+  useEffect(() => {
+    setEdges(initialEdges);
+  }, [initialEdges, setEdges]);
 
   const handleNodeClick: NodeMouseHandler = useCallback(
     (_event, flowNode) => {
@@ -109,13 +130,19 @@ function RelationshipFlowInner({
   const handleNodeDoubleClick: NodeMouseHandler = useCallback(
     (_event, flowNode) => {
       const rrmNode = map.nodes.find((n) => n.nodeId === flowNode.id);
-      if (rrmNode) onRecenter(rrmNode);
+      if (rrmNode) {
+        setAnnouncement(`Recentering relationship map on ${rrmNode.displayName}`);
+        onRecenter(rrmNode);
+      }
     },
     [map.nodes, onRecenter]
   );
 
   return (
     <div style={{ width: '100%', height: '520px' }}>
+      <Text aria-live="polite" className="sr-only" style={{ position: 'absolute', left: -10000 }}>
+        {announcement}
+      </Text>
       <ReactFlow
         nodes={nodes}
         edges={edges}

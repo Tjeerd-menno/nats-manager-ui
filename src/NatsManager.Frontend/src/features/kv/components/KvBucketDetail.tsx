@@ -5,6 +5,7 @@ import { useKvBucket, useKvKeys } from '../hooks/useKv';
 import { useEnvironmentContext } from '../../environments/EnvironmentContext';
 import { LoadingState } from '../../../shared/LoadingState';
 import { KvKeyEditor } from './KvKeyEditor';
+import { OpenRelationshipMapButton } from '../../relationships/components/OpenRelationshipMapButton';
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B';
@@ -35,7 +36,16 @@ export function KvBucketDetail({ bucketName, onKeySelect }: KvBucketDetailProps)
 
   return (
     <Stack>
-      <Title order={3}>{bucketName}</Title>
+      <Group justify="space-between">
+        <Title order={3}>{bucketName}</Title>
+        {selectedEnvironmentId && (
+          <OpenRelationshipMapButton
+            environmentId={selectedEnvironmentId}
+            resourceId={bucketName}
+            resourceType="KvBucket"
+          />
+        )}
+      </Group>
 
       {bucket && (
         <Grid>

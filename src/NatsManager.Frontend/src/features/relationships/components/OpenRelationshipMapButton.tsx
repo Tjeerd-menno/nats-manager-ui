@@ -19,7 +19,7 @@ export function OpenRelationshipMapButton({
   const navigate = useNavigate();
 
   const handleClick = () => {
-    const params = new URLSearchParams({ type: resourceType, id: resourceId });
+    const params = new URLSearchParams({ resourceType, resourceId });
     navigate(`/environments/${environmentId}/relationships?${params.toString()}`);
   };
 

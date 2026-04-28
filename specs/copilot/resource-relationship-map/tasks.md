@@ -86,7 +86,7 @@
 - [ ] T038 [P] [US1] Implement `RelationshipFlow.tsx` in `src/NatsManager.Frontend/src/features/relationships/RelationshipFlow.tsx`: imports from `@xyflow/react` (depends on T001), `<ReactFlowProvider>`, deterministic layout for nodes/edges from `RelationshipMap`, custom node components per `ResourceType` (focal highlighted), edge styling per `ObservationKind`/`Confidence`/`Status`, keyboard-accessible node selection, pan/zoom/minimap/controls
 - [ ] T039 [P] [US1] Implement `RelationshipEvidencePanel.tsx` in `src/NatsManager.Frontend/src/features/relationships/RelationshipEvidencePanel.tsx`: shows selected node/edge identity, status, freshness, observed/inferred badge, confidence, evidence list with safe fields; reuses `DataFreshnessIndicator` from `src/NatsManager.Frontend/src/shared/`
 - [ ] T040 [US1] Implement `ResourceRelationshipMapPage.tsx` in `src/NatsManager.Frontend/src/features/relationships/ResourceRelationshipMapPage.tsx`: reads `environmentId`/`resourceType`/`resourceId` from URL, composes `RelationshipFlow` + `RelationshipEvidencePanel`, includes empty/missing-focal/partial/unavailable states, preserves existing `EnvironmentContext`
-- [ ] T041 [US1] Add lazy route `/environments/:envId/relationships` to `src/NatsManager.Frontend/src/App.tsx` (route-based code splitting), accepting `resourceType`/`resourceId` as query params
+- [X] T041 [US1] Add lazy route `/environments/:envId/relationships` to `src/NatsManager.Frontend/src/App.tsx` (route-based code splitting), accepting `resourceType`/`resourceId` as query params
 
 **Checkpoint**: User Story 1 complete — focal-resource map renders end-to-end with evidence/freshness/health and environment-scoped routing
 
@@ -108,10 +108,10 @@
 ### Implementation for User Story 2
 
 - [ ] T046 [US2] Extend `RelationshipProjectionService` in `src/NatsManager.Infrastructure/Relationships/RelationshipProjectionService.cs` to mark focal node + propagate immediate-neighbor warning summary onto `ResourceNode.Status` for incident traversal (without altering owning module state)
-- [ ] T047 [P] [US2] Implement `RelationshipFlow` recenter behavior in `src/NatsManager.Frontend/src/features/relationships/RelationshipFlow.tsx`: `recenter(node)` updates URL (resourceType/resourceId) and triggers `useResourceRelationshipMap` re-query; previous graph kept on screen during refresh; clear focal-change announcement for screen readers
-- [ ] T048 [P] [US2] Implement `WarningOverlay.tsx` and `AlertHighlight.tsx` in `src/NatsManager.Frontend/src/features/relationships/components/`: visual emphasis for warning/degraded/stale neighbors, alert/event nodes rendered with distinct iconography
-- [ ] T049 [P] [US2] Implement `OpenDetailsButton.tsx` in `src/NatsManager.Frontend/src/features/relationships/components/`: navigates to `node.detailRoute` from existing module pages; degrades gracefully when `detailRoute=null`
-- [ ] T050 [US2] Wire entry-point button (`OpenRelationshipMapButton` from T026) into existing resource detail pages **without duplicating their logic**:
+- [X] T047 [P] [US2] Implement `RelationshipFlow` recenter behavior in `src/NatsManager.Frontend/src/features/relationships/RelationshipFlow.tsx`: `recenter(node)` updates URL (resourceType/resourceId) and triggers `useResourceRelationshipMap` re-query; previous graph kept on screen during refresh; clear focal-change announcement for screen readers
+- [X] T048 [P] [US2] Implement `WarningOverlay.tsx` and `AlertHighlight.tsx` in `src/NatsManager.Frontend/src/features/relationships/components/`: visual emphasis for warning/degraded/stale neighbors, alert/event nodes rendered with distinct iconography
+- [X] T049 [P] [US2] Implement `OpenDetailsButton.tsx` in `src/NatsManager.Frontend/src/features/relationships/components/`: navigates to `node.detailRoute` from existing module pages; degrades gracefully when `detailRoute=null`
+- [X] T050 [US2] Wire entry-point button (`OpenRelationshipMapButton` from T026) into existing resource detail pages **without duplicating their logic**:
   - `src/NatsManager.Frontend/src/features/jetstream/components/StreamDetail.tsx` (Stream)
   - `src/NatsManager.Frontend/src/features/jetstream/components/ConsumerDetail.tsx` (Consumer)
   - `src/NatsManager.Frontend/src/features/corenats/components/SubjectExplorer.tsx` (Subject)
@@ -142,9 +142,9 @@
 ### Implementation for User Story 3
 
 - [ ] T056 [US3] Extend `RelationshipProjectionService` in `src/NatsManager.Infrastructure/Relationships/RelationshipProjectionService.cs` to enforce all filters from `MapFilter` and emit accurate `OmittedCounts.collapsedNodes`/`collapsedEdges` per research.md §5 defaults; ensure direct unhealthy neighbors are retained even when lower-confidence branches are collapsed
-- [ ] T057 [P] [US3] Implement `RelationshipFilters.tsx` in `src/NatsManager.Frontend/src/features/relationships/RelationshipFilters.tsx`: depth, resource types, relationship types, health states, observed/inferred, minimum confidence, include stale, max nodes/edges; updates URL query params so filters are shareable and deterministic for tests
-- [ ] T058 [P] [US3] Implement `EmptyFilterState.tsx` and `CollapsedBranchCount.tsx` in `src/NatsManager.Frontend/src/features/relationships/components/`: explicit empty-filter messaging (FR-RRM, US3 acceptance #3), summary of collapsed counts with "show more" affordance that increases `maxNodes`/`maxEdges` within bounds
-- [ ] T059 [US3] Wire `RelationshipFilters` into `ResourceRelationshipMapPage.tsx`; ensure `useResourceRelationshipMap` query key includes filter values; ensure performance budget for ≤500 available relationships rendering bounded neighborhood ≤ 2s (SC-RRM-003)
+- [X] T057 [P] [US3] Implement `RelationshipFilters.tsx` in `src/NatsManager.Frontend/src/features/relationships/RelationshipFilters.tsx`: depth, resource types, relationship types, health states, observed/inferred, minimum confidence, include stale, max nodes/edges; updates URL query params so filters are shareable and deterministic for tests
+- [X] T058 [P] [US3] Implement `EmptyFilterState.tsx` and `CollapsedBranchCount.tsx` in `src/NatsManager.Frontend/src/features/relationships/components/`: explicit empty-filter messaging (FR-RRM, US3 acceptance #3), summary of collapsed counts with "show more" affordance that increases `maxNodes`/`maxEdges` within bounds
+- [X] T059 [US3] Wire `RelationshipFilters` into `ResourceRelationshipMapPage.tsx`; ensure `useResourceRelationshipMap` query key includes filter values; ensure performance budget for ≤500 available relationships rendering bounded neighborhood ≤ 2s (SC-RRM-003)
 
 **Checkpoint**: User Story 3 complete — filtering, depth control, and explicit empty/collapsed states operational
 

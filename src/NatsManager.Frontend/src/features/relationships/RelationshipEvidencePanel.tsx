@@ -1,4 +1,5 @@
-import { Stack, Text, Group, Badge, Title, Divider, ScrollArea, Anchor } from '@mantine/core';
+import { Stack, Text, Group, Badge, Title, Divider, ScrollArea } from '@mantine/core';
+import { OpenDetailsButton } from './components/OpenDetailsButton';
 import type { ResourceNode, RelationshipEdge, RelationshipFreshness } from './types';
 
 const freshnessColor: Record<RelationshipFreshness, string> = {
@@ -62,14 +63,8 @@ export function RelationshipEvidencePanel({
             {selectedNode.freshness}
           </Badge>
           {selectedNode.isFocal && <Badge color="blue">Focal</Badge>}
-          {selectedNode.detailRoute && onOpenDetails && (
-            <Anchor
-              component="button"
-              size="sm"
-              onClick={() => onOpenDetails(selectedNode)}
-            >
-              Open detail page →
-            </Anchor>
+          {onOpenDetails && (
+            <OpenDetailsButton node={selectedNode} onOpenDetails={onOpenDetails} />
           )}
           {Object.keys(selectedNode.metadata).length > 0 && (
             <>

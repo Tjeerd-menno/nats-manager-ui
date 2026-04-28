@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { apiClient } from '../../../api/client';
 import type { RelationshipMap, ResourceType, MapFilter, ResourceNode } from '../types';
 
@@ -18,14 +18,20 @@ export function useResourceRelationshipMap({
   filters = {},
 }: UseResourceRelationshipMapOptions) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [selectedNode, setSelectedNode] = useState<ResourceNode | null>(null);
 
-  const depth = filters.depth ?? 2;
+  const depth = filters.depth ?? 1;
   const maxNodes = filters.maxNodes ?? 100;
   const maxEdges = filters.maxEdges ?? 500;
-  const minConfidence = filters.minimumConfidence ?? 'Low';
+  const minimumConfidence = filters.minimumConfidence ?? 'Low';
+  const includeInferred = filters.includeInferred ?? true;
+  const includeStale = filters.includeStale ?? true;
 
   const enabled = !!environmentId && !!resourceType && !!resourceId;
+  const resourceTypes = filters.resourceTypes ?? null;
+  const relationshipTypes = filters.relationshipTypes ?? null;
+  const healthStates = filters.healthStates ?? null;
 
   const query = useQuery<RelationshipMap>({
     queryKey: [
@@ -36,27 +42,35 @@ export function useResourceRelationshipMap({
       depth,
       maxNodes,
       maxEdges,
-      minConfidence,
-      filters.resourceTypes,
-      filters.relationshipTypes,
+      minimumConfidence,
+      includeInferred,
+      includeStale,
+      resourceTypes?.join(',') ?? '',
+      relationshipTypes?.join(',') ?? '',
+      healthStates?.join(',') ?? '',
     ],
     queryFn: async () => {
       const params = new URLSearchParams({
-        type: resourceType!,
-        id: resourceId!,
+        resourceType: resourceType!,
+        resourceId: resourceId!,
         depth: String(depth),
         maxNodes: String(maxNodes),
         maxEdges: String(maxEdges),
-        minConfidence,
+        minimumConfidence,
+        includeInferred: String(includeInferred),
+        includeStale: String(includeStale),
       });
-      if (filters.resourceTypes?.length) {
-        params.set('resourceTypes', filters.resourceTypes.join(','));
+      if (resourceTypes?.length) {
+        params.set('resourceTypes', resourceTypes.join(','));
       }
-      if (filters.relationshipTypes?.length) {
-        params.set('relationshipTypes', filters.relationshipTypes.join(','));
+      if (relationshipTypes?.length) {
+        params.set('relationshipTypes', relationshipTypes.join(','));
+      }
+      if (healthStates?.length) {
+        params.set('healthStates', healthStates.join(','));
       }
       const response = await apiClient.get<RelationshipMap>(
-        `/environments/${environmentId}/relationships?${params.toString()}`
+        `/environments/${environmentId}/relationships/map?${params.toString()}`
       );
       return response.data;
     },
@@ -68,10 +82,14 @@ export function useResourceRelationshipMap({
   const recenter = useCallback(
     (node: ResourceNode) => {
       setSelectedNode(null);
-      const params = new URLSearchParams({ type: node.resourceType, id: node.resourceId });
+      const params = new URLSearchParams(location.search);
+      params.set('resourceType', node.resourceType);
+      params.set('resourceId', node.resourceId);
+      params.delete('type');
+      params.delete('id');
       navigate(`/environments/${environmentId}/relationships?${params.toString()}`);
     },
-    [environmentId, navigate]
+    [environmentId, location.search, navigate]
   );
 
   const openDetails = useCallback(

@@ -3,6 +3,7 @@ import { Table, Badge, Text, TextInput, Stack, LoadingOverlay, Box } from '@mant
 import { IconSearch } from '@tabler/icons-react';
 import type { ServerStatus } from '../types';
 import { useClusterServers } from '../hooks/useClusterServers';
+import { OpenRelationshipMapButton } from '../../../relationships/components/OpenRelationshipMapButton';
 
 function statusColor(s: ServerStatus): string {
   switch (s) {
@@ -66,6 +67,14 @@ export function ClusterServerList({ envId }: ClusterServerListProps) {
       <Table.Td>{formatRate(s.inMsgsPerSecond)}</Table.Td>
       <Table.Td>{formatRate(s.outMsgsPerSecond)}</Table.Td>
       <Table.Td>{formatDate(s.lastObservedAt)}</Table.Td>
+      <Table.Td>
+        <OpenRelationshipMapButton
+          environmentId={envId}
+          resourceId={s.serverId}
+          resourceType="Server"
+          label="Map"
+        />
+      </Table.Td>
     </Table.Tr>
   ));
 
@@ -97,6 +106,7 @@ export function ClusterServerList({ envId }: ClusterServerListProps) {
                 <Table.Th>In Msgs/s</Table.Th>
                 <Table.Th>Out Msgs/s</Table.Th>
                 <Table.Th>Last Observed</Table.Th>
+                <Table.Th>Relationships</Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>{rows}</Table.Tbody>

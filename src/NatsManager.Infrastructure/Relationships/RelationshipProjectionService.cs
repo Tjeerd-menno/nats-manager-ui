@@ -35,6 +35,7 @@ public sealed partial class RelationshipProjectionService(
 
             foreach (var frontierNode in currentFrontier)
             {
+                var frontierNodeId = ResourceNode.BuildNodeId(frontierNode.EnvironmentId, frontierNode.ResourceType, frontierNode.ResourceId);
                 foreach (var source in _sources)
                 {
                     IReadOnlyList<RelationshipEdge> edges;
@@ -64,7 +65,7 @@ public sealed partial class RelationshipProjectionService(
                         allEdges.Add(edge);
 
                         // Discover new nodes for next BFS depth
-                        var neighborNodeId = edge.SourceNodeId == visitedNodeIds.First()
+                        var neighborNodeId = edge.SourceNodeId == frontierNodeId
                             ? edge.TargetNodeId
                             : edge.SourceNodeId;
 
@@ -222,17 +223,11 @@ public sealed partial class RelationshipProjectionService(
         IReadOnlyList<RelationshipEdge> edges,
         string focalNodeId)
     {
-        // For the focal node: check if any neighbor has Warning/Degraded/Unavailable
-        // and surface that as the focal node's warning context (US2 requirement)
-        foreach (var edge in edges)
-        {
-            var neighborId = edge.SourceNodeId == focalNodeId ? edge.TargetNodeId : edge.SourceNodeId;
-            if (nodes.TryGetValue(neighborId, out var neighbor) &&
-                neighbor.Status is ResourceHealthStatus.Warning or ResourceHealthStatus.Degraded)
-            {
-                // Neighbor already has warning state; this is sufficient for display
-            }
-        }
+        // Neighbor warning states are intentionally preserved on each ResourceNode and rendered inline
+        // by the frontend WarningOverlay. The focal node's owning-module status is not mutated here.
+        _ = nodes;
+        _ = edges;
+        _ = focalNodeId;
     }
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Relationship source {Module} failed: {Reason}")]
