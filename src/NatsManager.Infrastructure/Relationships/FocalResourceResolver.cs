@@ -132,8 +132,7 @@ public sealed class FocalResourceResolver(
 
     private async Task<FocalResource?> ResolveSubjectAsync(Guid environmentId, string resourceId, CancellationToken ct)
     {
-        var subjects = await coreNatsAdapter.ListSubjectsAsync(environmentId, ct);
-        var subject = subjects.FirstOrDefault(s => s.Subject == resourceId);
+        _ = await coreNatsAdapter.ListSubjectsAsync(environmentId, ct);
         // subjects may not always appear in the listing; return a synthetic focal resource if not found
         return new FocalResource(
             EnvironmentId: environmentId,

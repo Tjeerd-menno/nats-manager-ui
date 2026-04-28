@@ -1,7 +1,6 @@
 using Aspire.Hosting;
 using Aspire.Hosting.Testing;
 using NatsManager.E2E.Tests.Infrastructure;
-using System.Text;
 
 #pragma warning disable CS8602 // Aspire configureBuilder parameters are non-null at runtime
 
@@ -17,14 +16,19 @@ namespace NatsManager.E2E.Tests.Infrastructure;
 public sealed class AppHostFixture : IAsyncLifetime
 {
     private static readonly TimeSpan ResourceTimeout = TimeSpan.FromMinutes(5);
+    private const string UsernameParameter = "Parameters__bootstrap-admin-username";
+    private const string PasswordParameter = "Parameters__bootstrap-admin-password";
+    private const string EncryptionKeyParameter = "Parameters__backend-encryption-key";
     public const string BootstrapAdminUsername = "admin";
     public const string BootstrapAdminPassword = "Admin123!";
-    public static string EncryptionKey { get; } =
-        Convert.ToBase64String(Encoding.UTF8.GetBytes("0123456789ABCDEF0123456789ABCDEF"));
+    public const string EncryptionKey = "JFar2auhLPoLfMvwy62dhRltrwY3EEPmFJ1svc17pn0=";
 
     private DistributedApplication app = default!;
     private ResourceNotificationService resourceNotificationService = default!;
     private string? _dbPath;
+    private string? _originalUsernameParameter;
+    private string? _originalPasswordParameter;
+    private string? _originalEncryptionKeyParameter;
 
     public string FrontendUrl { get; private set; } = string.Empty;
     public string BackendUrl { get; private set; } = string.Empty;
@@ -35,13 +39,18 @@ public sealed class AppHostFixture : IAsyncLifetime
         // Use an ephemeral SQLite database so each test run starts clean
         _dbPath = Path.Combine(Path.GetTempPath(), $"natsmanager-e2e-{Guid.NewGuid():N}.db");
 
+        _originalUsernameParameter = Environment.GetEnvironmentVariable(UsernameParameter);
+        _originalPasswordParameter = Environment.GetEnvironmentVariable(PasswordParameter);
+        _originalEncryptionKeyParameter = Environment.GetEnvironmentVariable(EncryptionKeyParameter);
+
+        Environment.SetEnvironmentVariable(UsernameParameter, BootstrapAdminUsername);
+        Environment.SetEnvironmentVariable(PasswordParameter, BootstrapAdminPassword);
+        Environment.SetEnvironmentVariable(EncryptionKeyParameter, EncryptionKey);
+
         var appHost = await DistributedApplicationTestingBuilder
             .CreateAsync<Projects.NatsManager_AppHost>(
                 args: [],
-                configureBuilder: (appOptions, _) =>
-                {
-                    appOptions.DisableDashboard = true;
-                });
+                configureBuilder: (appOptions, _) => appOptions.DisableDashboard = true);
 
         // Override the NATS resource to use session lifetime (not persistent)
         // so each test run gets a fresh NATS server
@@ -113,6 +122,10 @@ public sealed class AppHostFixture : IAsyncLifetime
             try { File.Delete(_dbPath + "-wal"); } catch { /* best effort */ }
             try { File.Delete(_dbPath + "-shm"); } catch { /* best effort */ }
         }
+
+        Environment.SetEnvironmentVariable(UsernameParameter, _originalUsernameParameter);
+        Environment.SetEnvironmentVariable(PasswordParameter, _originalPasswordParameter);
+        Environment.SetEnvironmentVariable(EncryptionKeyParameter, _originalEncryptionKeyParameter);
 
         GC.SuppressFinalize(this);
     }

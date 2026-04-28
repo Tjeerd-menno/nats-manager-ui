@@ -84,7 +84,7 @@ public sealed class CoreNatsRelationshipSource(ICoreNatsAdapter coreNatsAdapter)
             // Server → subjects hosted
             var subjects = await coreNatsAdapter.ListSubjectsAsync(focal.EnvironmentId, ct);
             var serverNodeId = ResourceNode.BuildNodeId(focal.EnvironmentId, ResourceType.Server, focal.ResourceId);
-            foreach (var sub in subjects.Take(20))
+            foreach (var sub in subjects.Subjects.Take(20))
             {
                 var subjectNodeId = ResourceNode.BuildNodeId(focal.EnvironmentId, ResourceType.Subject, sub.Subject);
                 var evidence = new RelationshipEvidence(
@@ -123,7 +123,7 @@ public sealed class CoreNatsRelationshipSource(ICoreNatsAdapter coreNatsAdapter)
         var nodes = new List<ResourceNode>();
         var serverInfo = await coreNatsAdapter.GetServerInfoAsync(environmentId, ct);
         var subjects = await coreNatsAdapter.ListSubjectsAsync(environmentId, ct);
-        var subjectMap = subjects.ToDictionary(s => s.Subject);
+        var subjectMap = subjects.Subjects.ToDictionary(s => s.Subject);
 
         foreach (var nodeId in nodeIds)
         {
