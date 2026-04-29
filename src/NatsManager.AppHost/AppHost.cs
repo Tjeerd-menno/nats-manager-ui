@@ -22,9 +22,9 @@ var backend = builder.AddProject<Projects.NatsManager_Web>("backend")
 
 // Optional PostgreSQL provider — opt-in via the DATABASE_PROVIDER environment variable
 // (set to "Postgres") so that the default `aspire run` experience remains zero-config SQLite.
-// When enabled, Aspire spins up a Postgres container, creates the `natsmanager` database, and
-// injects the connection string as `ConnectionStrings__natsmanager`. The backend is configured
-// to read it from `ConnectionStrings__DefaultConnection` and to use the Postgres provider.
+// When enabled, Aspire spins up a Postgres container and creates the `natsmanager` database.
+// This AppHost then passes that database connection to the backend via
+// `ConnectionStrings__DefaultConnection` and sets `Database__Provider` to `Postgres`.
 var databaseProvider = builder.Configuration["DATABASE_PROVIDER"]
     ?? Environment.GetEnvironmentVariable("DATABASE_PROVIDER");
 
