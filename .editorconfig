@@ -39,7 +39,7 @@ csharp_prefer_braces = when_multiline:suggestion
 dotnet_style_prefer_simplified_boolean_expressions = true:suggestion
 dotnet_diagnostic.IDE0046.severity = suggestion
 
-[**/Migrations/*.cs]
+[**/Migrations/**/*.cs]
 # Generated migration code — suppress all style diagnostics
 generated_code = true
 

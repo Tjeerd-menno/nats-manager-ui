@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace NatsManager.Infrastructure.Persistence.Migrations
+namespace NatsManager.Infrastructure.Persistence.Migrations.Sqlite
 {
     /// <inheritdoc />
     public partial class AddUserLockout : Migration
