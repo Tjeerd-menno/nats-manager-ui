@@ -45,6 +45,14 @@ Create an upbeat daily status report for the repo as a GitHub issue.
 - Project status and recommendations
 - Actionable next steps for maintainers
 
+## Roadmap accuracy requirements
+
+- Treat future-looking sections such as "What's on the Horizon" and "Recommended Next Steps" as a verified gap analysis, not a generic wishlist.
+- Inspect the current repository state before recommending work, including relevant code under `src/`, plans/specs under `specs/`, and recently merged PRs.
+- Do not suggest an area as upcoming work if the repository already contains shipped routes, pages, endpoints, or adapters for it. Mention that work under shipped progress instead.
+- Prefer recommendations that are clearly still incomplete, partially implemented, spec-only, or missing entirely.
+- When helpful, briefly explain why a recommendation is still outstanding (for example: spec exists but implementation is missing, backend exists without UI, or the feature is only partially wired).
+
 ## Style
 
 - Be positive, encouraging, and helpful 🌟
@@ -54,5 +62,6 @@ Create an upbeat daily status report for the repo as a GitHub issue.
 ## Process
 
 1. Gather recent activity from the repository
-2. Study the repository, its issues and its pull requests
-3. Create a new GitHub issue with your findings and insights
+2. Study the repository, its issues, pull requests, and current implementation status
+3. Verify every future-looking recommendation against the actual codebase so you only propose work that still appears to be unimplemented or incomplete
+4. Create a new GitHub issue with your findings and insights
