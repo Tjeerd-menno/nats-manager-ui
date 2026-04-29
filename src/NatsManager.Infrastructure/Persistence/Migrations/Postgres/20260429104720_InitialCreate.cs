@@ -16,7 +16,7 @@ namespace NatsManager.Infrastructure.Persistence.Migrations.Postgres
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    Timestamp = table.Column<string>(type: "character varying(48)", nullable: false),
+                    Timestamp = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     ActorId = table.Column<Guid>(type: "uuid", nullable: true),
                     ActorName = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
                     ActionType = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),

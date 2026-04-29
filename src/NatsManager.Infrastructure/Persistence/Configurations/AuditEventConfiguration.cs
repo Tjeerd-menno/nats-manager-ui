@@ -11,7 +11,15 @@ internal sealed class AuditEventConfiguration : IEntityTypeConfiguration<AuditEv
         builder.ToTable("AuditEvents");
         builder.HasKey(a => a.Id);
 
-        builder.Property(a => a.Timestamp).HasConversion<string>();
+        // Timestamp uses the EF default mapping (no value converter), matching every other
+        // DateTimeOffset property in the model. This produces:
+        //   - PostgreSQL: `timestamp with time zone` (8-byte timestamptz, the canonical
+        //     Npgsql / PostgreSQL best practice for instant data — efficient indexes, native
+        //     range comparisons, low storage).
+        //   - SQLite: TEXT in EF's standard ISO 8601 round-trip format
+        //     (`yyyy-MM-dd HH:mm:ss.FFFFFFFzzz`), which sorts correctly lexicographically.
+        // All values originate from `DateTimeOffset.UtcNow`, so no offset information is lost
+        // by either provider's storage shape.
         builder.Property(a => a.ActorName).HasMaxLength(200);
         builder.Property(a => a.ActionType).HasConversion<string>().HasMaxLength(50);
         builder.Property(a => a.ResourceType).HasConversion<string>().HasMaxLength(50);

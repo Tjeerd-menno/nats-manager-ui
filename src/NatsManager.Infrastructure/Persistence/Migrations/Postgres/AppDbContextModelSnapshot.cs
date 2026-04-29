@@ -72,9 +72,8 @@ namespace NatsManager.Infrastructure.Persistence.Migrations.Postgres
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
-                    b.Property<string>("Timestamp")
-                        .IsRequired()
-                        .HasColumnType("character varying(48)");
+                    b.Property<DateTimeOffset>("Timestamp")
+                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 

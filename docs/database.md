@@ -138,16 +138,22 @@ The AppHost (`src/NatsManager.AppHost/AppHost.cs`) then provisions:
   read performance. This pragma is gated to SQLite only.
 - Default text comparison is case-sensitive (BINARY collation). Username and Environment
   name unique indexes therefore behave identically to PostgreSQL.
+- All `DateTimeOffset` properties are stored as `TEXT` in EF Core's default ISO 8601
+  round-trip format (`yyyy-MM-dd HH:mm:ss.FFFFFFFzzz`), which sorts correctly
+  lexicographically. The `NormalizeAuditTimestampToIso8601` migration rewrites pre-existing
+  `AuditEvents.Timestamp` values that were stored in the legacy
+  `MM/dd/yyyy HH:mm:ss ±HH:MM` format produced by an earlier `HasConversion<string>()`
+  mapping, so existing databases continue to work after the upgrade.
 
 ### PostgreSQL
-- `DateTimeOffset` columns are persisted as `character varying(48)` (ISO 8601 string).
-  Npgsql does not have a native PostgreSQL type for `DateTimeOffset` because PostgreSQL has
-  no equivalent of "instant + offset". All `DateTimeOffset` values produced by the
-  application use `DateTimeOffset.UtcNow`, so equality and range comparisons work correctly
-  given the canonical ISO 8601 format. If query performance on these columns becomes a
-  concern, the migration can be amended to use `timestamp with time zone` plus a value
-  converter — this is intentionally **not** done for the initial release to keep the schema
-  simple and the domain model unchanged.
+- All `DateTimeOffset` properties (e.g. `Users.CreatedAt`, `Environments.CreatedAt`,
+  `AuditEvents.Timestamp`) are persisted as `timestamp with time zone` (Npgsql's
+  `timestamptz`). This is the recommended PostgreSQL storage shape for instant data: 8 bytes,
+  efficiently indexable, and natively supported by range / ordering operators. PostgreSQL
+  does not preserve an arbitrary .NET `DateTimeOffset` offset as stored data — `timestamptz`
+  represents an instant in UTC, not "instant + original offset". In practice, the
+  application produces every `DateTimeOffset` value with `DateTimeOffset.UtcNow`, so no
+  offset information is lost by this mapping.
 - Identifiers (table and column names) preserve PascalCase via Npgsql's automatic quoting.
   No raw SQL in the code base depends on lowercase identifiers.
 - Default text comparison is case-sensitive — same as SQLite's default — so unique indexes
