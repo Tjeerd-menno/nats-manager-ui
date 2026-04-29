@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace NatsManager.Infrastructure.Persistence.Migrations
+namespace NatsManager.Infrastructure.Persistence.Migrations.Sqlite
 {
     public partial class AddEnvironmentMonitoring : Migration
     {

@@ -479,7 +479,13 @@ Domain events shall represent meaningful business facts inside the application.
 
 ## 13.1 Persistence Scope
 
-SQLite shall be used for application-owned data such as:
+The application shall persist application-owned data through Entity Framework Core, supporting
+two interchangeable providers selected at deployment time: **SQLite** (default; recommended for
+local development and single-instance deployments) and **PostgreSQL** (recommended for shared
+or HA production deployments). The relational schema is the same across providers; each
+provider has its own migration set under `src/NatsManager.Infrastructure/Persistence/Migrations/{Sqlite,Postgres}/`.
+
+The persistence layer shall be used for application-owned data such as:
 
 - Registered environments
 - User preferences
@@ -490,7 +496,7 @@ SQLite shall be used for application-owned data such as:
 - Application configuration
 - Job or refresh state if needed
 
-SQLite shall not be treated as the source of truth for NATS-managed runtime resources such as:
+The application database shall not be treated as the source of truth for NATS-managed runtime resources such as:
 
 - Live subscriptions
 - Live stream state
@@ -808,9 +814,13 @@ Because the product must run as one lightweight container and remain simple to d
 
 Because the solution must be a single deployable unit, the frontend is packaged into the backend host rather than deployed separately.
 
-### Decision 3: SQLite only for application-owned state
+### Decision 3: SQLite by default, PostgreSQL for production-scale deployments
 
-Because NATS remains the system of record for operational messaging resources, SQLite is limited to application state and metadata owned by this product.
+NATS remains the system of record for operational messaging resources. The application's
+relational store is limited to application-owned state and metadata. SQLite is the default
+provider because it requires no external infrastructure, but PostgreSQL is fully supported as
+an opt-in alternative for shared, high-availability, or write-heavy deployments. See
+[`docs/database.md`](./docs/database.md) for selection and operational details.
 
 ### Decision 4: Ports and adapters for NATS integration
 
@@ -826,11 +836,11 @@ Because read and write use cases differ significantly in shape and risk, command
 
 ### 23.1 SQLite Constraint
 
-SQLite is well suited for lightweight single-deployment persistence, but the design shall account for its limitations in concurrent write-heavy scenarios.
+SQLite is well suited for lightweight single-deployment persistence, but the design shall account for its limitations in concurrent write-heavy scenarios. Deployments that require active-write scale-out shall use the PostgreSQL provider instead.
 
 ### 23.2 Single Instance Persistence Constraint
 
-If the application is deployed with SQLite, active-write multi-instance scaling shall not be assumed without an alternative persistence strategy.
+If the application is deployed with SQLite, active-write multi-instance scaling shall not be assumed without an alternative persistence strategy. The PostgreSQL provider is supported as the alternative for multi-instance / HA deployments.
 
 ### 23.3 External State Volatility
 

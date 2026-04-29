@@ -2,23 +2,20 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NatsManager.Infrastructure.Persistence;
 
 #nullable disable
 
-namespace NatsManager.Infrastructure.Persistence.Migrations
+namespace NatsManager.Infrastructure.Persistence.Migrations.Sqlite
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260406182744_InitialCreate")]
-    partial class InitialCreate
+    partial class AppDbContextModelSnapshot : ModelSnapshot
     {
-        /// <inheritdoc />
-        protected override void BuildTargetModel(ModelBuilder modelBuilder)
+        protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "10.0.5");
+            modelBuilder.HasAnnotation("ProductVersion", "10.0.7");
 
             modelBuilder.Entity("NatsManager.Domain.Modules.Audit.AuditEvent", b =>
                 {
@@ -124,10 +121,18 @@ namespace NatsManager.Infrastructure.Persistence.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("FailedLoginAttempts")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(0);
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTimeOffset?>("LastLoginAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("LockedUntil")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("PasswordHash")
@@ -286,6 +291,13 @@ namespace NatsManager.Infrastructure.Persistence.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTimeOffset?>("LastSuccessfulContact")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("MonitoringPollingIntervalSeconds")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("MonitoringUrl")
+                        .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Name")

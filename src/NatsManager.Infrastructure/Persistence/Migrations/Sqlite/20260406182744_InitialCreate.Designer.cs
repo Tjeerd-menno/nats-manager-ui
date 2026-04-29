@@ -2,17 +2,20 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NatsManager.Infrastructure.Persistence;
 
 #nullable disable
 
-namespace NatsManager.Infrastructure.Persistence.Migrations
+namespace NatsManager.Infrastructure.Persistence.Migrations.Sqlite
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260406182744_InitialCreate")]
+    partial class InitialCreate
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.5");
@@ -67,8 +70,7 @@ namespace NatsManager.Infrastructure.Persistence.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("Timestamp")
-                        .IsRequired()
+                    b.Property<DateTimeOffset>("Timestamp")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
@@ -122,18 +124,10 @@ namespace NatsManager.Infrastructure.Persistence.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
-                    b.Property<int>("FailedLoginAttempts")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
-                        .HasDefaultValue(0);
-
                     b.Property<bool>("IsActive")
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTimeOffset?>("LastLoginAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTimeOffset?>("LockedUntil")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("PasswordHash")
@@ -292,13 +286,6 @@ namespace NatsManager.Infrastructure.Persistence.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTimeOffset?>("LastSuccessfulContact")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int?>("MonitoringPollingIntervalSeconds")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("MonitoringUrl")
-                        .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Name")

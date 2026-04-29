@@ -3,7 +3,6 @@ using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using NatsManager.Application.Behaviors;
 using NatsManager.Application.Common;
@@ -48,9 +47,8 @@ builder.Host.UseSerilog((context, configuration) =>
 
 builder.AddServiceDefaults();
 
-// EF Core + SQLite
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=natsmanager.db"));
+// EF Core (provider selected by Database:Provider — defaults to SQLite)
+builder.Services.AddNatsManagerPersistence(builder.Configuration);
 
 // Use cases + FluentValidation
 var applicationAssembly = typeof(NatsManager.Application.Common.PaginatedQuery<object>).Assembly;

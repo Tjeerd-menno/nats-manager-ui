@@ -42,7 +42,7 @@ A modular monolith using Clean Architecture (Ports & Adapters):
 |---|---|---|
 | Domain | `NatsManager.Domain` | DDD aggregates, value objects, enums. No external dependencies. |
 | Application | `NatsManager.Application` | Use cases (commands/queries), output ports, FluentValidation validators. No framework references. |
-| Infrastructure | `NatsManager.Infrastructure` | NATS adapters (NATS.Net v2), EF Core (SQLite) repositories, auth services. |
+| Infrastructure | `NatsManager.Infrastructure` | NATS adapters (NATS.Net v2), EF Core repositories (SQLite default, PostgreSQL optional), auth services. |
 | Web | `NatsManager.Web` | ASP.NET Core Minimal API endpoints, presenters, middleware, DI composition. |
 | Frontend | `NatsManager.Frontend` | React 19 + Mantine 9 SPA organized by feature folders. |
 | Orchestration | `NatsManager.AppHost` / `NatsManager.ServiceDefaults` | .NET Aspire local orchestration, OpenTelemetry, health checks, resilience. |
@@ -50,7 +50,7 @@ A modular monolith using Clean Architecture (Ports & Adapters):
 **Bounded contexts** (mirrored on backend and frontend): `Audit`, `Auth`, `CoreNats`, `Dashboard`, `Environments`, `JetStream`, `KeyValue`, `ObjectStore`, `Search`, `Services`.
 
 **Storage**
-- **SQLite** — application data (environments, users, audit trail, bookmarks, preferences).
+- **SQLite** (default) or **PostgreSQL** — application data (environments, users, audit trail, bookmarks, preferences). See [`docs/database.md`](./docs/database.md) for provider selection and migration commands.
 - **NATS** — live resource state (streams, consumers, KV, Object Store, services) is always read from the cluster.
 
 **Deployment** — a single OCI container serves the API and the built SPA. Local development uses .NET Aspire to orchestrate NATS, backend, and the Vite dev server.
@@ -59,7 +59,7 @@ A modular monolith using Clean Architecture (Ports & Adapters):
 
 **Backend**
 - .NET 10 · ASP.NET Core Minimal APIs
-- EF Core 10 (SQLite)
+- EF Core 10 (SQLite default · PostgreSQL via Npgsql opt-in)
 - [NATS.Net](https://github.com/nats-io/nats.net) v2
 - FluentValidation · Serilog
 - xUnit v3 + Microsoft Testing Platform, Shouldly, NSubstitute
@@ -157,6 +157,27 @@ docker run -d --name nats-dev \
 5. Go to **Environments** and register a NATS server using the endpoint provided by Aspire for the NATS resource. If you started NATS with the standalone Docker command above, use `nats://localhost:4222` because that command explicitly maps port `4222`.
 6. Test the connection — a green "Available" status indicates success.
 7. Explore JetStream, KV, Object Store, Services, and Core NATS for that environment.
+
+### Using PostgreSQL
+
+SQLite is the default and requires no configuration. To run the application against
+PostgreSQL instead — for production or shared deployments — set:
+
+```bash
+Database__Provider=Postgres
+ConnectionStrings__DefaultConnection=Host=db.internal;Port=5432;Database=natsmanager;Username=natsmanager;Password=...
+```
+
+For local development with `aspire run`, set `DATABASE_PROVIDER=Postgres` and the AppHost
+will provision a PostgreSQL container automatically:
+
+```bash
+DATABASE_PROVIDER=Postgres aspire run
+```
+
+See [`docs/database.md`](./docs/database.md) for full details: provider selection, the EF
+migration commands per provider (each provider owns its own migration set under
+`Persistence/Migrations/{Sqlite,Postgres}/`), and provider-specific notes.
 
 ## Project Structure
 
