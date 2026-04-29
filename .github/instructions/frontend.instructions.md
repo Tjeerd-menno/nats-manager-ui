@@ -56,7 +56,7 @@ export function useCreateItem(envId: string | null) {
 
 ## UI Components
 
-- Use **Mantine 7** components: `Card`, `Stack`, `Group`, `SimpleGrid`, `Badge`, `Button`, `TextInput`, `Modal`, `Table`, etc.
+- Use **Mantine 9** components: `Card`, `Stack`, `Group`, `SimpleGrid`, `Badge`, `Button`, `TextInput`, `Modal`, `Table`, etc.
 - Use `@tabler/icons-react` for icons
 - Destructive actions must use `ConfirmActionDialog` from `src/shared/`
 - Loading states: use `LoadingState` component or Mantine `Loader`

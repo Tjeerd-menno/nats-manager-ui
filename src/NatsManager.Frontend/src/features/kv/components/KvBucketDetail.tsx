@@ -6,14 +6,7 @@ import { useEnvironmentContext } from '../../environments/EnvironmentContext';
 import { LoadingState } from '../../../shared/LoadingState';
 import { KvKeyEditor } from './KvKeyEditor';
 import { OpenRelationshipMapButton } from '../../relationships/components/OpenRelationshipMapButton';
-
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i] ?? 'B'}`;
-}
+import { formatBytes, formatDateTime } from '../../../shared/formatting';
 
 interface KvBucketDetailProps {
   bucketName: string;
@@ -49,30 +42,10 @@ export function KvBucketDetail({ bucketName, onKeySelect }: KvBucketDetailProps)
 
       {bucket && (
         <Grid>
-          <Grid.Col span={3}>
-            <Card withBorder p="sm">
-              <Text size="xs" c="dimmed">Keys</Text>
-              <Text fw={500}>{bucket.keyCount}</Text>
-            </Card>
-          </Grid.Col>
-          <Grid.Col span={3}>
-            <Card withBorder p="sm">
-              <Text size="xs" c="dimmed">Size</Text>
-              <Text fw={500}>{formatBytes(bucket.byteCount)}</Text>
-            </Card>
-          </Grid.Col>
-          <Grid.Col span={3}>
-            <Card withBorder p="sm">
-              <Text size="xs" c="dimmed">History</Text>
-              <Text fw={500}>{bucket.history}</Text>
-            </Card>
-          </Grid.Col>
-          <Grid.Col span={3}>
-            <Card withBorder p="sm">
-              <Text size="xs" c="dimmed">TTL</Text>
-              <Text fw={500}>{bucket.ttl ? `${bucket.ttl}s` : 'None'}</Text>
-            </Card>
-          </Grid.Col>
+          <Grid.Col span={3}><Card withBorder p="sm"><Text size="xs" c="dimmed">Keys</Text><Text fw={500}>{bucket.keyCount}</Text></Card></Grid.Col>
+          <Grid.Col span={3}><Card withBorder p="sm"><Text size="xs" c="dimmed">Size</Text><Text fw={500}>{formatBytes(bucket.byteCount)}</Text></Card></Grid.Col>
+          <Grid.Col span={3}><Card withBorder p="sm"><Text size="xs" c="dimmed">History</Text><Text fw={500}>{bucket.history}</Text></Card></Grid.Col>
+          <Grid.Col span={3}><Card withBorder p="sm"><Text size="xs" c="dimmed">TTL</Text><Text fw={500}>{bucket.ttl ? `${bucket.ttl}s` : 'None'}</Text></Card></Grid.Col>
         </Grid>
       )}
 
@@ -84,16 +57,10 @@ export function KvBucketDetail({ bucketName, onKeySelect }: KvBucketDetailProps)
           onChange={(e) => setSearch(e.currentTarget.value)}
           style={{ flex: 1, maxWidth: 400 }}
         />
-        <Button leftSection={<IconPlus size={16} />} onClick={() => setEditorOpened(true)}>
-          Add Key
-        </Button>
+        <Button leftSection={<IconPlus size={16} />} onClick={() => setEditorOpened(true)}>Add Key</Button>
       </Group>
 
-      <KvKeyEditor
-        opened={editorOpened}
-        onClose={() => setEditorOpened(false)}
-        bucketName={bucketName}
-      />
+      <KvKeyEditor opened={editorOpened} onClose={() => setEditorOpened(false)} bucketName={bucketName} />
 
       <Table striped highlightOnHover>
         <Table.Thead>
@@ -107,28 +74,16 @@ export function KvBucketDetail({ bucketName, onKeySelect }: KvBucketDetailProps)
         </Table.Thead>
         <Table.Tbody>
           {keys.map((entry) => (
-            <Table.Tr
-              key={entry.key}
-              onClick={() => onKeySelect(entry.key)}
-              style={{ cursor: 'pointer' }}
-            >
-              <Table.Td>
-                <Text fw={500}>{entry.key}</Text>
-              </Table.Td>
+            <Table.Tr key={entry.key} onClick={() => onKeySelect(entry.key)} style={{ cursor: 'pointer' }}>
+              <Table.Td><Text fw={500}>{entry.key}</Text></Table.Td>
               <Table.Td>{entry.revision}</Table.Td>
               <Table.Td>
-                <Badge
-                  variant="light"
-                  size="sm"
-                  color={entry.operation === 'Put' ? 'green' : entry.operation === 'Del' ? 'red' : 'gray'}
-                >
+                <Badge variant="light" size="sm" color={entry.operation === 'Put' ? 'green' : entry.operation === 'Del' ? 'red' : 'gray'}>
                   {entry.operation}
                 </Badge>
               </Table.Td>
               <Table.Td>{formatBytes(entry.size)}</Table.Td>
-              <Table.Td>
-                <Text size="sm" c="dimmed">{new Date(entry.createdAt).toLocaleString()}</Text>
-              </Table.Td>
+              <Table.Td><Text size="sm" c="dimmed">{formatDateTime(entry.createdAt)}</Text></Table.Td>
             </Table.Tr>
           ))}
         </Table.Tbody>

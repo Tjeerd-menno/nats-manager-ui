@@ -1,17 +1,18 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../../../api/client';
+import { apiEndpoints } from '../../../../api/endpoints';
+import { pollingIntervals } from '../../../../api/queryConfig';
+import { queryKeys } from '../../../../api/queryKeys';
 import type { ClusterObservation } from '../types';
 
 export function useClusterOverview(envId: string | null) {
   return useQuery({
-    queryKey: ['cluster-overview', envId],
+    queryKey: queryKeys.clusterOverview(envId),
     queryFn: async () => {
-      const response = await apiClient.get<ClusterObservation>(
-        `/environments/${envId}/monitoring/cluster/overview`
-      );
+      const response = await apiClient.get<ClusterObservation>(apiEndpoints.clusterOverview(envId));
       return response.data;
     },
     enabled: !!envId,
-    refetchInterval: 30_000,
+    refetchInterval: pollingIntervals.clusterOverview,
   });
 }

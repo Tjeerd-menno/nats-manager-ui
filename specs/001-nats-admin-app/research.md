@@ -32,7 +32,7 @@
 - Use `IOptions<T>` pattern for per-environment NATS connection configuration
 - Use `IHostedService` / `BackgroundService` for periodic health polling and metadata refresh
 - Use `CancellationToken` propagation on all NATS operations to enforce bounded timeouts (max 10s per constitution)
-- Use `MediatR` or a lightweight in-process mediator for CQRS command/query dispatch
+- Use the repository's lightweight in-process `IUseCase<TRequest, TResult>` / `IOutputPort<T>` pattern for CQRS command/query dispatch
 - Use `FluentValidation` for command input validation at the application boundary
 - Use `Serilog` with structured logging for correlation of actions and audit events
 
@@ -62,7 +62,7 @@
 
 ## 4. Frontend Stack: React + TypeScript + Mantine + Vite + Vitest
 
-**Decision**: React 19 SPA with TypeScript strict mode, Mantine 7 component library, Recharts for charts. **Vite** as the build tool and dev server. **Vitest** as the frontend test runner with React Testing Library.
+**Decision**: React 19 SPA with TypeScript strict mode, Mantine 9 component library, Recharts for charts. **Vite** as the build tool and dev server. **Vitest** as the frontend test runner with React Testing Library.
 
 **Rationale**: React is the industry standard for complex interactive applications. Mantine provides a comprehensive component set (tables, modals, navigation, forms) that enforces visual consistency — directly supporting the UX Consistency constitution principle. TypeScript strict mode enforces the Code Quality principle (no `any` types). Recharts integrates with Mantine's design tokens for dashboard charts. Vite provides fast HMR during development and optimized production builds. Vitest shares Vite's configuration and transform pipeline, enabling seamless test execution with the same module resolution.
 
@@ -124,7 +124,7 @@
 **Rationale**: Read and write use cases differ significantly in shape and risk. Queries return rich read models for UI consumption; commands express user intent and enforce authorization, validation, and audit logging. This separation makes destructive operations explicit and testable.
 
 **Implementation approach**:
-- Use a lightweight in-process mediator (`MediatR` or custom) for dispatching commands and queries.
+- Use the repository's lightweight `IUseCase<TRequest, TResult>` / `IOutputPort<T>` pattern for dispatching commands and queries.
 - Commands return result types (success/failure/warnings) — never rich query graphs.
 - Queries are read-only and never modify state.
 - Command handlers enforce: input validation → authorization → business rules → NATS action → audit event → result.

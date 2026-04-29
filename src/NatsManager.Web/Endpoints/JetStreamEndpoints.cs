@@ -17,16 +17,15 @@ public static class JetStreamEndpoints
             .RequireAuthorization();
 
         group.MapGet("/streams", GetStreams);
-        group.MapGet("/streams/{name}", GetStreamDetail);
+        group.MapGet("/streams/{streamName}", GetStreamDetail);
         group.MapGet("/streams/{streamName}/consumers", GetConsumers);
         group.MapGet("/streams/{streamName}/consumers/{consumerName}", GetConsumerDetail);
-        group.MapGet("/streams/{name}/messages", GetStreamMessages);
+        group.MapGet("/streams/{streamName}/messages", GetStreamMessages);
 
-        // Write operations
         group.MapPost("/streams", CreateStream).RequireAuthorization(AuthorizationPolicyNames.OperatorAccess);
-        group.MapPut("/streams/{name}", UpdateStream).RequireAuthorization(AuthorizationPolicyNames.OperatorAccess);
-        group.MapDelete("/streams/{name}", DeleteStream).RequireAuthorization(AuthorizationPolicyNames.OperatorAccess);
-        group.MapPost("/streams/{name}/purge", PurgeStream).RequireAuthorization(AuthorizationPolicyNames.OperatorAccess);
+        group.MapPut("/streams/{streamName}", UpdateStream).RequireAuthorization(AuthorizationPolicyNames.OperatorAccess);
+        group.MapDelete("/streams/{streamName}", DeleteStream).RequireAuthorization(AuthorizationPolicyNames.OperatorAccess);
+        group.MapPost("/streams/{streamName}/purge", PurgeStream).RequireAuthorization(AuthorizationPolicyNames.OperatorAccess);
         group.MapPost("/streams/{streamName}/consumers", CreateConsumer).RequireAuthorization(AuthorizationPolicyNames.OperatorAccess);
         group.MapDelete("/streams/{streamName}/consumers/{consumerName}", DeleteConsumer).RequireAuthorization(AuthorizationPolicyNames.OperatorAccess);
 
@@ -56,23 +55,31 @@ public static class JetStreamEndpoints
 
     private static async Task<IResult> GetStreamDetail(
         Guid envId,
-        string name,
+        string streamName,
         IUseCase<GetStreamDetailQuery, StreamDetailResult> useCase,
         CancellationToken cancellationToken)
     {
         var presenter = new Presenter<StreamDetailResult>();
-        await useCase.ExecuteAsync(new GetStreamDetailQuery(envId, name), presenter, cancellationToken);
+        await useCase.ExecuteAsync(new GetStreamDetailQuery(envId, streamName), presenter, cancellationToken);
         return presenter.ToResult();
     }
 
     private static async Task<IResult> GetConsumers(
         Guid envId,
         string streamName,
-        IUseCase<GetConsumersQuery, IReadOnlyList<ConsumerInfo>> useCase,
+        [AsParameters] GetConsumersQueryParams queryParams,
+        IUseCase<GetConsumersQuery, PaginatedResult<ConsumerInfo>> useCase,
         CancellationToken cancellationToken)
     {
-        var presenter = new Presenter<IReadOnlyList<ConsumerInfo>>();
-        await useCase.ExecuteAsync(new GetConsumersQuery(envId, streamName), presenter, cancellationToken);
+        var presenter = new Presenter<PaginatedResult<ConsumerInfo>>();
+        await useCase.ExecuteAsync(new GetConsumersQuery(envId, streamName)
+        {
+            Page = queryParams.Page ?? 1,
+            PageSize = queryParams.PageSize ?? 25,
+            SortBy = queryParams.SortBy,
+            SortDescending = string.Equals(queryParams.SortOrder, "desc", StringComparison.OrdinalIgnoreCase),
+            Search = queryParams.Search
+        }, presenter, cancellationToken);
         return presenter.ToResult();
     }
 
@@ -90,18 +97,16 @@ public static class JetStreamEndpoints
 
     private static async Task<IResult> GetStreamMessages(
         Guid envId,
-        string name,
+        string streamName,
         [FromQuery] long? startSequence,
         [FromQuery] int? count,
         IUseCase<GetStreamMessagesQuery, IReadOnlyList<StreamMessage>> useCase,
         CancellationToken cancellationToken)
     {
         var presenter = new Presenter<IReadOnlyList<StreamMessage>>();
-        await useCase.ExecuteAsync(new GetStreamMessagesQuery(envId, name, startSequence, count ?? 25), presenter, cancellationToken);
+        await useCase.ExecuteAsync(new GetStreamMessagesQuery(envId, streamName, startSequence, count ?? 25), presenter, cancellationToken);
         return presenter.ToResult();
     }
-
-    // Write handlers
 
     private static async Task<IResult> CreateStream(
         Guid envId,
@@ -130,7 +135,7 @@ public static class JetStreamEndpoints
 
     private static async Task<IResult> UpdateStream(
         Guid envId,
-        string name,
+        string streamName,
         UpdateStreamRequest request,
         IUseCase<UpdateStreamCommand, Unit> useCase,
         CancellationToken cancellationToken)
@@ -138,7 +143,7 @@ public static class JetStreamEndpoints
         var command = new UpdateStreamCommand
         {
             EnvironmentId = envId,
-            Name = name,
+            Name = streamName,
             Description = request.Description,
             Subjects = request.Subjects,
             MaxMessages = request.MaxMessages ?? -1,
@@ -153,7 +158,7 @@ public static class JetStreamEndpoints
 
     private static async Task<IResult> DeleteStream(
         Guid envId,
-        string name,
+        string streamName,
         HttpContext httpContext,
         IUseCase<DeleteStreamCommand, Unit> useCase,
         CancellationToken cancellationToken)
@@ -163,13 +168,13 @@ public static class JetStreamEndpoints
             return Results.BadRequest(new { error = "X-Confirm: true header is required for destructive operations" });
 
         var presenter = new Presenter<Unit>();
-        await useCase.ExecuteAsync(new DeleteStreamCommand { EnvironmentId = envId, Name = name }, presenter, cancellationToken);
+        await useCase.ExecuteAsync(new DeleteStreamCommand { EnvironmentId = envId, Name = streamName }, presenter, cancellationToken);
         return presenter.ToNoContentResult();
     }
 
     private static async Task<IResult> PurgeStream(
         Guid envId,
-        string name,
+        string streamName,
         [FromHeader(Name = "X-Confirm")] string? confirm,
         IUseCase<PurgeStreamCommand, Unit> useCase,
         CancellationToken cancellationToken)
@@ -178,7 +183,7 @@ public static class JetStreamEndpoints
             return Results.BadRequest(new { error = "X-Confirm: true header is required for destructive operations" });
 
         var presenter = new Presenter<Unit>();
-        await useCase.ExecuteAsync(new PurgeStreamCommand { EnvironmentId = envId, Name = name }, presenter, cancellationToken);
+        await useCase.ExecuteAsync(new PurgeStreamCommand { EnvironmentId = envId, Name = streamName }, presenter, cancellationToken);
         return presenter.ToNoContentResult();
     }
 
@@ -225,6 +230,15 @@ public static class JetStreamEndpoints
 }
 
 public sealed record GetStreamsQueryParams
+{
+    [FromQuery] public int? Page { get; init; }
+    [FromQuery] public int? PageSize { get; init; }
+    [FromQuery] public string? SortBy { get; init; }
+    [FromQuery] public string? SortOrder { get; init; }
+    [FromQuery] public string? Search { get; init; }
+}
+
+public sealed record GetConsumersQueryParams
 {
     [FromQuery] public int? Page { get; init; }
     [FromQuery] public int? PageSize { get; init; }

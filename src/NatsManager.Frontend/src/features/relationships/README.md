@@ -28,23 +28,11 @@ deterministic.
 
 ## Supported resource types
 
-The frontend type union currently supports:
-
-- `Server`
-- `Subject`
-- `Stream`
-- `Consumer`
-- `KvBucket`
-- `KvKey`
-- `ObjectBucket`
-- `Object` / `ObjectStoreObject`
-- `Service`
-- `Endpoint` / `ServiceEndpoint`
-- `Alert`
-- `Event`
-- `External`
-- `JetStreamAccount`
-- `Client`
+The shared frontend type union includes the full long-term relationship vocabulary,
+but the currently shipped graph sources emit nodes for streams, consumers, KV,
+object store, services, subjects, servers, JetStream accounts, external nodes, and
+other safe infrastructure resources. `Alert` and `Event` remain reserved for future
+relationship sources and should not be assumed to appear in the current API payloads.
 
 ## Safety expectations
 

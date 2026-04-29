@@ -30,6 +30,7 @@ NATS Admin UI gives operators, platform engineers, and developers a consistent w
 - 📦 **Object Store** — browse buckets and objects; upload, download, replace, and delete with size and impact warnings.
 - 🛰️ **Services** — discover NATS micro services; inspect endpoints, versions, and health; send test requests with side-effect warnings.
 - 📡 **Core NATS** — explore subjects, subscriptions, connected clients, and traffic; publish test messages and subscribe to live streams.
+- 🕸️ **Relationship map** — navigate safe cross-resource relationships for streams, consumers, KV, object store, services, subjects, and monitoring topology.
 - 🔎 **Global search & bookmarks** — cross-resource search and filtering; bookmark frequently used resources.
 - 🔐 **Authentication, RBAC & audit** — role-based access (ReadOnly / Operator / Administrator), environment-scoped policies, and a searchable audit log of all state-changing actions.
 - ⚡ **Built for scale** — virtualized lists for 1k+ resources, bounded NATS timeouts, and sub-second search.
@@ -47,7 +48,7 @@ A modular monolith using Clean Architecture (Ports & Adapters):
 | Frontend | `NatsManager.Frontend` | React 19 + Mantine 9 SPA organized by feature folders. |
 | Orchestration | `NatsManager.AppHost` / `NatsManager.ServiceDefaults` | .NET Aspire local orchestration, OpenTelemetry, health checks, resilience. |
 
-**Bounded contexts** (mirrored on backend and frontend): `Audit`, `Auth`, `CoreNats`, `Dashboard`, `Environments`, `JetStream`, `KeyValue`, `ObjectStore`, `Search`, `Services`.
+**Bounded contexts** (mirrored on backend and frontend): `Audit`, `Auth`, `CoreNats`, `Dashboard`, `Environments`, `JetStream`, `KeyValue`, `Monitoring`, `ObjectStore`, `Relationships`, `Search`, `Services`.
 
 **Storage**
 - **SQLite** — application data (environments, users, audit trail, bookmarks, preferences).
@@ -66,7 +67,7 @@ A modular monolith using Clean Architecture (Ports & Adapters):
 
 **Frontend**
 - React 19 · TypeScript (strict)
-- Mantine 9.0.1 · Tabler Icons · Recharts
+- Mantine 9.1.1 · Tabler Icons · Recharts · @xyflow/react
 - TanStack Query · TanStack Virtual · React Router
 - Vite · Vitest · React Testing Library · MSW
 

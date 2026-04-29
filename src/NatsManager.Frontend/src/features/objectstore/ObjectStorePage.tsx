@@ -4,6 +4,7 @@ import { useObjectBuckets, useObjects, useObjectInfo, useCreateObjectBucket, use
 import { useEnvironmentContext } from '../environments/EnvironmentContext';
 import { useParams, useNavigate } from 'react-router-dom';
 import { OpenRelationshipMapButton } from '../relationships/components/OpenRelationshipMapButton';
+import { formatBytes, formatDateTime } from '../../shared/formatting';
 
 export default function ObjectStorePage() {
   const { bucketName, objectName } = useParams();
@@ -20,7 +21,7 @@ export default function ObjectStorePage() {
 
 function BucketList({ environmentId }: { environmentId: string | null }) {
   const navigate = useNavigate();
-  const { data: buckets, isLoading } = useObjectBuckets(environmentId);
+  const { data, isLoading } = useObjectBuckets(environmentId);
   const createMutation = useCreateObjectBucket(environmentId);
   const deleteMutation = useDeleteObjectBucket(environmentId);
   const [createOpen, setCreateOpen] = useState(false);
@@ -38,6 +39,8 @@ function BucketList({ environmentId }: { environmentId: string | null }) {
   }
 
   if (isLoading) return <Center h={200}><Loader /></Center>;
+
+  const buckets = data?.items ?? [];
 
   const handleCreate = () => {
     createMutation.mutate({
@@ -63,17 +66,13 @@ function BucketList({ environmentId }: { environmentId: string | null }) {
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody>
-          {buckets?.map((b) => (
-            <Table.Tr key={b.bucketName} style={{ cursor: 'pointer' }} onClick={() => navigate(`/objectstore/buckets/${b.bucketName}`)}>
-              <Table.Td>{b.bucketName}</Table.Td>
-              <Table.Td>{b.objectCount}</Table.Td>
-              <Table.Td>{(b.totalSize / 1024).toFixed(1)} KB</Table.Td>
+          {buckets.map((bucket) => (
+            <Table.Tr key={bucket.bucketName} style={{ cursor: 'pointer' }} onClick={() => navigate(`/objectstore/buckets/${bucket.bucketName}`)}>
+              <Table.Td>{bucket.bucketName}</Table.Td>
+              <Table.Td>{bucket.objectCount}</Table.Td>
+              <Table.Td>{formatBytes(bucket.totalSize)}</Table.Td>
               <Table.Td>
-                <ActionIcon
-                  color="red"
-                  variant="subtle"
-                  onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(b.bucketName); }}
-                >🗑️</ActionIcon>
+                <ActionIcon color="red" variant="subtle" onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(bucket.bucketName); }}>🗑️</ActionIcon>
               </Table.Td>
             </Table.Tr>
           ))}
@@ -94,7 +93,7 @@ function BucketList({ environmentId }: { environmentId: string | null }) {
 
 function ObjectList({ environmentId, bucketName }: { environmentId: string | null; bucketName: string }) {
   const navigate = useNavigate();
-  const { data: objects, isLoading } = useObjects(environmentId, bucketName);
+  const { data, isLoading } = useObjects(environmentId, bucketName);
   const uploadMutation = useUploadObject(environmentId, bucketName);
   const deleteMutation = useDeleteObject(environmentId, bucketName);
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -102,6 +101,8 @@ function ObjectList({ environmentId, bucketName }: { environmentId: string | nul
   const fileRef = useRef<HTMLInputElement>(null);
 
   if (isLoading) return <Center h={200}><Loader /></Center>;
+
+  const objects = data?.items ?? [];
 
   const handleUpload = () => {
     const file = fileRef.current?.files?.[0];
@@ -116,13 +117,7 @@ function ObjectList({ environmentId, bucketName }: { environmentId: string | nul
       <Group justify="space-between">
         <Title order={2}>Bucket: {bucketName}</Title>
         <Group>
-          {environmentId && (
-            <OpenRelationshipMapButton
-              environmentId={environmentId}
-              resourceId={bucketName}
-              resourceType="ObjectBucket"
-            />
-          )}
+          {environmentId && <OpenRelationshipMapButton environmentId={environmentId} resourceId={bucketName} resourceType="ObjectBucket" />}
           <Button onClick={() => setUploadOpen(true)}>Upload Object</Button>
         </Group>
       </Group>
@@ -137,18 +132,14 @@ function ObjectList({ environmentId, bucketName }: { environmentId: string | nul
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody>
-          {objects?.map((obj) => (
-            <Table.Tr key={obj.name} style={{ cursor: 'pointer' }} onClick={() => navigate(`/objectstore/buckets/${bucketName}/objects/${obj.name}`)}>
-              <Table.Td>{obj.name}</Table.Td>
-              <Table.Td>{(obj.size / 1024).toFixed(1)} KB</Table.Td>
-              <Table.Td><Badge size="sm">{obj.contentType || 'unknown'}</Badge></Table.Td>
-              <Table.Td>{obj.chunks}</Table.Td>
+          {objects.map((objectInfo) => (
+            <Table.Tr key={objectInfo.name} style={{ cursor: 'pointer' }} onClick={() => navigate(`/objectstore/buckets/${bucketName}/objects/${objectInfo.name}`)}>
+              <Table.Td>{objectInfo.name}</Table.Td>
+              <Table.Td>{formatBytes(objectInfo.size)}</Table.Td>
+              <Table.Td><Badge size="sm">{objectInfo.contentType || 'unknown'}</Badge></Table.Td>
+              <Table.Td>{objectInfo.chunks}</Table.Td>
               <Table.Td>
-                <ActionIcon
-                  color="red"
-                  variant="subtle"
-                  onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(obj.name); }}
-                >🗑️</ActionIcon>
+                <ActionIcon color="red" variant="subtle" onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(objectInfo.name); }}>🗑️</ActionIcon>
               </Table.Td>
             </Table.Tr>
           ))}
@@ -167,33 +158,27 @@ function ObjectList({ environmentId, bucketName }: { environmentId: string | nul
 }
 
 function ObjectDetail({ environmentId, bucketName, objectName }: { environmentId: string | null; bucketName: string; objectName: string }) {
-  const { data: obj, isLoading } = useObjectInfo(environmentId, bucketName, objectName);
+  const { data: objectInfo, isLoading } = useObjectInfo(environmentId, bucketName, objectName);
 
   if (isLoading) return <Center h={200}><Loader /></Center>;
-  if (!obj) return <Text c="red">Object not found</Text>;
+  if (!objectInfo) return <Text c="red">Object not found</Text>;
 
   return (
     <Stack>
       <Group justify="space-between">
-        <Title order={2}>{obj.name}</Title>
-        {environmentId && (
-          <OpenRelationshipMapButton
-            environmentId={environmentId}
-            resourceId={`${bucketName}/${objectName}`}
-            resourceType="ObjectStoreObject"
-          />
-        )}
+        <Title order={2}>{objectInfo.name}</Title>
+        {environmentId && <OpenRelationshipMapButton environmentId={environmentId} resourceId={`${bucketName}/${objectName}`} resourceType="ObjectStoreObject" />}
       </Group>
       <Card shadow="sm" padding="lg" radius="md" withBorder>
         <Group>
-          <div><Text size="sm" c="dimmed">Size</Text><Text fw={700}>{(obj.size / 1024).toFixed(1)} KB</Text></div>
-          <div><Text size="sm" c="dimmed">Content Type</Text><Text fw={700}>{obj.contentType || 'N/A'}</Text></div>
-          <div><Text size="sm" c="dimmed">Chunks</Text><Text fw={700}>{obj.chunks}</Text></div>
-          {obj.digest && <div><Text size="sm" c="dimmed">Digest</Text><Text fw={700} size="xs">{obj.digest}</Text></div>}
-          {obj.lastModified && <div><Text size="sm" c="dimmed">Modified</Text><Text fw={700}>{new Date(obj.lastModified).toLocaleString()}</Text></div>}
+          <div><Text size="sm" c="dimmed">Size</Text><Text fw={700}>{formatBytes(objectInfo.size)}</Text></div>
+          <div><Text size="sm" c="dimmed">Content Type</Text><Text fw={700}>{objectInfo.contentType || 'N/A'}</Text></div>
+          <div><Text size="sm" c="dimmed">Chunks</Text><Text fw={700}>{objectInfo.chunks}</Text></div>
+          {objectInfo.digest && <div><Text size="sm" c="dimmed">Digest</Text><Text fw={700} size="xs">{objectInfo.digest}</Text></div>}
+          {objectInfo.lastModified && <div><Text size="sm" c="dimmed">Modified</Text><Text fw={700}>{formatDateTime(objectInfo.lastModified)}</Text></div>}
         </Group>
       </Card>
-      {obj.description && <Text c="dimmed">{obj.description}</Text>}
+      {objectInfo.description && <Text c="dimmed">{objectInfo.description}</Text>}
     </Stack>
   );
 }

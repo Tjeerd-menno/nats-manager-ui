@@ -1,27 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../../api/client';
-
-interface AuditEventDto {
-  id: string;
-  timestamp: string;
-  actorId: string | null;
-  actorName: string;
-  actionType: string;
-  resourceType: string;
-  resourceId: string;
-  resourceName: string;
-  environmentId: string | null;
-  outcome: string;
-  details: string | null;
-  source: string;
-}
-
-interface AuditEventsResult {
-  items: AuditEventDto[];
-  totalCount: number;
-  page: number;
-  pageSize: number;
-}
+import { apiEndpoints } from '../../../api/endpoints';
+import { queryKeys } from '../../../api/queryKeys';
+import type { AuditEventsResult } from '../types';
 
 export function useAuditEvents(params: {
   page?: number;
@@ -31,9 +12,9 @@ export function useAuditEvents(params: {
   environmentId?: string;
 }) {
   return useQuery({
-    queryKey: ['audit-events', params],
+    queryKey: queryKeys.auditEvents(params),
     queryFn: async () => {
-      const response = await apiClient.get('/audit/events', { params });
+      const response = await apiClient.get(apiEndpoints.auditEvents(), { params });
       return response.data as AuditEventsResult;
     },
   });

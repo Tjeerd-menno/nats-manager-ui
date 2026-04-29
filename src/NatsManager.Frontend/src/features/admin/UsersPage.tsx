@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Title, Table, Badge, Stack, Group, Button, TextInput, PasswordInput, Modal, Loader, Center, ActionIcon, Select, Text } from '@mantine/core';
 import { useUsers, useRoles, useUserRoles, useCreateUser, useDeactivateUser, useAssignRole, useRevokeRole } from './hooks/useAdmin';
+import type { Role } from './types';
+import { formatDate, formatDateTime } from '../../shared/formatting';
 
 export default function UsersPage() {
   const { data: users, isLoading } = useUsers();
@@ -43,27 +45,17 @@ export default function UsersPage() {
             <Table.Tr key={user.id} style={{ cursor: 'pointer' }} onClick={() => setSelectedUserId(user.id)}>
               <Table.Td>{user.username}</Table.Td>
               <Table.Td>{user.displayName}</Table.Td>
+              <Table.Td><Badge color={user.isActive ? 'green' : 'red'}>{user.isActive ? 'Active' : 'Inactive'}</Badge></Table.Td>
+              <Table.Td>{formatDateTime(user.lastLoginAt, 'Never')}</Table.Td>
               <Table.Td>
-                <Badge color={user.isActive ? 'green' : 'red'}>{user.isActive ? 'Active' : 'Inactive'}</Badge>
-              </Table.Td>
-              <Table.Td>{user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString() : 'Never'}</Table.Td>
-              <Table.Td>
-                {user.isActive && (
-                  <ActionIcon
-                    color="red"
-                    variant="subtle"
-                    onClick={(e) => { e.stopPropagation(); deactivateMutation.mutate(user.id); }}
-                  >🚫</ActionIcon>
-                )}
+                {user.isActive && <ActionIcon color="red" variant="subtle" onClick={(e) => { e.stopPropagation(); deactivateMutation.mutate(user.id); }}>🚫</ActionIcon>}
               </Table.Td>
             </Table.Tr>
           ))}
         </Table.Tbody>
       </Table>
 
-      {selectedUserId && (
-        <UserRoleManager userId={selectedUserId} roles={roles ?? []} onClose={() => setSelectedUserId(undefined)} />
-      )}
+      {selectedUserId && <UserRoleManager userId={selectedUserId} roles={roles ?? []} onClose={() => setSelectedUserId(undefined)} />}
 
       <Modal opened={createOpen} onClose={() => setCreateOpen(false)} title="Create User">
         <Stack>
@@ -77,7 +69,7 @@ export default function UsersPage() {
   );
 }
 
-function UserRoleManager({ userId, roles, onClose }: { userId: string; roles: { id: string; name: string; description: string }[]; onClose: () => void }) {
+function UserRoleManager({ userId, roles, onClose }: { userId: string; roles: Role[]; onClose: () => void }) {
   const { data: userRoles, isLoading } = useUserRoles(userId);
   const assignMutation = useAssignRole();
   const revokeMutation = useRevokeRole();
@@ -107,33 +99,19 @@ function UserRoleManager({ userId, roles, onClose }: { userId: string; roles: { 
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {userRoles?.map((ur) => (
-                  <Table.Tr key={ur.assignmentId}>
-                    <Table.Td><Badge>{ur.roleName}</Badge></Table.Td>
-                    <Table.Td>{ur.environmentId ? `Env: ${ur.environmentId.slice(0, 8)}...` : 'Global'}</Table.Td>
-                    <Table.Td>{new Date(ur.assignedAt).toLocaleDateString()}</Table.Td>
-                    <Table.Td>
-                      <ActionIcon
-                        color="red"
-                        variant="subtle"
-                        onClick={() => revokeMutation.mutate({ userId, assignmentId: ur.assignmentId })}
-                      >🗑️</ActionIcon>
-                    </Table.Td>
+                {userRoles?.map((userRole) => (
+                  <Table.Tr key={userRole.assignmentId}>
+                    <Table.Td><Badge>{userRole.roleName}</Badge></Table.Td>
+                    <Table.Td>{userRole.environmentId ? `Env: ${userRole.environmentId.slice(0, 8)}...` : 'Global'}</Table.Td>
+                    <Table.Td>{formatDate(userRole.assignedAt)}</Table.Td>
+                    <Table.Td><ActionIcon color="red" variant="subtle" onClick={() => revokeMutation.mutate({ userId, assignmentId: userRole.assignmentId })}>🗑️</ActionIcon></Table.Td>
                   </Table.Tr>
                 ))}
-                {userRoles?.length === 0 && (
-                  <Table.Tr><Table.Td colSpan={4}><Text c="dimmed" ta="center">No roles assigned</Text></Table.Td></Table.Tr>
-                )}
+                {userRoles?.length === 0 && <Table.Tr><Table.Td colSpan={4}><Text c="dimmed" ta="center">No roles assigned</Text></Table.Td></Table.Tr>}
               </Table.Tbody>
             </Table>
             <Group>
-              <Select
-                placeholder="Select role"
-                data={roles.map(r => ({ value: r.id, label: r.name }))}
-                value={selectedRole}
-                onChange={setSelectedRole}
-                style={{ flex: 1 }}
-              />
+              <Select placeholder="Select role" data={roles.map(role => ({ value: role.id, label: role.name }))} value={selectedRole} onChange={setSelectedRole} style={{ flex: 1 }} />
               <Button onClick={handleAssign} disabled={!selectedRole} loading={assignMutation.isPending}>Assign</Button>
             </Group>
           </>

@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using NatsManager.Application.Modules.Auth.Ports;
 using NatsManager.Domain.Modules.Auth;
-using NatsManager.Infrastructure.Auth;
 using NatsManager.Infrastructure.Configuration;
 
 namespace NatsManager.Infrastructure.Persistence;
@@ -10,13 +10,12 @@ namespace NatsManager.Infrastructure.Persistence;
 public sealed partial class DatabaseInitializer(
     AppDbContext context,
     IOptions<BootstrapAdminOptions> bootstrapAdminOptions,
+    IPasswordHasher passwordHasher,
     ILogger<DatabaseInitializer> logger)
 {
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
         await context.Database.MigrateAsync(cancellationToken);
-
-        // Enable WAL mode for SQLite
         await context.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;", cancellationToken);
 
         await SeedRolesAsync(cancellationToken);
@@ -81,7 +80,7 @@ public sealed partial class DatabaseInitializer(
 
         if (admin is null)
         {
-            var hashedPassword = PasswordHasher.Hash(bootstrapPassword);
+            var hashedPassword = passwordHasher.Hash(bootstrapPassword);
             admin = User.Create(bootstrapUsername, bootstrapAdmin.DisplayName, hashedPassword);
             context.Users.Add(admin);
 
@@ -100,9 +99,9 @@ public sealed partial class DatabaseInitializer(
             changed = true;
         }
 
-        if (!PasswordHasher.Verify(bootstrapPassword, admin.PasswordHash))
+        if (!passwordHasher.Verify(bootstrapPassword, admin.PasswordHash))
         {
-            admin.UpdatePassword(PasswordHasher.Hash(bootstrapPassword));
+            admin.UpdatePassword(passwordHasher.Hash(bootstrapPassword));
             changed = true;
         }
 

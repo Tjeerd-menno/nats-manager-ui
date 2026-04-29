@@ -14,6 +14,8 @@ public sealed partial class ObjectStoreAdapter(
     INatsConnectionFactory connectionFactory,
     ILogger<ObjectStoreAdapter> logger) : IObjectStoreAdapter
 {
+    private static readonly TimeSpan ListObjectsTimeout = TimeSpan.FromSeconds(5);
+
     public async Task<IReadOnlyList<ObjectBucketInfo>> ListBucketsAsync(Guid environmentId, CancellationToken cancellationToken = default)
     {
         var connection = (NatsConnection)await connectionFactory.GetConnectionAsync(environmentId, cancellationToken);
@@ -39,7 +41,6 @@ public sealed partial class ObjectStoreAdapter(
             }
             catch
             {
-                // Skip inaccessible buckets
             }
         }
 
@@ -83,16 +84,6 @@ public sealed partial class ObjectStoreAdapter(
             throw new ConflictException($"Object store bucket '{bucketName}' already exists.");
         }
 
-
-        try
-        {
-            await context.CreateObjectStoreAsync(config, cancellationToken);
-        }
-        catch (NatsJSApiException ex) when (ex.Error.Description?.Contains("already in use", StringComparison.OrdinalIgnoreCase) == true)
-        {
-            throw new ConflictException($"Object store bucket '{bucketName}' already exists.");
-        }
-
         LogBucketCreated(bucketName, environmentId);
     }
 
@@ -109,19 +100,18 @@ public sealed partial class ObjectStoreAdapter(
         var store = await context.GetObjectStoreAsync(bucketName, cancellationToken);
         var objects = new List<ObjectInfo>();
 
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        cts.CancelAfter(TimeSpan.FromSeconds(5));
+        using var timeoutCts = new CancellationTokenSource(ListObjectsTimeout);
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
 
         try
         {
-            await foreach (var info in store.ListAsync(cancellationToken: cts.Token))
+            await foreach (var info in store.ListAsync(cancellationToken: linkedCts.Token))
             {
                 objects.Add(MapObjectInfo(info));
             }
         }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
         {
-            // Timeout listing objects — return what we have (empty for empty buckets)
         }
 
         return objects;
@@ -180,9 +170,8 @@ public sealed partial class ObjectStoreAdapter(
         return new NatsObjContext(jsContext);
     }
 
-    private static ObjectInfo MapObjectInfo(ObjectMetadata info)
-    {
-        return new ObjectInfo(
+    private static ObjectInfo MapObjectInfo(ObjectMetadata info) =>
+        new(
             Name: info.Name,
             Size: (long)info.Size,
             Description: info.Description,
@@ -190,7 +179,6 @@ public sealed partial class ObjectStoreAdapter(
             LastModified: info.MTime != default ? info.MTime : null,
             Chunks: (int)info.Chunks,
             Digest: info.Digest);
-    }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Created object bucket {BucketName} in environment {EnvironmentId}")]
     private partial void LogBucketCreated(string bucketName, Guid environmentId);

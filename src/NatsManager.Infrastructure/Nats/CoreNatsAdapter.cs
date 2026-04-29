@@ -265,7 +265,7 @@ public sealed partial class CoreNatsAdapter(
 
 internal static class CoreNatsSubjectFilter
 {
-    public static bool IsInternalSubject(string subject) =>
+    internal static bool IsInternalSubject(string subject) =>
         string.IsNullOrEmpty(subject)
         || subject[0] == '$'
         || subject.StartsWith("_INBOX.", StringComparison.Ordinal)

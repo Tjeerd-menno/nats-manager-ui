@@ -1,6 +1,4 @@
 using System.Net;
-using System.Net.Http.Json;
-using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 using NatsManager.Application.Modules.Monitoring.Models;
@@ -21,90 +19,67 @@ public sealed partial class NatsMonitoringHttpAdapter(
         var startTime = DateTimeOffset.UtcNow;
         var client = httpClientFactory.CreateClient("NatsMonitoring");
 
-        NatsVarzResponse? varz = null;
-        NatsJszResponse? jsz = null;
-        var degraded = false;
-
-        try
+        var varzResult = await client.GetJsonWithHandlingAsync<NatsVarzResponse>($"{baseUrl}/varz", ct);
+        if (!varzResult.IsSuccess)
         {
-            varz = await client.GetFromJsonAsync<NatsVarzResponse>($"{baseUrl}/varz", ct);
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
-        {
-            LogFetchFailed(baseUrl, ex.Message);
-            return CreateUnavailableSnapshot(environment.Id);
-        }
-        catch (JsonException ex)
-        {
-            LogFetchFailed($"{baseUrl}/varz", ex.Message);
-            return CreateDegradedSnapshot(environment.Id);
+            LogFetchFailed($"{baseUrl}/varz", varzResult.ErrorMessage ?? "Unknown error");
+            return varzResult.FailureKind == MonitoringFailureKind.Json
+                ? NatsMonitoringStateFactory.CreateSnapshot(environment.Id, MonitoringStatus.Degraded, MonitoringStatus.Unavailable)
+                : NatsMonitoringStateFactory.CreateSnapshot(environment.Id, MonitoringStatus.Unavailable, MonitoringStatus.Unavailable);
         }
 
+        var varz = varzResult.Value;
         if (varz is null)
-            return CreateDegradedSnapshot(environment.Id);
-
-        try
         {
-            var jszResponse = await client.GetAsync($"{baseUrl}/jsz", ct);
-            if (jszResponse.StatusCode == HttpStatusCode.NotFound)
-            {
-                LogJetStreamUnavailable(baseUrl);
-            }
-            else
-            {
-                jszResponse.EnsureSuccessStatusCode();
-                jsz = await jszResponse.Content.ReadFromJsonAsync<NatsJszResponse>(ct);
-                degraded = jsz is null;
-            }
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
-        {
-            degraded = true;
-            LogFetchFailed($"{baseUrl}/jsz", ex.Message);
-        }
-        catch (Exception ex)
-        {
-            degraded = true;
-            LogFetchFailed($"{baseUrl}/jsz", ex.Message);
+            return NatsMonitoringStateFactory.CreateSnapshot(environment.Id, MonitoringStatus.Degraded, MonitoringStatus.Unavailable);
         }
 
-        var healthStatus = MonitoringStatus.Unavailable;
-        try
-        {
-            var healthzResponse = await client.GetAsync($"{baseUrl}/healthz", ct);
-            if (healthzResponse.IsSuccessStatusCode)
+        var jszResult = await client.GetJsonWithHandlingAsync<NatsJszResponse>(
+            $"{baseUrl}/jsz",
+            ct,
+            async (response, cancellationToken) =>
             {
-                var healthz = await healthzResponse.Content.ReadFromJsonAsync<NatsHealthzResponse>(ct);
-                healthStatus = string.Equals(healthz?.Status, "ok", StringComparison.OrdinalIgnoreCase)
-                    ? MonitoringStatus.Ok
-                    : MonitoringStatus.Degraded;
-            }
-            else
+                if (response.StatusCode == HttpStatusCode.NotFound)
+                {
+                    LogJetStreamUnavailable(baseUrl);
+                    return MonitoringHttpResult<NatsJszResponse>.Success(null);
+                }
+
+                response.EnsureSuccessStatusCode();
+                return await response.ReadJsonOrFailureAsync<NatsJszResponse>(cancellationToken);
+            });
+
+        var degraded = jszResult.FailureKind != MonitoringFailureKind.None || jszResult.Value is null;
+        if (jszResult.FailureKind != MonitoringFailureKind.None)
+        {
+            LogFetchFailed($"{baseUrl}/jsz", jszResult.ErrorMessage ?? "Unknown error");
+        }
+
+        var healthzResult = await client.GetJsonWithHandlingAsync<NatsHealthzResponse>(
+            $"{baseUrl}/healthz",
+            ct,
+            async (response, cancellationToken) =>
             {
-                healthStatus = MonitoringStatus.Degraded;
-            }
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                if (!response.IsSuccessStatusCode)
+                {
+                    return MonitoringHttpResult<NatsHealthzResponse>.Success(new NatsHealthzResponse("degraded"));
+                }
+
+                return await response.ReadJsonOrFailureAsync<NatsHealthzResponse>(cancellationToken);
+            });
+
+        var healthStatus = healthzResult.FailureKind switch
         {
-            throw;
-        }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+            MonitoringFailureKind.None => string.Equals(healthzResult.Value?.Status, "ok", StringComparison.OrdinalIgnoreCase)
+                ? MonitoringStatus.Ok
+                : MonitoringStatus.Degraded,
+            MonitoringFailureKind.Timeout or MonitoringFailureKind.HttpRequest => MonitoringStatus.Unavailable,
+            _ => MonitoringStatus.Degraded
+        };
+
+        if (healthzResult.FailureKind != MonitoringFailureKind.None)
         {
-            healthStatus = MonitoringStatus.Unavailable;
-            LogFetchFailed($"{baseUrl}/healthz", ex.Message);
-        }
-        catch (Exception ex)
-        {
-            healthStatus = MonitoringStatus.Degraded;
-            LogFetchFailed($"{baseUrl}/healthz", ex.Message);
+            LogFetchFailed($"{baseUrl}/healthz", healthzResult.ErrorMessage ?? "Unknown error");
         }
 
         var latencyMs = (long)(DateTimeOffset.UtcNow - startTime).TotalMilliseconds;
@@ -113,7 +88,7 @@ public sealed partial class NatsMonitoringHttpAdapter(
         var timestamp = DateTimeOffset.UtcNow;
         degraded = degraded || healthStatus != MonitoringStatus.Ok;
         var server = BuildServerMetrics(varz, previous, timestamp);
-        var jetStream = jsz is not null ? BuildJetStreamMetrics(jsz) : null;
+        var jetStream = jszResult.Value is not null ? BuildJetStreamMetrics(jszResult.Value) : null;
 
         return new MonitoringSnapshot(
             EnvironmentId: environment.Id,
@@ -123,16 +98,6 @@ public sealed partial class NatsMonitoringHttpAdapter(
             Status: degraded ? MonitoringStatus.Degraded : MonitoringStatus.Ok,
             HealthStatus: healthStatus);
     }
-
-    private static MonitoringSnapshot CreateUnavailableSnapshot(Guid envId) =>
-        new(envId, DateTimeOffset.UtcNow,
-            new ServerMetrics("", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-            null, MonitoringStatus.Unavailable, MonitoringStatus.Unavailable);
-
-    private static MonitoringSnapshot CreateDegradedSnapshot(Guid envId) =>
-        new(envId, DateTimeOffset.UtcNow,
-            new ServerMetrics("", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-            null, MonitoringStatus.Degraded, MonitoringStatus.Unavailable);
 
     private static ServerMetrics BuildServerMetrics(NatsVarzResponse varz, MonitoringSnapshot? previous, DateTimeOffset timestamp)
     {
@@ -150,7 +115,7 @@ public sealed partial class NatsMonitoringHttpAdapter(
         }
 
         return new ServerMetrics(
-            Version: varz.Version ?? "",
+            Version: varz.Version ?? string.Empty,
             Connections: varz.Connections,
             TotalConnections: varz.TotalConnections,
             MaxConnections: varz.MaxConnections,
@@ -162,38 +127,13 @@ public sealed partial class NatsMonitoringHttpAdapter(
             OutMsgsPerSec: Math.Max(0, outMsgsPerSec),
             InBytesPerSec: Math.Max(0, inBytesPerSec),
             OutBytesPerSec: Math.Max(0, outBytesPerSec),
-            UptimeSeconds: ParseUptimeSeconds(varz.Uptime),
+            UptimeSeconds: NatsMonitoringUptimeParser.ParseSeconds(varz.Uptime),
             MemoryBytes: varz.Mem);
     }
 
     private static JetStreamMetrics BuildJetStreamMetrics(NatsJszResponse jsz) =>
         new(StreamCount: jsz.Streams, ConsumerCount: jsz.Consumers,
             TotalMessages: jsz.Messages, TotalBytes: jsz.Bytes);
-
-    private static long ParseUptimeSeconds(string? uptime)
-    {
-        if (string.IsNullOrEmpty(uptime)) return 0;
-        long total = 0;
-        var s = uptime.AsSpan();
-        while (!s.IsEmpty)
-        {
-            var i = 0;
-            while (i < s.Length && char.IsDigit(s[i])) i++;
-            if (i == 0) break;
-            if (!long.TryParse(s[..i], out var val)) break;
-            var unit = i < s.Length ? s[i] : ' ';
-            total += unit switch
-            {
-                'd' => val * 86400,
-                'h' => val * 3600,
-                'm' => val * 60,
-                's' => val,
-                _ => 0
-            };
-            s = s[(i + 1)..];
-        }
-        return total;
-    }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Monitoring fetch succeeded for {Url} in {LatencyMs}ms")]
     private partial void LogFetchSuccess(string url, long latencyMs);

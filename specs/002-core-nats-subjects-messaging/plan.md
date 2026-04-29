@@ -18,7 +18,7 @@ See [research.md](research.md), [data-model.md](data-model.md), [contracts/api-c
 ## Technical Context
 
 **Language/Version**: C# / .NET 10 (backend), TypeScript strict mode (frontend)  
-**Primary Dependencies**: ASP.NET Core 10 (Minimal APIs), NATS.Net v2, FluentValidation, React 19, Mantine 7, TanStack Query, Vite  
+**Primary Dependencies**: ASP.NET Core 10 (Minimal APIs), NATS.Net v2, FluentValidation, React 19, Mantine 9, TanStack Query, Vite  
 **Storage**: No new persistence — all data is ephemeral (NATS HTTP monitoring, NATS subscriptions, in-memory frontend buffer)  
 **Testing**: xUnit v3 + MTP v2, Shouldly, NSubstitute (backend); Vitest + React Testing Library (frontend); Playwright (E2E)  
 **Target Platform**: Desktop browsers; Linux backend  
@@ -330,7 +330,7 @@ tests/
 2. **Create `useLiveMessages` hook** in `useCoreNats.ts`
    - Manages `EventSource` via `useEffect`
    - State: `messages[]`, `isConnected`, `isPaused`, `pendingCount`, `cap`
-   - `subscribe(subject)`: creates `EventSource` at `/api/environments/{envId}/core-nats/stream?subject={encoded}`
+   - `subscribe(subject)`: creates `EventSource` at `/api/environments/{envId}/corenats/stream?subject={encoded}`
    - `unsubscribe()`: closes `EventSource`, resets state
    - On each SSE `message` event: if paused → push to `pendingBuffer` ref, increment `pendingCount`; else → prepend to `messages` (keeping last `cap`)
    - `pause()` / `resume()`: toggle pause; on resume flush pending buffer into messages

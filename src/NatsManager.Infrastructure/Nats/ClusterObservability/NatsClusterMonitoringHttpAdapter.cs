@@ -1,6 +1,4 @@
 using System.Net;
-using System.Net.Http.Json;
-using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -8,14 +6,10 @@ using NatsManager.Application.Modules.Environments.Ports;
 using NatsManager.Application.Modules.Monitoring;
 using NatsManager.Application.Modules.Monitoring.Models.ClusterObservability;
 using NatsManager.Application.Modules.Monitoring.Ports.ClusterObservability;
+using NatsManager.Infrastructure.Nats;
 
 namespace NatsManager.Infrastructure.Nats.ClusterObservability;
 
-/// <summary>
-/// HTTP adapter that calls NATS monitoring endpoints per environment.
-/// Uses a 10s timeout per endpoint. Marks missing endpoints as Unavailable/Partial
-/// rather than failing the whole observation. Masks/omits JWT and credential fields.
-/// </summary>
 public sealed partial class NatsClusterMonitoringHttpAdapter(
     IHttpClientFactory httpClientFactory,
     IEnvironmentRepository environmentRepository,
@@ -27,21 +21,18 @@ public sealed partial class NatsClusterMonitoringHttpAdapter(
         var environment = await environmentRepository.GetByIdAsync(environmentId, ct);
         if (environment?.MonitoringUrl is null)
         {
-            return CreateUnavailableObservation(environmentId, "Monitoring URL not configured.");
+            return NatsMonitoringStateFactory.CreateUnavailableClusterObservation(environmentId);
         }
 
         var baseUrl = environment.MonitoringUrl.TrimEnd('/');
-        var client = httpClientFactory.CreateClient("NatsClusterMonitoring");
-
         var observedAt = DateTimeOffset.UtcNow;
 
-        // Fetch all endpoints in parallel, isolating failures
-        var healthzTask = SafeFetchAsync(() => GetHealthzAsync(baseUrl, ct), MonitoringEndpoint.Healthz);
-        var varzTask = SafeFetchAsync(() => GetVarzAsync(baseUrl, ct), MonitoringEndpoint.Varz);
-        var jszTask = SafeFetchAsync(() => GetJszAsync(baseUrl, ct), MonitoringEndpoint.Jsz);
-        var routezTask = SafeFetchAsync(() => GetRoutezAsync(baseUrl, ct), MonitoringEndpoint.Routez);
-        var gatewayzTask = SafeFetchAsync(() => GetGatewayzAsync(baseUrl, ct), MonitoringEndpoint.Gatewayz);
-        var leafzTask = SafeFetchAsync(() => GetLeafzAsync(baseUrl, ct), MonitoringEndpoint.Leafz);
+        var healthzTask = SafeFetchAsync(() => FetchHealthzAsync(baseUrl, ct), MonitoringEndpoint.Healthz);
+        var varzTask = SafeFetchAsync(() => FetchVarzAsync(baseUrl, ct), MonitoringEndpoint.Varz);
+        var jszTask = SafeFetchAsync(() => FetchJszAsync(baseUrl, ct), MonitoringEndpoint.Jsz);
+        var routezTask = SafeFetchAsync(() => FetchRoutezAsync(baseUrl, ct), MonitoringEndpoint.Routez);
+        var gatewayzTask = SafeFetchAsync(() => FetchGatewayzAsync(baseUrl, ct), MonitoringEndpoint.Gatewayz);
+        var leafzTask = SafeFetchAsync(() => FetchLeafzAsync(baseUrl, ct), MonitoringEndpoint.Leafz);
 
         await Task.WhenAll(healthzTask, varzTask, jszTask, routezTask, gatewayzTask, leafzTask);
 
@@ -53,11 +44,11 @@ public sealed partial class NatsClusterMonitoringHttpAdapter(
 
         if (varz is null)
         {
-            LogEndpointFailed(baseUrl, "varz");
-            return CreateUnavailableObservation(environmentId, "Primary monitoring endpoint /varz unavailable.");
+            LogEndpointFailed(MonitoringEndpoint.Varz.ToString(), "Primary monitoring endpoint unavailable.");
+            return NatsMonitoringStateFactory.CreateUnavailableClusterObservation(environmentId);
         }
 
-        var server = BuildServerObservation(environmentId, varz, jsz, observedAt);
+        var server = BuildServerObservation(environmentId, varz, observedAt);
         var topology = BuildTopologyRelationships(environmentId, routez, gatewayz, leafz, observedAt);
 
         var servers = new List<ServerObservation> { server };
@@ -81,123 +72,196 @@ public sealed partial class NatsClusterMonitoringHttpAdapter(
             Topology: topology);
     }
 
-    private async Task<T?> SafeFetchAsync<T>(Func<Task<T?>> fetch, MonitoringEndpoint endpoint) where T : class
+    private async Task<T?> SafeFetchAsync<T>(Func<Task<MonitoringHttpResult<T>>> fetch, MonitoringEndpoint endpoint)
+        where T : class
     {
-        try
+        var result = await fetch();
+        if (!result.IsSuccess)
         {
-            return await fetch();
+            LogEndpointFailed(endpoint.ToString(), result.ErrorMessage ?? "Unknown error");
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            LogEndpointFailed(endpoint.ToString(), ex.Message);
-            return null;
-        }
+
+        return result.Value;
     }
 
     public async Task<ClusterHealthzResponse?> GetHealthzAsync(string baseUrl, CancellationToken ct)
+        => (await FetchHealthzAsync(baseUrl, ct)).Value;
+
+    private Task<MonitoringHttpResult<ClusterHealthzResponse>> FetchHealthzAsync(string baseUrl, CancellationToken ct)
     {
         var client = httpClientFactory.CreateClient("NatsClusterMonitoring");
-        var response = await client.GetAsync($"{baseUrl}/healthz", ct);
-        if (!response.IsSuccessStatusCode) return null;
-        var raw = await response.Content.ReadFromJsonAsync<HealthzRaw>(ct);
-        return raw is null ? null : new ClusterHealthzResponse(raw.Status ?? "unknown", null);
+        return client.GetJsonWithHandlingAsync<HealthzRaw>(
+            $"{baseUrl}/healthz",
+            ct,
+            async (response, cancellationToken) =>
+            {
+                if (!response.IsSuccessStatusCode)
+                {
+                    return MonitoringHttpResult<ClusterHealthzResponse>.Success(null);
+                }
+
+                var jsonResult = await response.ReadJsonOrFailureAsync<HealthzRaw>(cancellationToken);
+                return jsonResult.FailureKind == MonitoringFailureKind.None
+                    ? MonitoringHttpResult<ClusterHealthzResponse>.Success(jsonResult.Value is null ? null : new ClusterHealthzResponse(jsonResult.Value.Status ?? "unknown", null))
+                    : MonitoringHttpResult<ClusterHealthzResponse>.Failure(jsonResult.FailureKind, jsonResult.ErrorMessage ?? "Unknown error");
+            });
     }
 
     public async Task<ClusterVarzResponse?> GetVarzAsync(string baseUrl, CancellationToken ct)
+        => (await FetchVarzAsync(baseUrl, ct)).Value;
+
+    private async Task<MonitoringHttpResult<ClusterVarzResponse>> FetchVarzAsync(string baseUrl, CancellationToken ct)
     {
         var client = httpClientFactory.CreateClient("NatsClusterMonitoring");
-        var raw = await client.GetFromJsonAsync<VarzRaw>($"{baseUrl}/varz", ct);
-        if (raw is null) return null;
-        return new ClusterVarzResponse(
-            ServerId: raw.ServerId,
-            ServerName: raw.ServerName,
-            ClusterName: raw.Cluster,
-            Version: raw.Version,
-            Uptime: raw.Uptime,
-            UptimeSeconds: ParseUptimeSeconds(raw.Uptime),
-            Connections: raw.Connections,
-            MaxConnections: raw.MaxConnections,
-            SlowConsumers: raw.SlowConsumers,
-            InMsgs: raw.InMsgs,
-            OutMsgs: raw.OutMsgs,
-            InBytes: raw.InBytes,
-            OutBytes: raw.OutBytes,
-            Mem: raw.Mem);
+        var rawResult = await client.GetJsonWithHandlingAsync<VarzRaw>($"{baseUrl}/varz", ct);
+        return rawResult.FailureKind == MonitoringFailureKind.None
+            ? MonitoringHttpResult<ClusterVarzResponse>.Success(rawResult.Value is null ? null : new ClusterVarzResponse(
+                ServerId: rawResult.Value.ServerId,
+                ServerName: rawResult.Value.ServerName,
+                ClusterName: rawResult.Value.Cluster,
+                Version: rawResult.Value.Version,
+                Uptime: rawResult.Value.Uptime,
+                UptimeSeconds: NatsMonitoringUptimeParser.ParseSeconds(rawResult.Value.Uptime),
+                Connections: rawResult.Value.Connections,
+                MaxConnections: rawResult.Value.MaxConnections,
+                SlowConsumers: rawResult.Value.SlowConsumers,
+                InMsgs: rawResult.Value.InMsgs,
+                OutMsgs: rawResult.Value.OutMsgs,
+                InBytes: rawResult.Value.InBytes,
+                OutBytes: rawResult.Value.OutBytes,
+                Mem: rawResult.Value.Mem))
+            : MonitoringHttpResult<ClusterVarzResponse>.Failure(rawResult.FailureKind, rawResult.ErrorMessage ?? "Unknown error");
     }
 
     public async Task<ClusterJszResponse?> GetJszAsync(string baseUrl, CancellationToken ct)
+        => (await FetchJszAsync(baseUrl, ct)).Value;
+
+    private Task<MonitoringHttpResult<ClusterJszResponse>> FetchJszAsync(string baseUrl, CancellationToken ct)
     {
         var client = httpClientFactory.CreateClient("NatsClusterMonitoring");
-        var response = await client.GetAsync($"{baseUrl}/jsz", ct);
-        if (response.StatusCode == HttpStatusCode.NotFound)
-            return new ClusterJszResponse(Enabled: false, Streams: 0, Consumers: 0, Messages: 0, Bytes: 0);
-        response.EnsureSuccessStatusCode();
-        var raw = await response.Content.ReadFromJsonAsync<JszRaw>(ct);
-        return raw is null ? null : new ClusterJszResponse(
-            Enabled: true,
-            Streams: raw.Streams,
-            Consumers: raw.Consumers,
-            Messages: raw.Messages,
-            Bytes: raw.Bytes);
+        return client.GetJsonWithHandlingAsync<JszRaw>(
+            $"{baseUrl}/jsz",
+            ct,
+            async (response, cancellationToken) =>
+            {
+                if (response.StatusCode == HttpStatusCode.NotFound)
+                {
+                    return MonitoringHttpResult<ClusterJszResponse>.Success(new ClusterJszResponse(false, 0, 0, 0, 0));
+                }
+
+                response.EnsureSuccessStatusCode();
+                var jsonResult = await response.ReadJsonOrFailureAsync<JszRaw>(cancellationToken);
+                return jsonResult.FailureKind == MonitoringFailureKind.None
+                    ? MonitoringHttpResult<ClusterJszResponse>.Success(jsonResult.Value is null ? null : new ClusterJszResponse(true, jsonResult.Value.Streams, jsonResult.Value.Consumers, jsonResult.Value.Messages, jsonResult.Value.Bytes))
+                    : MonitoringHttpResult<ClusterJszResponse>.Failure(jsonResult.FailureKind, jsonResult.ErrorMessage ?? "Unknown error");
+            });
     }
 
     public async Task<ClusterRoutezResponse?> GetRoutezAsync(string baseUrl, CancellationToken ct)
+        => (await FetchRoutezAsync(baseUrl, ct)).Value;
+
+    private Task<MonitoringHttpResult<ClusterRoutezResponse>> FetchRoutezAsync(string baseUrl, CancellationToken ct)
     {
         var client = httpClientFactory.CreateClient("NatsClusterMonitoring");
-        var response = await client.GetAsync($"{baseUrl}/routez", ct);
-        if (!response.IsSuccessStatusCode) return null;
-        var raw = await response.Content.ReadFromJsonAsync<RoutezRaw>(ct);
-        var routes = raw?.Routes?.Select(r => new SafeRouteInfo(
-            RemoteId: r.RemoteId,
-            RemoteName: r.RemoteName,
-            Solicited: r.Solicited,
-            TlsRequired: r.TlsRequired)).ToList() ?? [];
-        return new ClusterRoutezResponse(routes);
+        return client.GetJsonWithHandlingAsync<RoutezRaw>(
+            $"{baseUrl}/routez",
+            ct,
+            async (response, cancellationToken) =>
+            {
+                if (!response.IsSuccessStatusCode)
+                {
+                    return MonitoringHttpResult<ClusterRoutezResponse>.Success(null);
+                }
+
+                var jsonResult = await response.ReadJsonOrFailureAsync<RoutezRaw>(cancellationToken);
+                if (jsonResult.FailureKind != MonitoringFailureKind.None)
+                {
+                    return MonitoringHttpResult<ClusterRoutezResponse>.Failure(jsonResult.FailureKind, jsonResult.ErrorMessage ?? "Unknown error");
+                }
+
+                var routes = jsonResult.Value?.Routes?.Select(r => new SafeRouteInfo(
+                    RemoteId: r.RemoteId,
+                    RemoteName: r.RemoteName,
+                    Solicited: r.Solicited,
+                    TlsRequired: r.TlsRequired)).ToList() ?? [];
+
+                return MonitoringHttpResult<ClusterRoutezResponse>.Success(new ClusterRoutezResponse(routes));
+            });
     }
 
     public async Task<ClusterGatewayzResponse?> GetGatewayzAsync(string baseUrl, CancellationToken ct)
+        => (await FetchGatewayzAsync(baseUrl, ct)).Value;
+
+    private Task<MonitoringHttpResult<ClusterGatewayzResponse>> FetchGatewayzAsync(string baseUrl, CancellationToken ct)
     {
         var client = httpClientFactory.CreateClient("NatsClusterMonitoring");
-        var response = await client.GetAsync($"{baseUrl}/gatewayz", ct);
-        if (!response.IsSuccessStatusCode) return null;
-        var raw = await response.Content.ReadFromJsonAsync<GatewayzRaw>(ct);
-        var gateways = raw?.OutboundGateways?.Select(kvp => new SafeGatewayInfo(
-            Name: kvp.Key,
-            IsConfigured: true,
-            Status: kvp.Value?.Status)).ToList() ?? [];
-        return new ClusterGatewayzResponse(Name: raw?.Name, Gateways: gateways);
+        return client.GetJsonWithHandlingAsync<GatewayzRaw>(
+            $"{baseUrl}/gatewayz",
+            ct,
+            async (response, cancellationToken) =>
+            {
+                if (!response.IsSuccessStatusCode)
+                {
+                    return MonitoringHttpResult<ClusterGatewayzResponse>.Success(null);
+                }
+
+                var jsonResult = await response.ReadJsonOrFailureAsync<GatewayzRaw>(cancellationToken);
+                if (jsonResult.FailureKind != MonitoringFailureKind.None)
+                {
+                    return MonitoringHttpResult<ClusterGatewayzResponse>.Failure(jsonResult.FailureKind, jsonResult.ErrorMessage ?? "Unknown error");
+                }
+
+                var gateways = jsonResult.Value?.OutboundGateways?.Select(kvp => new SafeGatewayInfo(
+                    Name: kvp.Key,
+                    IsConfigured: true,
+                    Status: kvp.Value?.Status)).ToList() ?? [];
+
+                return MonitoringHttpResult<ClusterGatewayzResponse>.Success(new ClusterGatewayzResponse(jsonResult.Value?.Name, gateways));
+            });
     }
 
     public async Task<ClusterLeafzResponse?> GetLeafzAsync(string baseUrl, CancellationToken ct)
+        => (await FetchLeafzAsync(baseUrl, ct)).Value;
+
+    private Task<MonitoringHttpResult<ClusterLeafzResponse>> FetchLeafzAsync(string baseUrl, CancellationToken ct)
     {
         var client = httpClientFactory.CreateClient("NatsClusterMonitoring");
-        var response = await client.GetAsync($"{baseUrl}/leafz", ct);
-        if (!response.IsSuccessStatusCode) return null;
-        var raw = await response.Content.ReadFromJsonAsync<LeafzRaw>(ct);
-        var leafs = raw?.Leafs?.Select(l => new SafeLeafInfo(
-            Name: l.Name,
-            RemoteUrl: MaskUrl(l.RemoteUrl),
-            IsHub: l.IsHub,
-            InMsgs: l.InMsgs,
-            OutMsgs: l.OutMsgs)).ToList() ?? [];
-        return new ClusterLeafzResponse(leafs);
+        return client.GetJsonWithHandlingAsync<LeafzRaw>(
+            $"{baseUrl}/leafz",
+            ct,
+            async (response, cancellationToken) =>
+            {
+                if (!response.IsSuccessStatusCode)
+                {
+                    return MonitoringHttpResult<ClusterLeafzResponse>.Success(null);
+                }
+
+                var jsonResult = await response.ReadJsonOrFailureAsync<LeafzRaw>(cancellationToken);
+                if (jsonResult.FailureKind != MonitoringFailureKind.None)
+                {
+                    return MonitoringHttpResult<ClusterLeafzResponse>.Failure(jsonResult.FailureKind, jsonResult.ErrorMessage ?? "Unknown error");
+                }
+
+                var leafs = jsonResult.Value?.Leafs?.Select(l => new SafeLeafInfo(
+                    Name: l.Name,
+                    RemoteUrl: MaskUrl(l.RemoteUrl),
+                    IsHub: l.IsHub,
+                    InMsgs: l.InMsgs,
+                    OutMsgs: l.OutMsgs)).ToList() ?? [];
+
+                return MonitoringHttpResult<ClusterLeafzResponse>.Success(new ClusterLeafzResponse(leafs));
+            });
     }
 
-    private static ServerObservation BuildServerObservation(
-        Guid environmentId,
-        ClusterVarzResponse varz,
-        ClusterJszResponse? jsz,
-        DateTimeOffset observedAt)
-    {
-        var status = DeriveServerStatus(varz);
-        return new ServerObservation(
+    private static ServerObservation BuildServerObservation(Guid environmentId, ClusterVarzResponse varz, DateTimeOffset observedAt) =>
+        new(
             EnvironmentId: environmentId,
             ServerId: varz.ServerId ?? "unknown",
             ServerName: varz.ServerName,
             ClusterName: varz.ClusterName,
             Version: varz.Version,
             UptimeSeconds: varz.UptimeSeconds > 0 ? varz.UptimeSeconds : null,
-            Status: status,
+            Status: varz.SlowConsumers > 0 ? ServerStatus.Warning : ServerStatus.Healthy,
             Freshness: ObservationFreshness.Live,
             Connections: varz.Connections,
             MaxConnections: varz.MaxConnections > 0 ? varz.MaxConnections : null,
@@ -210,14 +274,6 @@ public sealed partial class NatsClusterMonitoringHttpAdapter(
             OutBytesPerSecond: null,
             LastObservedAt: observedAt,
             MetricStates: [MetricState.Live]);
-    }
-
-    private static ServerStatus DeriveServerStatus(ClusterVarzResponse varz)
-    {
-        if (varz.SlowConsumers > 0)
-            return ServerStatus.Warning;
-        return ServerStatus.Healthy;
-    }
 
     private static List<TopologyRelationship> BuildTopologyRelationships(
         Guid environmentId,
@@ -233,10 +289,9 @@ public sealed partial class NatsClusterMonitoringHttpAdapter(
             foreach (var route in routez.Routes)
             {
                 var targetId = route.RemoteId ?? $"route-{Guid.NewGuid():N}";
-                var relId = $"route__{targetId}";
                 relationships.Add(new TopologyRelationship(
                     EnvironmentId: environmentId,
-                    RelationshipId: relId,
+                    RelationshipId: $"route__{targetId}",
                     SourceNodeId: "local",
                     TargetNodeId: targetId,
                     Type: TopologyRelationshipType.Route,
@@ -251,23 +306,21 @@ public sealed partial class NatsClusterMonitoringHttpAdapter(
 
         if (gatewayz is not null)
         {
-            foreach (var gw in gatewayz.Gateways)
+            foreach (var gateway in gatewayz.Gateways)
             {
-                var gwId = $"gateway-{gw.Name ?? Guid.NewGuid().ToString("N")}";
-                var relId = $"gateway__{gwId}";
-                var status = gw.Status is "CONNECTED" ? RelationshipStatus.Healthy : RelationshipStatus.Warning;
+                var gatewayId = $"gateway-{gateway.Name ?? Guid.NewGuid():N}";
                 relationships.Add(new TopologyRelationship(
                     EnvironmentId: environmentId,
-                    RelationshipId: relId,
+                    RelationshipId: $"gateway__{gatewayId}",
                     SourceNodeId: "local",
-                    TargetNodeId: gwId,
+                    TargetNodeId: gatewayId,
                     Type: TopologyRelationshipType.Gateway,
                     Direction: RelationshipDirection.Outbound,
-                    Status: status,
+                    Status: gateway.Status is "CONNECTED" ? RelationshipStatus.Healthy : RelationshipStatus.Warning,
                     Freshness: ObservationFreshness.Live,
                     ObservedAt: observedAt,
                     SourceEndpoint: MonitoringEndpoint.Gatewayz,
-                    SafeLabel: $"gateway: {gw.Name ?? "unknown"}"));
+                    SafeLabel: $"gateway: {gateway.Name ?? "unknown"}"));
             }
         }
 
@@ -275,11 +328,10 @@ public sealed partial class NatsClusterMonitoringHttpAdapter(
         {
             foreach (var leaf in leafz.Leafs)
             {
-                var leafId = $"leaf-{leaf.Name ?? Guid.NewGuid().ToString("N")}";
-                var relId = $"leaf__{leafId}";
+                var leafId = $"leaf-{leaf.Name ?? Guid.NewGuid():N}";
                 relationships.Add(new TopologyRelationship(
                     EnvironmentId: environmentId,
-                    RelationshipId: relId,
+                    RelationshipId: $"leaf__{leafId}",
                     SourceNodeId: "local",
                     TargetNodeId: leafId,
                     Type: TopologyRelationshipType.LeafNode,
@@ -295,105 +347,52 @@ public sealed partial class NatsClusterMonitoringHttpAdapter(
         return relationships;
     }
 
-    private static List<ClusterWarning> DeriveWarnings(
-        IReadOnlyList<ServerObservation> servers,
-        MonitoringOptions opts)
+    private static List<ClusterWarning> DeriveWarnings(IReadOnlyList<ServerObservation> servers, MonitoringOptions opts)
     {
         var warnings = new List<ClusterWarning>();
-        foreach (var s in servers)
+        foreach (var server in servers)
         {
-            if (s.SlowConsumers >= opts.SlowConsumerWarningThreshold)
+            if (server.SlowConsumers >= opts.SlowConsumerWarningThreshold)
             {
-                warnings.Add(new ClusterWarning(
-                    Code: "SlowConsumers",
-                    Severity: "Warning",
-                    Message: $"{s.ServerId} has {s.SlowConsumers} slow consumer(s)",
-                    ServerId: s.ServerId));
+                warnings.Add(new ClusterWarning("SlowConsumers", "Warning", $"{server.ServerId} has {server.SlowConsumers} slow consumer(s)", server.ServerId));
             }
 
-            if (s.Freshness == ObservationFreshness.Stale)
+            if (server.Freshness == ObservationFreshness.Stale)
             {
-                warnings.Add(new ClusterWarning(
-                    Code: "StaleServer",
-                    Severity: "Warning",
-                    Message: $"{s.ServerId} has not refreshed within the configured freshness window",
-                    ServerId: s.ServerId));
+                warnings.Add(new ClusterWarning("StaleServer", "Warning", $"{server.ServerId} has not refreshed within the configured freshness window", server.ServerId));
             }
 
-            if (s.Connections.HasValue && s.MaxConnections.HasValue && s.MaxConnections.Value > 0)
+            if (server.Connections.HasValue && server.MaxConnections.HasValue && server.MaxConnections.Value > 0)
             {
-                var pressure = (s.Connections.Value * 100) / s.MaxConnections.Value;
+                var pressure = (server.Connections.Value * 100) / server.MaxConnections.Value;
                 if (pressure >= opts.ConnectionPressureWarningPercent)
                 {
-                    warnings.Add(new ClusterWarning(
-                        Code: "ConnectionPressure",
-                        Severity: "Warning",
-                        Message: $"{s.ServerId} connection pressure at {pressure}%",
-                        ServerId: s.ServerId));
+                    warnings.Add(new ClusterWarning("ConnectionPressure", "Warning", $"{server.ServerId} connection pressure at {pressure}%", server.ServerId));
                 }
             }
         }
+
         return warnings;
-    }
-
-    private static ClusterObservation CreateUnavailableObservation(Guid environmentId, string reason) =>
-        new(
-            EnvironmentId: environmentId,
-            ObservedAt: DateTimeOffset.UtcNow,
-            Status: ClusterStatus.Unavailable,
-            Freshness: ObservationFreshness.Unavailable,
-            ServerCount: 0,
-            DegradedServerCount: 0,
-            JetStreamAvailable: null,
-            ConnectionCount: null,
-            InMsgsPerSecond: null,
-            OutMsgsPerSecond: null,
-            Warnings: [],
-            Servers: [],
-            Topology: []);
-
-    private static long ParseUptimeSeconds(string? uptime)
-    {
-        if (string.IsNullOrEmpty(uptime)) return 0;
-        // NATS reports uptime like "1d2h3m4s" — simple parse
-        long seconds = 0;
-        var s = uptime.AsSpan();
-        while (!s.IsEmpty)
-        {
-            var digitEnd = 0;
-            while (digitEnd < s.Length && char.IsDigit(s[digitEnd])) digitEnd++;
-            if (digitEnd == 0) break;
-            if (!long.TryParse(s[..digitEnd], out var num)) break;
-            s = s[digitEnd..];
-            if (s.IsEmpty) break;
-            switch (s[0])
-            {
-                case 'd': seconds += num * 86400; break;
-                case 'h': seconds += num * 3600; break;
-                case 'm': seconds += num * 60; break;
-                case 's': seconds += num; break;
-            }
-            s = s[1..];
-        }
-        return seconds;
     }
 
     private static string? MaskUrl(string? url)
     {
-        if (url is null) return null;
-        // Mask credentials in URL if present
-        if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        if (url is null)
         {
-            if (!string.IsNullOrEmpty(uri.UserInfo))
-                return $"{uri.Scheme}://***@{uri.Host}:{uri.Port}{uri.PathAndQuery}";
+            return null;
         }
+
+        if (Uri.TryCreate(url, UriKind.Absolute, out var uri) && !string.IsNullOrEmpty(uri.UserInfo))
+        {
+            return $"{uri.Scheme}://***@{uri.Host}:{uri.Port}{uri.PathAndQuery}";
+        }
+
         return url;
     }
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "NATS cluster monitoring endpoint failed: {Endpoint} — {Reason}")]
     private partial void LogEndpointFailed(string endpoint, string reason);
 
-    // Raw JSON shapes — only safe fields mapped; JWT/payload fields intentionally excluded
 #pragma warning disable CS8618
     private sealed class HealthzRaw { public string? Status { get; set; } }
     private sealed class VarzRaw

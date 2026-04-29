@@ -1,13 +1,16 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../../../api/client';
+import { apiEndpoints } from '../../../api/endpoints';
+import { queryKeys } from '../../../api/queryKeys';
+import type { ListResponse } from '../../../api/types';
 import type { KvBucketInfo, KvEntry, KvKeyHistoryEntry, CreateKvBucketRequest, PutKvKeyRequest } from '../types';
 
 export function useKvBuckets(environmentId: string | null) {
   return useQuery({
-    queryKey: ['kv-buckets', environmentId],
+    queryKey: queryKeys.kvBuckets(environmentId),
     queryFn: async () => {
-      const response = await apiClient.get(`/environments/${environmentId}/kv/buckets`);
-      return response.data as KvBucketInfo[];
+      const response = await apiClient.get(apiEndpoints.kvBuckets(environmentId));
+      return response.data as ListResponse<KvBucketInfo>;
     },
     enabled: !!environmentId,
   });
@@ -15,9 +18,9 @@ export function useKvBuckets(environmentId: string | null) {
 
 export function useKvBucket(environmentId: string | null, bucketName: string | undefined) {
   return useQuery({
-    queryKey: ['kv-buckets', environmentId, bucketName],
+    queryKey: queryKeys.kvBucket(environmentId, bucketName),
     queryFn: async () => {
-      const response = await apiClient.get(`/environments/${environmentId}/kv/buckets/${bucketName}`);
+      const response = await apiClient.get(apiEndpoints.kvBucket(environmentId, bucketName));
       return response.data as KvBucketInfo;
     },
     enabled: !!environmentId && !!bucketName,
@@ -26,12 +29,12 @@ export function useKvBucket(environmentId: string | null, bucketName: string | u
 
 export function useKvKeys(environmentId: string | null, bucketName: string | undefined, search?: string) {
   return useQuery({
-    queryKey: ['kv-keys', environmentId, bucketName, search],
+    queryKey: queryKeys.kvKeys(environmentId, bucketName, search),
     queryFn: async () => {
       const params: Record<string, string> = {};
       if (search) params.search = search;
-      const response = await apiClient.get(`/environments/${environmentId}/kv/buckets/${bucketName}/keys`, { params });
-      return response.data as { items: KvEntry[] };
+      const response = await apiClient.get(apiEndpoints.kvKeys(environmentId, bucketName), { params });
+      return response.data as ListResponse<KvEntry>;
     },
     enabled: !!environmentId && !!bucketName,
   });
@@ -39,9 +42,9 @@ export function useKvKeys(environmentId: string | null, bucketName: string | und
 
 export function useKvKey(environmentId: string | null, bucketName: string | undefined, key: string | undefined) {
   return useQuery({
-    queryKey: ['kv-key', environmentId, bucketName, key],
+    queryKey: queryKeys.kvKey(environmentId, bucketName, key),
     queryFn: async () => {
-      const response = await apiClient.get(`/environments/${environmentId}/kv/buckets/${bucketName}/keys/${key}`);
+      const response = await apiClient.get(apiEndpoints.kvKey(environmentId, bucketName, key));
       return response.data as KvEntry;
     },
     enabled: !!environmentId && !!bucketName && !!key,
@@ -50,10 +53,10 @@ export function useKvKey(environmentId: string | null, bucketName: string | unde
 
 export function useKvKeyHistory(environmentId: string | null, bucketName: string | undefined, key: string | undefined) {
   return useQuery({
-    queryKey: ['kv-key-history', environmentId, bucketName, key],
+    queryKey: queryKeys.kvKeyHistory(environmentId, bucketName, key),
     queryFn: async () => {
-      const response = await apiClient.get(`/environments/${environmentId}/kv/buckets/${bucketName}/keys/${key}/history`);
-      return response.data as { entries: KvKeyHistoryEntry[] };
+      const response = await apiClient.get(apiEndpoints.kvKeyHistory(environmentId, bucketName, key));
+      return response.data as ListResponse<KvKeyHistoryEntry>;
     },
     enabled: !!environmentId && !!bucketName && !!key,
   });
@@ -63,10 +66,10 @@ export function useCreateKvBucket(environmentId: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (data: CreateKvBucketRequest) => {
-      await apiClient.post(`/environments/${environmentId}/kv/buckets`, data);
+      await apiClient.post(apiEndpoints.kvBuckets(environmentId), data);
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['kv-buckets', environmentId] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.kvBuckets(environmentId) });
     },
   });
 }
@@ -75,12 +78,12 @@ export function useDeleteKvBucket(environmentId: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (bucketName: string) => {
-      await apiClient.delete(`/environments/${environmentId}/kv/buckets/${bucketName}`, {
+      await apiClient.delete(apiEndpoints.kvBucket(environmentId, bucketName), {
         headers: { 'X-Confirm': 'true' },
       });
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['kv-buckets', environmentId] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.kvBuckets(environmentId) });
     },
   });
 }
@@ -89,13 +92,13 @@ export function usePutKvKey(environmentId: string | null, bucketName: string | u
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ key, ...data }: PutKvKeyRequest & { key: string }) => {
-      const response = await apiClient.put(`/environments/${environmentId}/kv/buckets/${bucketName}/keys/${key}`, data);
+      const response = await apiClient.put(apiEndpoints.kvKey(environmentId, bucketName, key), data);
       return response.data as { revision: number };
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['kv-keys', environmentId, bucketName] });
-      void queryClient.invalidateQueries({ queryKey: ['kv-key', environmentId, bucketName] });
-      void queryClient.invalidateQueries({ queryKey: ['kv-key-history', environmentId, bucketName] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.kvKeys(environmentId, bucketName) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.kvKey(environmentId, bucketName) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.kvKeyHistory(environmentId, bucketName) });
     },
   });
 }
@@ -104,13 +107,13 @@ export function useDeleteKvKey(environmentId: string | null, bucketName: string 
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (key: string) => {
-      await apiClient.delete(`/environments/${environmentId}/kv/buckets/${bucketName}/keys/${key}`, {
+      await apiClient.delete(apiEndpoints.kvKey(environmentId, bucketName, key), {
         headers: { 'X-Confirm': 'true' },
       });
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['kv-keys', environmentId, bucketName] });
-      void queryClient.invalidateQueries({ queryKey: ['kv-key', environmentId, bucketName] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.kvKeys(environmentId, bucketName) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.kvKey(environmentId, bucketName) });
     },
   });
 }

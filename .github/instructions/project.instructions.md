@@ -9,7 +9,7 @@ applyTo: "**"
 | Layer | Technology |
 |-------|-----------|
 | Backend | .NET 10, ASP.NET Core Minimal APIs, EF Core (SQLite), NATS.Net v2 |
-| Frontend | React 19, TypeScript (strict), Mantine 7, TanStack Query, Vite |
+| Frontend | React 19, TypeScript (strict), Mantine 9, TanStack Query, Vite |
 | Orchestration | .NET Aspire |
 | Testing | xUnit v3 + MTP v2, Shouldly, NSubstitute, Vitest, React Testing Library, Playwright |
 
