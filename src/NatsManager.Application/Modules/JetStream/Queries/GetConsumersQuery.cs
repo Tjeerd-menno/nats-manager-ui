@@ -1,3 +1,4 @@
+using FluentValidation;
 using NatsManager.Application.Common;
 using NatsManager.Application.Modules.JetStream.Models;
 using NatsManager.Application.Modules.JetStream.Ports;
@@ -14,6 +15,15 @@ public sealed record GetConsumersQuery : PaginatedQuery<ConsumerInfo>
 
     public Guid EnvironmentId { get; init; }
     public string StreamName { get; init; }
+}
+
+public sealed class GetConsumersQueryValidator : AbstractValidator<GetConsumersQuery>
+{
+    public GetConsumersQueryValidator()
+    {
+        RuleFor(query => query.Page).GreaterThanOrEqualTo(1);
+        RuleFor(query => query.PageSize).GreaterThanOrEqualTo(1);
+    }
 }
 
 public sealed class GetConsumersQueryHandler(

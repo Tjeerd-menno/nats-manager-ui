@@ -200,4 +200,20 @@ public sealed class GetConsumersQueryTests
         outputPort.Value!.Items.Count.ShouldBe(1);
         outputPort.Value!.Items[0].Name.ShouldBe("consumer-1");
     }
+
+    [Theory]
+    [InlineData(0, 25, nameof(GetConsumersQuery.Page))]
+    [InlineData(1, 0, nameof(GetConsumersQuery.PageSize))]
+    public void Validator_WithInvalidPagination_ShouldFail(int page, int pageSize, string propertyName)
+    {
+        var validator = new GetConsumersQueryValidator();
+        var result = validator.Validate(new GetConsumersQuery(Guid.NewGuid(), "stream")
+        {
+            Page = page,
+            PageSize = pageSize
+        });
+
+        result.IsValid.ShouldBeFalse();
+        result.Errors.ShouldContain(error => error.PropertyName == propertyName);
+    }
 }
