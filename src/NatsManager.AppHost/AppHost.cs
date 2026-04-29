@@ -20,6 +20,28 @@ var backend = builder.AddProject<Projects.NatsManager_Web>("backend")
     .WithEnvironment("CoreNats__Monitoring__BaseUrl", nats.GetEndpoint("monitoring"))
     .WaitFor(nats);
 
+// Optional PostgreSQL provider — opt-in via the DATABASE_PROVIDER environment variable
+// (set to "Postgres") so that the default `aspire run` experience remains zero-config SQLite.
+// When enabled, Aspire spins up a Postgres container, creates the `natsmanager` database, and
+// injects the connection string as `ConnectionStrings__natsmanager`. The backend is configured
+// to read it from `ConnectionStrings__DefaultConnection` and to use the Postgres provider.
+var databaseProvider = builder.Configuration["DATABASE_PROVIDER"]
+    ?? Environment.GetEnvironmentVariable("DATABASE_PROVIDER");
+
+if (string.Equals(databaseProvider, "Postgres", StringComparison.OrdinalIgnoreCase))
+{
+    var postgres = builder.AddPostgres("postgres")
+        .WithDataVolume()
+        .WithLifetime(ContainerLifetime.Persistent);
+    var natsManagerDb = postgres.AddDatabase("natsmanager");
+
+    backend
+        .WithReference(natsManagerDb)
+        .WithEnvironment("Database__Provider", "Postgres")
+        .WithEnvironment("ConnectionStrings__DefaultConnection", natsManagerDb)
+        .WaitFor(natsManagerDb);
+}
+
 builder.AddViteApp("frontend", "../NatsManager.Frontend", "dev")
     .WithReference(backend)
     .WaitFor(backend);
