@@ -60,7 +60,7 @@ jobs:
 
       - name: Run .NET unit tests
         run: |
-          dotnet test tests/NatsManager.Domain.Tests/NatsManager.Domain.Tests.csproj --configuration Release --no-build --verbosity minimal
-          dotnet test tests/NatsManager.Application.Tests/NatsManager.Application.Tests.csproj --configuration Release --no-build --verbosity minimal
-          dotnet test tests/NatsManager.Infrastructure.Tests/NatsManager.Infrastructure.Tests.csproj --configuration Release --no-build --verbosity minimal
-          dotnet test tests/NatsManager.Web.Tests/NatsManager.Web.Tests.csproj --configuration Release --no-build --verbosity minimal
+          dotnet test --project tests/NatsManager.Domain.Tests/NatsManager.Domain.Tests.csproj --configuration Release --no-restore --verbosity minimal
+          dotnet test --project tests/NatsManager.Application.Tests/NatsManager.Application.Tests.csproj --configuration Release --no-restore --verbosity minimal
+          dotnet test --project tests/NatsManager.Infrastructure.Tests/NatsManager.Infrastructure.Tests.csproj --configuration Release --no-restore --verbosity minimal
+          dotnet test --project tests/NatsManager.Web.Tests/NatsManager.Web.Tests.csproj --configuration Release --no-restore --verbosity minimal
