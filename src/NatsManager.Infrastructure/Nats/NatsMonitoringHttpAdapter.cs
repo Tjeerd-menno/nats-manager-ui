@@ -49,7 +49,7 @@ public sealed partial class NatsMonitoringHttpAdapter(
                 return await response.ReadJsonOrFailureAsync<NatsJszResponse>(cancellationToken);
             });
 
-        var degraded = jszResult.FailureKind != MonitoringFailureKind.None || jszResult.Value is null;
+        var degraded = jszResult.FailureKind != MonitoringFailureKind.None;
         if (jszResult.FailureKind != MonitoringFailureKind.None)
         {
             LogFetchFailed($"{baseUrl}/jsz", jszResult.ErrorMessage ?? "Unknown error");
