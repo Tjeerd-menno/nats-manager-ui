@@ -33,7 +33,7 @@ public static class ObjectStoreEndpoints
     {
         var presenter = new Presenter<IReadOnlyList<ObjectBucketInfo>>();
         await useCase.ExecuteAsync(new GetObjectBucketsQuery(envId), presenter, cancellationToken);
-        return presenter.IsSuccess ? Results.Ok(ListResponse<ObjectBucketInfo>.From(presenter.Value!)) : presenter.ToResult();
+        return presenter.IsSuccess ? Results.Ok(new ListResponse<ObjectBucketInfo>(presenter.Value!)) : presenter.ToResult();
     }
 
     private static async Task<IResult> GetBucketDetail(Guid envId, string bucket, IUseCase<GetObjectBucketDetailQuery, ObjectBucketInfo> useCase, CancellationToken cancellationToken)
@@ -75,7 +75,7 @@ public static class ObjectStoreEndpoints
     {
         var presenter = new Presenter<IReadOnlyList<ObjectInfo>>();
         await useCase.ExecuteAsync(new GetObjectsQuery(envId, bucket), presenter, cancellationToken);
-        return presenter.IsSuccess ? Results.Ok(ListResponse<ObjectInfo>.From(presenter.Value!)) : presenter.ToResult();
+        return presenter.IsSuccess ? Results.Ok(new ListResponse<ObjectInfo>(presenter.Value!)) : presenter.ToResult();
     }
 
     private static async Task<IResult> GetObjectDetail(Guid envId, string bucket, string objectName, IUseCase<GetObjectDetailQuery, ObjectInfo> useCase, CancellationToken cancellationToken)

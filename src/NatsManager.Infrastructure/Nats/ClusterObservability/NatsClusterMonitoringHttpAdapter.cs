@@ -87,24 +87,25 @@ public sealed partial class NatsClusterMonitoringHttpAdapter(
     public async Task<ClusterHealthzResponse?> GetHealthzAsync(string baseUrl, CancellationToken ct)
         => (await FetchHealthzAsync(baseUrl, ct)).Value;
 
-    private Task<MonitoringHttpResult<ClusterHealthzResponse>> FetchHealthzAsync(string baseUrl, CancellationToken ct)
+    private async Task<MonitoringHttpResult<ClusterHealthzResponse>> FetchHealthzAsync(string baseUrl, CancellationToken ct)
     {
         var client = httpClientFactory.CreateClient("NatsClusterMonitoring");
-        return client.GetJsonWithHandlingAsync<HealthzRaw>(
+        var rawResult = await client.GetJsonWithHandlingAsync<HealthzRaw>(
             $"{baseUrl}/healthz",
             ct,
             async (response, cancellationToken) =>
             {
                 if (!response.IsSuccessStatusCode)
                 {
-                    return MonitoringHttpResult<ClusterHealthzResponse>.Success(null);
+                    return MonitoringHttpResult<HealthzRaw>.Success(null);
                 }
 
-                var jsonResult = await response.ReadJsonOrFailureAsync<HealthzRaw>(cancellationToken);
-                return jsonResult.FailureKind == MonitoringFailureKind.None
-                    ? MonitoringHttpResult<ClusterHealthzResponse>.Success(jsonResult.Value is null ? null : new ClusterHealthzResponse(jsonResult.Value.Status ?? "unknown", null))
-                    : MonitoringHttpResult<ClusterHealthzResponse>.Failure(jsonResult.FailureKind, jsonResult.ErrorMessage ?? "Unknown error");
+                return await response.ReadJsonOrFailureAsync<HealthzRaw>(cancellationToken);
             });
+
+        return rawResult.FailureKind == MonitoringFailureKind.None
+            ? MonitoringHttpResult<ClusterHealthzResponse>.Success(rawResult.Value is null ? null : new ClusterHealthzResponse(rawResult.Value.Status ?? "unknown", null))
+            : MonitoringHttpResult<ClusterHealthzResponse>.Failure(rawResult.FailureKind, rawResult.ErrorMessage ?? "Unknown error");
     }
 
     public async Task<ClusterVarzResponse?> GetVarzAsync(string baseUrl, CancellationToken ct)
@@ -136,121 +137,129 @@ public sealed partial class NatsClusterMonitoringHttpAdapter(
     public async Task<ClusterJszResponse?> GetJszAsync(string baseUrl, CancellationToken ct)
         => (await FetchJszAsync(baseUrl, ct)).Value;
 
-    private Task<MonitoringHttpResult<ClusterJszResponse>> FetchJszAsync(string baseUrl, CancellationToken ct)
+    private async Task<MonitoringHttpResult<ClusterJszResponse>> FetchJszAsync(string baseUrl, CancellationToken ct)
     {
         var client = httpClientFactory.CreateClient("NatsClusterMonitoring");
-        return client.GetJsonWithHandlingAsync<JszRaw>(
+        var rawResult = await client.GetJsonWithHandlingAsync<JszRaw>(
             $"{baseUrl}/jsz",
             ct,
             async (response, cancellationToken) =>
             {
                 if (response.StatusCode == HttpStatusCode.NotFound)
                 {
-                    return MonitoringHttpResult<ClusterJszResponse>.Success(new ClusterJszResponse(false, 0, 0, 0, 0));
+                    return MonitoringHttpResult<JszRaw>.Success(null);
                 }
 
                 response.EnsureSuccessStatusCode();
-                var jsonResult = await response.ReadJsonOrFailureAsync<JszRaw>(cancellationToken);
-                return jsonResult.FailureKind == MonitoringFailureKind.None
-                    ? MonitoringHttpResult<ClusterJszResponse>.Success(jsonResult.Value is null ? null : new ClusterJszResponse(true, jsonResult.Value.Streams, jsonResult.Value.Consumers, jsonResult.Value.Messages, jsonResult.Value.Bytes))
-                    : MonitoringHttpResult<ClusterJszResponse>.Failure(jsonResult.FailureKind, jsonResult.ErrorMessage ?? "Unknown error");
+                return await response.ReadJsonOrFailureAsync<JszRaw>(cancellationToken);
             });
+
+        if (rawResult.FailureKind != MonitoringFailureKind.None)
+        {
+            return MonitoringHttpResult<ClusterJszResponse>.Failure(rawResult.FailureKind, rawResult.ErrorMessage ?? "Unknown error");
+        }
+
+        return MonitoringHttpResult<ClusterJszResponse>.Success(
+            rawResult.Value is null ? new ClusterJszResponse(false, 0, 0, 0, 0) : new ClusterJszResponse(true, rawResult.Value.Streams, rawResult.Value.Consumers, rawResult.Value.Messages, rawResult.Value.Bytes));
     }
 
     public async Task<ClusterRoutezResponse?> GetRoutezAsync(string baseUrl, CancellationToken ct)
         => (await FetchRoutezAsync(baseUrl, ct)).Value;
 
-    private Task<MonitoringHttpResult<ClusterRoutezResponse>> FetchRoutezAsync(string baseUrl, CancellationToken ct)
+    private async Task<MonitoringHttpResult<ClusterRoutezResponse>> FetchRoutezAsync(string baseUrl, CancellationToken ct)
     {
         var client = httpClientFactory.CreateClient("NatsClusterMonitoring");
-        return client.GetJsonWithHandlingAsync<RoutezRaw>(
+        var rawResult = await client.GetJsonWithHandlingAsync<RoutezRaw>(
             $"{baseUrl}/routez",
             ct,
             async (response, cancellationToken) =>
             {
                 if (!response.IsSuccessStatusCode)
                 {
-                    return MonitoringHttpResult<ClusterRoutezResponse>.Success(null);
+                    return MonitoringHttpResult<RoutezRaw>.Success(null);
                 }
 
-                var jsonResult = await response.ReadJsonOrFailureAsync<RoutezRaw>(cancellationToken);
-                if (jsonResult.FailureKind != MonitoringFailureKind.None)
-                {
-                    return MonitoringHttpResult<ClusterRoutezResponse>.Failure(jsonResult.FailureKind, jsonResult.ErrorMessage ?? "Unknown error");
-                }
-
-                var routes = jsonResult.Value?.Routes?.Select(r => new SafeRouteInfo(
-                    RemoteId: r.RemoteId,
-                    RemoteName: r.RemoteName,
-                    Solicited: r.Solicited,
-                    TlsRequired: r.TlsRequired)).ToList() ?? [];
-
-                return MonitoringHttpResult<ClusterRoutezResponse>.Success(new ClusterRoutezResponse(routes));
+                return await response.ReadJsonOrFailureAsync<RoutezRaw>(cancellationToken);
             });
+
+        if (rawResult.FailureKind != MonitoringFailureKind.None)
+        {
+            return MonitoringHttpResult<ClusterRoutezResponse>.Failure(rawResult.FailureKind, rawResult.ErrorMessage ?? "Unknown error");
+        }
+
+        var routes = rawResult.Value?.Routes?.Select(route => new SafeRouteInfo(
+            RemoteId: route.RemoteId,
+            RemoteName: route.RemoteName,
+            Solicited: route.Solicited,
+            TlsRequired: route.TlsRequired)).ToList() ?? [];
+
+        return MonitoringHttpResult<ClusterRoutezResponse>.Success(new ClusterRoutezResponse(routes));
     }
 
     public async Task<ClusterGatewayzResponse?> GetGatewayzAsync(string baseUrl, CancellationToken ct)
         => (await FetchGatewayzAsync(baseUrl, ct)).Value;
 
-    private Task<MonitoringHttpResult<ClusterGatewayzResponse>> FetchGatewayzAsync(string baseUrl, CancellationToken ct)
+    private async Task<MonitoringHttpResult<ClusterGatewayzResponse>> FetchGatewayzAsync(string baseUrl, CancellationToken ct)
     {
         var client = httpClientFactory.CreateClient("NatsClusterMonitoring");
-        return client.GetJsonWithHandlingAsync<GatewayzRaw>(
+        var rawResult = await client.GetJsonWithHandlingAsync<GatewayzRaw>(
             $"{baseUrl}/gatewayz",
             ct,
             async (response, cancellationToken) =>
             {
                 if (!response.IsSuccessStatusCode)
                 {
-                    return MonitoringHttpResult<ClusterGatewayzResponse>.Success(null);
+                    return MonitoringHttpResult<GatewayzRaw>.Success(null);
                 }
 
-                var jsonResult = await response.ReadJsonOrFailureAsync<GatewayzRaw>(cancellationToken);
-                if (jsonResult.FailureKind != MonitoringFailureKind.None)
-                {
-                    return MonitoringHttpResult<ClusterGatewayzResponse>.Failure(jsonResult.FailureKind, jsonResult.ErrorMessage ?? "Unknown error");
-                }
-
-                var gateways = jsonResult.Value?.OutboundGateways?.Select(kvp => new SafeGatewayInfo(
-                    Name: kvp.Key,
-                    IsConfigured: true,
-                    Status: kvp.Value?.Status)).ToList() ?? [];
-
-                return MonitoringHttpResult<ClusterGatewayzResponse>.Success(new ClusterGatewayzResponse(jsonResult.Value?.Name, gateways));
+                return await response.ReadJsonOrFailureAsync<GatewayzRaw>(cancellationToken);
             });
+
+        if (rawResult.FailureKind != MonitoringFailureKind.None)
+        {
+            return MonitoringHttpResult<ClusterGatewayzResponse>.Failure(rawResult.FailureKind, rawResult.ErrorMessage ?? "Unknown error");
+        }
+
+        var gateways = rawResult.Value?.OutboundGateways?.Select(gateway => new SafeGatewayInfo(
+            Name: gateway.Key,
+            IsConfigured: true,
+            Status: gateway.Value?.Status)).ToList() ?? [];
+
+        return MonitoringHttpResult<ClusterGatewayzResponse>.Success(new ClusterGatewayzResponse(rawResult.Value?.Name, gateways));
     }
 
     public async Task<ClusterLeafzResponse?> GetLeafzAsync(string baseUrl, CancellationToken ct)
         => (await FetchLeafzAsync(baseUrl, ct)).Value;
 
-    private Task<MonitoringHttpResult<ClusterLeafzResponse>> FetchLeafzAsync(string baseUrl, CancellationToken ct)
+    private async Task<MonitoringHttpResult<ClusterLeafzResponse>> FetchLeafzAsync(string baseUrl, CancellationToken ct)
     {
         var client = httpClientFactory.CreateClient("NatsClusterMonitoring");
-        return client.GetJsonWithHandlingAsync<LeafzRaw>(
+        var rawResult = await client.GetJsonWithHandlingAsync<LeafzRaw>(
             $"{baseUrl}/leafz",
             ct,
             async (response, cancellationToken) =>
             {
                 if (!response.IsSuccessStatusCode)
                 {
-                    return MonitoringHttpResult<ClusterLeafzResponse>.Success(null);
+                    return MonitoringHttpResult<LeafzRaw>.Success(null);
                 }
 
-                var jsonResult = await response.ReadJsonOrFailureAsync<LeafzRaw>(cancellationToken);
-                if (jsonResult.FailureKind != MonitoringFailureKind.None)
-                {
-                    return MonitoringHttpResult<ClusterLeafzResponse>.Failure(jsonResult.FailureKind, jsonResult.ErrorMessage ?? "Unknown error");
-                }
-
-                var leafs = jsonResult.Value?.Leafs?.Select(l => new SafeLeafInfo(
-                    Name: l.Name,
-                    RemoteUrl: MaskUrl(l.RemoteUrl),
-                    IsHub: l.IsHub,
-                    InMsgs: l.InMsgs,
-                    OutMsgs: l.OutMsgs)).ToList() ?? [];
-
-                return MonitoringHttpResult<ClusterLeafzResponse>.Success(new ClusterLeafzResponse(leafs));
+                return await response.ReadJsonOrFailureAsync<LeafzRaw>(cancellationToken);
             });
+
+        if (rawResult.FailureKind != MonitoringFailureKind.None)
+        {
+            return MonitoringHttpResult<ClusterLeafzResponse>.Failure(rawResult.FailureKind, rawResult.ErrorMessage ?? "Unknown error");
+        }
+
+        var leafs = rawResult.Value?.Leafs?.Select(leaf => new SafeLeafInfo(
+            Name: leaf.Name,
+            RemoteUrl: MaskUrl(leaf.RemoteUrl),
+            IsHub: leaf.IsHub,
+            InMsgs: leaf.InMsgs,
+            OutMsgs: leaf.OutMsgs)).ToList() ?? [];
+
+        return MonitoringHttpResult<ClusterLeafzResponse>.Success(new ClusterLeafzResponse(leafs));
     }
 
     private static ServerObservation BuildServerObservation(Guid environmentId, ClusterVarzResponse varz, DateTimeOffset observedAt) =>
@@ -308,7 +317,7 @@ public sealed partial class NatsClusterMonitoringHttpAdapter(
         {
             foreach (var gateway in gatewayz.Gateways)
             {
-                var gatewayId = $"gateway-{gateway.Name ?? Guid.NewGuid():N}";
+                var gatewayId = $"gateway-{gateway.Name ?? Guid.NewGuid().ToString("N")}";
                 relationships.Add(new TopologyRelationship(
                     EnvironmentId: environmentId,
                     RelationshipId: $"gateway__{gatewayId}",
@@ -328,7 +337,7 @@ public sealed partial class NatsClusterMonitoringHttpAdapter(
         {
             foreach (var leaf in leafz.Leafs)
             {
-                var leafId = $"leaf-{leaf.Name ?? Guid.NewGuid():N}";
+                var leafId = $"leaf-{leaf.Name ?? Guid.NewGuid().ToString("N")}";
                 relationships.Add(new TopologyRelationship(
                     EnvironmentId: environmentId,
                     RelationshipId: $"leaf__{leafId}",

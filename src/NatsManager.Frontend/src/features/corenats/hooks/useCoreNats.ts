@@ -128,6 +128,7 @@ export function useLiveMessages(environmentId: string | null): UseLiveMessagesRe
           setMessages((prev) => [msg, ...prev].slice(0, capRef.current));
         }
       } catch {
+        return;
       }
     });
   }, [environmentId, unsubscribe]);

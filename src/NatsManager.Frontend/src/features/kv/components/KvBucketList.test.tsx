@@ -41,10 +41,12 @@ describe('KvBucketList', () => {
 
   it('renders buckets', () => {
     mockUseKvBuckets.mockReturnValue({
-      data: [
-        { bucketName: 'config', entries: 10, bytes: 1024, description: 'Config data' },
-        { bucketName: 'sessions', entries: 5, bytes: 512, description: '' },
-      ],
+      data: {
+        items: [
+          { bucketName: 'config', keyCount: 10, byteCount: 1024, history: 1, ttl: null },
+          { bucketName: 'sessions', keyCount: 5, byteCount: 512, history: 1, ttl: null },
+        ],
+      },
       isLoading: false,
     } as unknown as ReturnType<typeof useKvBuckets>);
 
@@ -55,7 +57,7 @@ describe('KvBucketList', () => {
 
   it('shows empty state when no buckets', () => {
     mockUseKvBuckets.mockReturnValue({
-      data: [],
+      data: { items: [] },
       isLoading: false,
     } as unknown as ReturnType<typeof useKvBuckets>);
 
