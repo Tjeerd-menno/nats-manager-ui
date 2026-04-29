@@ -80,6 +80,7 @@ public sealed class DatabaseInitializerPostgresTests : IAsyncLifetime
                 Password = "Bootstrap123!",
                 DisplayName = "Bootstrap Admin"
             }),
+            new PasswordHasher(),
             NullLogger<DatabaseInitializer>.Instance);
 
         await initializer.InitializeAsync();
@@ -115,13 +116,13 @@ public sealed class DatabaseInitializerPostgresTests : IAsyncLifetime
 
         await using (var context = CreatePostgresContext(_container.GetConnectionString()))
         {
-            var initializer = new DatabaseInitializer(context, Options.Create(bootstrap), NullLogger<DatabaseInitializer>.Instance);
+            var initializer = new DatabaseInitializer(context, Options.Create(bootstrap), new PasswordHasher(), NullLogger<DatabaseInitializer>.Instance);
             await initializer.InitializeAsync();
         }
 
         await using (var context = CreatePostgresContext(_container.GetConnectionString()))
         {
-            var initializer = new DatabaseInitializer(context, Options.Create(bootstrap), NullLogger<DatabaseInitializer>.Instance);
+            var initializer = new DatabaseInitializer(context, Options.Create(bootstrap), new PasswordHasher(), NullLogger<DatabaseInitializer>.Instance);
             await initializer.InitializeAsync();
 
             (await context.Users.CountAsync()).ShouldBe(1);
