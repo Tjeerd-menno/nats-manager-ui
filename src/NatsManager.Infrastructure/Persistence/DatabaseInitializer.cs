@@ -16,7 +16,13 @@ public sealed partial class DatabaseInitializer(
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
         await context.Database.MigrateAsync(cancellationToken);
-        await context.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;", cancellationToken);
+
+        // SQLite-only: enable Write-Ahead Logging for better concurrency. PostgreSQL has its own
+        // WAL implementation enabled by default and does not support PRAGMA, so this is gated.
+        if (context.Database.IsSqlite())
+        {
+            await context.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;", cancellationToken);
+        }
 
         await SeedRolesAsync(cancellationToken);
         await SeedDefaultAdminAsync(cancellationToken);

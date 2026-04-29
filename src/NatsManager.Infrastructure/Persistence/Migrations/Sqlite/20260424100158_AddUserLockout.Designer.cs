@@ -8,7 +8,7 @@ using NatsManager.Infrastructure.Persistence;
 
 #nullable disable
 
-namespace NatsManager.Infrastructure.Persistence.Migrations
+namespace NatsManager.Infrastructure.Persistence.Migrations.Sqlite
 {
     [DbContext(typeof(AppDbContext))]
     [Migration("20260424100158_AddUserLockout")]
