@@ -1,17 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../../../api/client';
+import { apiEndpoints, toApiUrl } from '../../../api/endpoints';
+import { pollingIntervals } from '../../../api/queryConfig';
+import { queryKeys } from '../../../api/queryKeys';
 import type { NatsServerInfo, NatsSubjectInfo, PublishRequest, NatsLiveMessage } from '../types';
 
 export function useCoreNatsStatus(environmentId: string | null) {
   return useQuery({
-    queryKey: ['core-nats-status', environmentId],
+    queryKey: queryKeys.coreNatsStatus(environmentId),
     queryFn: async () => {
-      const response = await apiClient.get(`/environments/${environmentId}/core-nats/status`);
+      const response = await apiClient.get(apiEndpoints.coreNatsStatus(environmentId));
       return response.data as NatsServerInfo;
     },
     enabled: !!environmentId,
-    refetchInterval: 15000,
+    refetchInterval: pollingIntervals.coreNats,
   });
 }
 
@@ -24,11 +27,9 @@ export interface UseSubjectsResult {
 
 export function useSubjects(environmentId: string | null): UseSubjectsResult {
   const query = useQuery({
-    queryKey: ['core-nats-subjects', environmentId],
+    queryKey: queryKeys.coreNatsSubjects(environmentId),
     queryFn: async () => {
-      const response = await apiClient.get<NatsSubjectInfo[]>(
-        `/environments/${environmentId}/core-nats/subjects`
-      );
+      const response = await apiClient.get<NatsSubjectInfo[]>(apiEndpoints.coreNatsSubjects(environmentId));
       const source = response.headers['x-subjects-source'];
       return {
         data: response.data,
@@ -36,7 +37,7 @@ export function useSubjects(environmentId: string | null): UseSubjectsResult {
       };
     },
     enabled: !!environmentId,
-    refetchInterval: 15000,
+    refetchInterval: pollingIntervals.coreNats,
   });
 
   return {
@@ -51,10 +52,10 @@ export function usePublishMessage(environmentId: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (request: PublishRequest) => {
-      await apiClient.post(`/environments/${environmentId}/core-nats/publish`, request);
+      await apiClient.post(apiEndpoints.coreNatsPublish(environmentId), request);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['core-nats-status', environmentId] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.coreNatsStatus(environmentId) });
     },
   });
 }
@@ -108,8 +109,7 @@ export function useLiveMessages(environmentId: string | null): UseLiveMessagesRe
     unsubscribe();
     if (!environmentId) return;
 
-    const url = `/api/environments/${environmentId}/core-nats/stream?subject=${encodeURIComponent(subject)}`;
-    const es = new EventSource(url);
+    const es = new EventSource(toApiUrl(apiEndpoints.coreNatsStream(environmentId, subject)));
     eventSourceRef.current = es;
 
     es.addEventListener('open', () => setIsConnected(true));
@@ -128,7 +128,7 @@ export function useLiveMessages(environmentId: string | null): UseLiveMessagesRe
           setMessages((prev) => [msg, ...prev].slice(0, capRef.current));
         }
       } catch {
-        // ignore parse errors
+        return;
       }
     });
   }, [environmentId, unsubscribe]);
@@ -157,14 +157,7 @@ export function useLiveMessages(environmentId: string | null): UseLiveMessagesRe
     setMessages((prev) => prev.slice(0, clamped));
   }, []);
 
-  useEffect(() => {
-    return () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-        eventSourceRef.current = null;
-      }
-    };
-  }, []);
+  useEffect(() => unsubscribe, [unsubscribe]);
 
   return {
     messages,

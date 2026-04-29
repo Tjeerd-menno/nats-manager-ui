@@ -15,7 +15,7 @@ applyTo: "src/NatsManager.Domain/**,src/NatsManager.Application/**,src/NatsManag
 
 ## Use Case Pattern
 
-Every command/query is an `IUseCase<TRequest, TResult>`. Results flow through `IOutputPort<T>`, never as return values or exceptions.
+Every command/query is an `IUseCase<TRequest, TResult>`. Results flow through `IOutputPort<T>`, never as return values or exceptions. Endpoint presenters and test `TestOutputPort<T>` implementations both rely on the same outcome contract.
 
 ```csharp
 public sealed class MyCommandHandler(IMyPort port, IAuditTrail auditTrail)

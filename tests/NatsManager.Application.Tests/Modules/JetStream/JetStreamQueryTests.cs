@@ -193,11 +193,27 @@ public sealed class GetConsumersQueryTests
 
         _adapter.ListConsumersAsync(envId, "stream", Arg.Any<CancellationToken>()).Returns(consumers);
 
-        var outputPort = new TestOutputPort<IReadOnlyList<ConsumerInfo>>();
-        await _handler.ExecuteAsync(new GetConsumersQuery(envId, "stream"), outputPort, CancellationToken.None);
+        var outputPort = new TestOutputPort<PaginatedResult<ConsumerInfo>>();
+        await _handler.ExecuteAsync(new GetConsumersQuery(envId, "stream") { Page = 1, PageSize = 25 }, outputPort, CancellationToken.None);
 
         outputPort.IsSuccess.ShouldBeTrue();
-        outputPort.Value.Count().ShouldBe(1);
-        outputPort.Value![0].Name.ShouldBe("consumer-1");
+        outputPort.Value!.Items.Count.ShouldBe(1);
+        outputPort.Value!.Items[0].Name.ShouldBe("consumer-1");
+    }
+
+    [Theory]
+    [InlineData(0, 25, nameof(GetConsumersQuery.Page))]
+    [InlineData(1, 0, nameof(GetConsumersQuery.PageSize))]
+    public void Validator_WithInvalidPagination_ShouldFail(int page, int pageSize, string propertyName)
+    {
+        var validator = new GetConsumersQueryValidator();
+        var result = validator.Validate(new GetConsumersQuery(Guid.NewGuid(), "stream")
+        {
+            Page = page,
+            PageSize = pageSize
+        });
+
+        result.IsValid.ShouldBeFalse();
+        result.Errors.ShouldContain(error => error.PropertyName == propertyName);
     }
 }

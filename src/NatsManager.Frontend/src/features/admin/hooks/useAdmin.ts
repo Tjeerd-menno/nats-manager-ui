@@ -1,55 +1,35 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../../../api/client';
-
-interface UserDto {
-  id: string;
-  username: string;
-  displayName: string;
-  isActive: boolean;
-  createdAt: string;
-  lastLoginAt: string | null;
-}
-
-interface RoleDto {
-  id: string;
-  name: string;
-  description: string;
-}
-
-interface UserRoleDto {
-  assignmentId: string;
-  roleId: string;
-  roleName: string;
-  environmentId: string | null;
-  assignedAt: string;
-}
+import { apiEndpoints } from '../../../api/endpoints';
+import { queryKeys } from '../../../api/queryKeys';
+import type { Role, User, UserRole } from '../types';
 
 export function useUsers() {
   return useQuery({
-    queryKey: ['users'],
+    queryKey: queryKeys.users(),
     queryFn: async () => {
-      const response = await apiClient.get('/access-control/users');
-      return response.data as UserDto[];
+      const response = await apiClient.get(apiEndpoints.users());
+      return response.data as User[];
     },
   });
 }
 
 export function useRoles() {
   return useQuery({
-    queryKey: ['roles'],
+    queryKey: queryKeys.roles(),
     queryFn: async () => {
-      const response = await apiClient.get('/access-control/roles');
-      return response.data as RoleDto[];
+      const response = await apiClient.get(apiEndpoints.roles());
+      return response.data as Role[];
     },
   });
 }
 
 export function useUserRoles(userId: string | undefined) {
   return useQuery({
-    queryKey: ['user-roles', userId],
+    queryKey: queryKeys.userRoles(userId),
     queryFn: async () => {
-      const response = await apiClient.get(`/access-control/users/${userId}/roles`);
-      return response.data as UserRoleDto[];
+      const response = await apiClient.get(apiEndpoints.userRoles(userId));
+      return response.data as UserRole[];
     },
     enabled: !!userId,
   });
@@ -59,11 +39,11 @@ export function useCreateUser() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (data: { username: string; displayName: string; password: string }) => {
-      const response = await apiClient.post('/access-control/users', data);
+      const response = await apiClient.post(apiEndpoints.users(), data);
       return response.data as { id: string };
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['users'] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.users() });
     },
   });
 }
@@ -72,10 +52,10 @@ export function useDeactivateUser() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (userId: string) => {
-      await apiClient.delete(`/access-control/users/${userId}`);
+      await apiClient.delete(`${apiEndpoints.users()}/${userId}`);
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['users'] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.users() });
     },
   });
 }
@@ -84,10 +64,10 @@ export function useAssignRole() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ userId, roleId, environmentId }: { userId: string; roleId: string; environmentId?: string }) => {
-      await apiClient.post(`/access-control/users/${userId}/roles`, { roleId, environmentId });
+      await apiClient.post(apiEndpoints.userRoles(userId), { roleId, environmentId });
     },
     onSuccess: (_data, variables) => {
-      void queryClient.invalidateQueries({ queryKey: ['user-roles', variables.userId] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.userRoles(variables.userId) });
     },
   });
 }
@@ -96,10 +76,10 @@ export function useRevokeRole() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ userId, assignmentId }: { userId: string; assignmentId: string }) => {
-      await apiClient.delete(`/access-control/users/${userId}/roles/${assignmentId}`);
+      await apiClient.delete(apiEndpoints.userRole(userId, assignmentId));
     },
     onSuccess: (_data, variables) => {
-      void queryClient.invalidateQueries({ queryKey: ['user-roles', variables.userId] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.userRoles(variables.userId) });
     },
   });
 }

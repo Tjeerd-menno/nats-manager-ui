@@ -131,5 +131,5 @@ public sealed class DatabaseInitializerTests
             .Options);
 
     private static DatabaseInitializer CreateInitializer(AppDbContext context, BootstrapAdminOptions options)
-        => new(context, Options.Create(options), NullLogger<DatabaseInitializer>.Instance);
+        => new(context, Options.Create(options), new PasswordHasher(), NullLogger<DatabaseInitializer>.Instance);
 }

@@ -7,14 +7,7 @@ import { useEnvironmentContext } from '../../environments/EnvironmentContext';
 import { LoadingState } from '../../../shared/LoadingState';
 import { EmptyState } from '../../../shared/EmptyState';
 import { KvBucketForm } from './KvBucketForm';
-
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i] ?? 'B'}`;
-}
+import { formatBytes } from '../../../shared/formatting';
 
 interface KvBucketListProps {
   onSelect: (bucketName: string) => void;
@@ -25,7 +18,7 @@ export function KvBucketList({ onSelect }: KvBucketListProps) {
   const [search, setSearch] = useState('');
   const [formOpened, setFormOpened] = useState(false);
 
-  const { data: buckets, isLoading } = useKvBuckets(selectedEnvironmentId);
+  const { data, isLoading } = useKvBuckets(selectedEnvironmentId);
   const deleteBucket = useDeleteKvBucket(selectedEnvironmentId);
 
   if (!selectedEnvironmentId) {
@@ -36,8 +29,8 @@ export function KvBucketList({ onSelect }: KvBucketListProps) {
     return <LoadingState message="Loading buckets..." />;
   }
 
-  const filtered = (buckets ?? []).filter(
-    (b) => !search || b.bucketName.toLowerCase().includes(search.toLowerCase()),
+  const filtered = (data?.items ?? []).filter(
+    (bucket) => !search || bucket.bucketName.toLowerCase().includes(search.toLowerCase()),
   );
 
   if (filtered.length === 0 && !search) {

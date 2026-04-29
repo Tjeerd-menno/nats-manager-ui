@@ -117,7 +117,7 @@ src/
             ├── kv/
             ├── objectstore/
             ├── services/
-            ├── core-nats/
+            ├── corenats/
             ├── monitoring/
             └── alerts/
 

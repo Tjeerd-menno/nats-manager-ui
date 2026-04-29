@@ -91,7 +91,7 @@ describe('usePublishMessage', () => {
     const { queryClient, wrapper } = createWrapper();
 
     // Seed the status query so we can detect invalidation
-    queryClient.setQueryData(['core-nats-status', 'env-1'], { inMsgs: 0 });
+    queryClient.setQueryData(['core-nats', 'status', 'env-1'], { inMsgs: 0 });
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
     const { result } = renderHook(() => usePublishMessage('env-1'), { wrapper });
@@ -114,7 +114,7 @@ describe('usePublishMessage', () => {
 
     expect(invalidateSpy).toHaveBeenCalledWith(
       expect.objectContaining({
-        queryKey: ['core-nats-status', 'env-1'],
+        queryKey: ['core-nats', 'status', 'env-1'],
       }),
     );
   });

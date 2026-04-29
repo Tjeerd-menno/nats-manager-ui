@@ -25,11 +25,11 @@
 - [x] T004 [P] Initialize React app in `src/NatsManager.Frontend/` with Vite: `package.json`, `tsconfig.json` (strict mode), `vite.config.ts` (with `@vitejs/plugin-react`, `/api` proxy), `vitest.config.ts` (jsdom, colocated test discovery `src/**/*.test.{ts,tsx}`, `@vitest/coverage-v8`)
 - [x] T005 [P] Configure `src/NatsManager.Web/NatsManager.Web.csproj` with dependencies: `Aspire.NATS.Net`, `Serilog`, `FluentValidation`, project references to Domain, Application, Infrastructure, ServiceDefaults; create minimal `src/NatsManager.Web/Program.cs` with `AddServiceDefaults()`, Serilog, and health endpoints
 - [x] T006 [P] Configure `src/NatsManager.Domain/NatsManager.Domain.csproj` (no external dependencies); create module folders under `src/NatsManager.Domain/Modules/`: Environments, JetStream, KeyValue, ObjectStore, Services, CoreNats, Auth, Audit, Shared
-- [x] T007 [P] Configure `src/NatsManager.Application/NatsManager.Application.csproj` with MediatR, FluentValidation; create module folders under `src/NatsManager.Application/Modules/` mirroring domain modules
+- [x] T007 [P] Configure `src/NatsManager.Application/NatsManager.Application.csproj` with FluentValidation; create module folders under `src/NatsManager.Application/Modules/` mirroring domain modules
 - [x] T008 [P] Configure `src/NatsManager.Infrastructure/NatsManager.Infrastructure.csproj` with EF Core 10 (SQLite provider), NATS.Net v2; create folders `src/NatsManager.Infrastructure/Persistence/`, `src/NatsManager.Infrastructure/Nats/`, `src/NatsManager.Infrastructure/Auth/`
-- [x] T009 [P] Configure backend test projects with xUnit, FluentAssertions: `tests/NatsManager.Domain.Tests/`, `tests/NatsManager.Application.Tests/`, `tests/NatsManager.Infrastructure.Tests/`, `tests/NatsManager.Web.Tests/`
+- [x] T009 [P] Configure backend test projects with xUnit, Shouldly: `tests/NatsManager.Domain.Tests/`, `tests/NatsManager.Application.Tests/`, `tests/NatsManager.Infrastructure.Tests/`, `tests/NatsManager.Web.Tests/`
 - [x] T010 [P] Configure ESLint + Prettier for frontend in `src/NatsManager.Frontend/.eslintrc.cjs` and `src/NatsManager.Frontend/.prettierrc`; configure `dotnet format` analyzers for backend via `.editorconfig` and `Directory.Build.props`
-- [x] T011 [P] Install frontend dependencies in `src/NatsManager.Frontend/package.json`: React 19, React DOM, React Router, Mantine 7 (`@mantine/core`, `@mantine/hooks`, `@mantine/form`, `@mantine/notifications`), `@tanstack/react-query`, `@tanstack/react-virtual`, Recharts, Axios; dev deps: Vitest, `@testing-library/react`, `@testing-library/jest-dom`, `@testing-library/user-event`, `jsdom`, `@vitest/coverage-v8`, MSW
+- [x] T011 [P] Install frontend dependencies in `src/NatsManager.Frontend/package.json`: React 19, React DOM, React Router, Mantine 9 (`@mantine/core`, `@mantine/hooks`, `@mantine/form`, `@mantine/notifications`), `@tanstack/react-query`, `@tanstack/react-virtual`, Recharts, Axios; dev deps: Vitest, `@testing-library/react`, `@testing-library/jest-dom`, `@testing-library/user-event`, `jsdom`, `@vitest/coverage-v8`, MSW
 - [x] T012 [P] Create production Dockerfile in `src/NatsManager.Web/Dockerfile`: multi-stage build (node:lts-alpine for Vite frontend build → dotnet sdk:10.0 for backend build → dotnet aspnet:10.0-alpine runtime with static assets)
 
 ---
@@ -51,13 +51,13 @@
 - [x] T021 [P] Implement NATS connection factory in `src/NatsManager.Infrastructure/Nats/NatsConnectionFactory.cs` with `INatsConnectionFactory` port in `src/NatsManager.Application/Modules/Environments/Ports/INatsConnectionFactory.cs`: connection-per-environment, lazy init, health checking, 10s timeout
 - [x] T022 [P] Implement credential encryption service in `src/NatsManager.Infrastructure/Auth/CredentialEncryptionService.cs` with `ICredentialEncryptionService` port in `src/NatsManager.Application/Modules/Environments/Ports/ICredentialEncryptionService.cs`
 - [x] T023 [P] Implement audit event repository in `src/NatsManager.Infrastructure/Persistence/AuditEventRepository.cs` with `IAuditEventRepository` port in `src/NatsManager.Application/Modules/Audit/Ports/IAuditEventRepository.cs`
-- [x] T024 [P] Implement MediatR pipeline behaviors in `src/NatsManager.Application/Behaviors/`: `ValidationBehavior.cs` (FluentValidation), `AuditBehavior.cs` (automatic audit logging for commands)
+- [x] T024 [P] Implement application pipeline behaviors in `src/NatsManager.Application/Behaviors/`: `ValidationBehavior.cs` (FluentValidation), `AuditBehavior.cs` (automatic audit logging for commands)
 - [x] T025 [P] Implement authentication middleware: cookie-based session auth in `src/NatsManager.Infrastructure/Auth/SessionAuthHandler.cs`, `src/NatsManager.Web/Middleware/AuthenticationMiddleware.cs`; password hashing with Argon2 in `src/NatsManager.Infrastructure/Auth/PasswordHasher.cs`
 - [x] T026 [P] Implement authorization service in `src/NatsManager.Application/Modules/Auth/Services/AuthorizationService.cs` with role matrix (ReadOnly, Operator, Administrator, Auditor) and environment-level production restrictions
 - [x] T027 [P] Implement ProblemDetails error handling middleware in `src/NatsManager.Web/Middleware/ErrorHandlingMiddleware.cs` per RFC 9457, with domain-specific error types in `src/NatsManager.Domain/Modules/Shared/Errors/`
 - [x] T028 [P] Implement data freshness infrastructure: `DataFreshnessHeader` middleware in `src/NatsManager.Web/Middleware/DataFreshnessMiddleware.cs` that sets `X-Data-Freshness` and `X-Data-Timestamp` headers per api-contracts.md
 - [x] T029 Implement pagination and sorting support: `PaginatedQuery<T>` base class in `src/NatsManager.Application/Common/PaginatedQuery.cs`, `PaginatedResult<T>` in `src/NatsManager.Application/Common/PaginatedResult.cs`
-- [x] T030 Register all services in DI: configure MediatR, FluentValidation, EF Core, NATS connection factory, auth services in `src/NatsManager.Web/Program.cs`
+- [x] T030 Register all services in DI: configure FluentValidation, EF Core, NATS connection factory, auth services in `src/NatsManager.Web/Program.cs`
 - [x] T031 [P] Create frontend app shell in `src/NatsManager.Frontend/src/App.tsx` with Mantine Provider, React Router, TanStack Query Provider, route-based code splitting; create `src/NatsManager.Frontend/src/main.tsx` entry point
 - [x] T032 [P] Create shared frontend components in `src/NatsManager.Frontend/src/shared/`: `AppLayout.tsx` (sidebar nav, environment badge), `ResourceListView.tsx` (paginated table with sort/filter/virtualization), `ResourceDetailView.tsx` (identity → status → config → relationships → actions), `ConfirmActionDialog.tsx` (destructive action confirmation with resource name + environment), `DataFreshnessIndicator.tsx` (live/recent/stale badge), `EnvironmentBadge.tsx`, `ErrorBoundary.tsx`, `LoadingState.tsx`, `EmptyState.tsx`
 - [x] T033 [P] Create API client infrastructure in `src/NatsManager.Frontend/src/api/`: `client.ts` (Axios instance with cookie auth, interceptors), `queryClient.ts` (TanStack Query client config with default stale times), `types.ts` (PaginatedResult, ProblemDetails, DataFreshness types)
@@ -270,7 +270,7 @@
 - [x] T115 [P] [US8] Unit tests for Core NATS queries/commands in `tests/NatsManager.Application.Tests/Modules/CoreNats/`: GetCoreStatusQueryTests.cs, GetSubjectsQueryTests.cs, PublishMessageCommandTests.cs, SubscribeCommandTests.cs
 - [x] T116 [P] [US8] Integration tests for NATS monitoring adapter in `tests/NatsManager.Infrastructure.Tests/Nats/CoreNatsAdapterTests.cs`: server info, subject listing, publish, subscribe
 - [x] T117 [P] [US8] Contract tests for Core NATS endpoints in `tests/NatsManager.Web.Tests/Endpoints/CoreNatsEndpointTests.cs`: per api-contracts.md §2
-- [x] T118 [P] [US8] Frontend tests in `src/NatsManager.Frontend/src/features/core-nats/`: `CoreNatsStatus.test.tsx`, `SubjectExplorer.test.tsx`, `PublishDialog.test.tsx`, `SubscriptionViewer.test.tsx`
+- [x] T118 [P] [US8] Frontend tests in `src/NatsManager.Frontend/src/features/corenats/`: `CoreNatsStatus.test.tsx`, `SubjectExplorer.test.tsx`, `PublishDialog.test.tsx`, `SubscriptionViewer.test.tsx`
 
 ### Implementation for User Story 8
 
@@ -279,9 +279,9 @@
 - [x] T121 [US8] Implement Core NATS queries in `src/NatsManager.Application/Modules/CoreNats/Queries/`: `GetCoreStatusQuery.cs`, `GetClientsQuery.cs`, `GetSubjectsQuery.cs`, `GetSubscriptionMessagesQuery.cs`
 - [x] T122 [US8] Implement Core NATS commands in `src/NatsManager.Application/Modules/CoreNats/Commands/`: `PublishMessageCommand.cs` (with live-traffic warning per FR-011), `CreateInspectionSubscriptionCommand.cs`
 - [x] T123 [US8] Implement Core NATS API endpoints in `src/NatsManager.Web/Endpoints/CoreNatsEndpoints.cs`: all endpoints per api-contracts.md §2
-- [x] T124 [P] [US8] Implement Core NATS API hooks in `src/NatsManager.Frontend/src/features/core-nats/hooks/`: `useCoreStatus.ts`, `useClients.ts`, `useSubjects.ts`, `usePublishMessage.ts`, `useSubscription.ts`, `useSubscriptionMessages.ts`
-- [x] T125 [P] [US8] Implement Core NATS components in `src/NatsManager.Frontend/src/features/core-nats/components/`: `CoreNatsStatus.tsx` (server info, client count, uptime), `SubjectExplorer.tsx` (tree view with subscription counts, traffic indicators), `PublishDialog.tsx` (with traffic impact warning), `SubscriptionViewer.tsx` (live message display with metadata/payload)
-- [x] T126 [US8] Create Core NATS types in `src/NatsManager.Frontend/src/features/core-nats/types.ts` and add routes to `src/NatsManager.Frontend/src/App.tsx`
+- [x] T124 [P] [US8] Implement Core NATS API hooks in `src/NatsManager.Frontend/src/features/corenats/hooks/`: `useCoreStatus.ts`, `useClients.ts`, `useSubjects.ts`, `usePublishMessage.ts`, `useSubscription.ts`, `useSubscriptionMessages.ts`
+- [x] T125 [P] [US8] Implement Core NATS components in `src/NatsManager.Frontend/src/features/corenats/components/`: `CoreNatsStatus.tsx` (server info, client count, uptime), `SubjectExplorer.tsx` (tree view with subscription counts, traffic indicators), `PublishDialog.tsx` (with traffic impact warning), `SubscriptionViewer.tsx` (live message display with metadata/payload)
+- [x] T126 [US8] Create Core NATS types in `src/NatsManager.Frontend/src/features/corenats/types.ts` and add routes to `src/NatsManager.Frontend/src/App.tsx`
 
 **Checkpoint**: User Story 8 complete — Core NATS inspection and testing operational
 
@@ -370,7 +370,7 @@
 **Purpose**: End-to-end browser tests using Playwright driven by Aspire.Hosting.Testing to spin up the full distributed application stack
 
 - [x] T166 Fix DatabaseInitializer seed: hash default admin password using `PasswordHasher.Hash("admin")` instead of storing raw string (bug: login was impossible with unhashed password)
-- [x] T167 Create E2E test project `tests/NatsManager.E2E.Tests/NatsManager.E2E.Tests.csproj` with Aspire.Hosting.Testing, Microsoft.Playwright, xunit.v3.mtp-v2, FluentAssertions; reference AppHost project
+- [x] T167 Create E2E test project `tests/NatsManager.E2E.Tests/NatsManager.E2E.Tests.csproj` with Aspire.Hosting.Testing, Microsoft.Playwright, xunit.v3.mtp-v2, Shouldly; reference AppHost project
 - [x] T168 [P] Implement `E2EFixture` in `tests/NatsManager.E2E.Tests/Infrastructure/E2EFixture.cs`: starts Aspire distributed app via `DistributedApplicationTestingBuilder`, waits for backend/frontend healthy, launches Playwright Chromium
 - [x] T169 [P] Implement `E2ETestBase` in `tests/NatsManager.E2E.Tests/Infrastructure/E2ETestBase.cs`: creates isolated browser context/page per test, provides `LoginAsAdminAsync()` and `NavigateAsync()` helpers
 - [x] T170 [P] Implement `E2ECollection` in `tests/NatsManager.E2E.Tests/Infrastructure/E2ECollection.cs`: xUnit collection definition sharing E2EFixture across all test classes

@@ -60,8 +60,7 @@ builder.Services.AddSingleton<IEnvironmentConnectionResolver, NatsManager.Infras
 builder.Services.AddSingleton<INatsConnectionFactory, NatsConnectionFactory>();
 builder.Services.AddScoped<IAuditEventRepository, AuditEventRepository>();
 builder.Services.AddScoped<IAuthorizationService, NatsManager.Infrastructure.Auth.AuthorizationService>();
-builder.Services.AddSingleton<PasswordHasher>();
-builder.Services.AddSingleton<NatsManager.Application.Modules.Auth.Ports.IPasswordHasher>(sp => sp.GetRequiredService<PasswordHasher>());
+builder.Services.AddSingleton<NatsManager.Application.Modules.Auth.Ports.IPasswordHasher, PasswordHasher>();
 builder.Services.AddScoped<DatabaseInitializer>();
 builder.Services.AddScoped<HttpAuditContext>();
 builder.Services.AddScoped<IAuditContext>(sp => sp.GetRequiredService<HttpAuditContext>());
@@ -119,7 +118,6 @@ builder.Services.AddSingleton<IRelationshipSource, ObjectStoreRelationshipSource
 builder.Services.AddSingleton<IRelationshipSource, ServicesRelationshipSource>();
 builder.Services.AddSingleton<IRelationshipSource, CoreNatsRelationshipSource>();
 builder.Services.AddSingleton<IRelationshipSource, MonitoringRelationshipSource>();
-builder.Services.AddSingleton<IRelationshipSource, AlertsRelationshipSource>();
 builder.Services.AddSingleton<IFocalResourceResolver, FocalResourceResolver>();
 builder.Services.AddSingleton<RelationshipProjectionService>();
 builder.Services.AddScoped<GetRelationshipMapQueryHandler>();

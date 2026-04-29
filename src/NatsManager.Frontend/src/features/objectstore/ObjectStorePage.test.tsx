@@ -69,10 +69,12 @@ describe('ObjectStorePage', () => {
       selectEnvironment: vi.fn(),
     });
     mockUseObjectBuckets.mockReturnValue({
-      data: [
-        { bucketName: 'assets', objectCount: 10, totalSize: 2048, description: '' },
-        { bucketName: 'backups', objectCount: 3, totalSize: 5120, description: 'Backup files' },
-      ],
+      data: {
+        items: [
+          { bucketName: 'assets', objectCount: 10, totalSize: 2048, description: '' },
+          { bucketName: 'backups', objectCount: 3, totalSize: 5120, description: 'Backup files' },
+        ],
+      },
       isLoading: false,
     } as unknown as ReturnType<typeof useObjectBuckets>);
 

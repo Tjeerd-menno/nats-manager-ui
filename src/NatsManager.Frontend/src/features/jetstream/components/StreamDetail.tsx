@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Card, Group, Stack, Text, Title, Badge, SimpleGrid, Table, Button } from '@mantine/core';
+import { Card, Group, Stack, Text, Title, Badge, SimpleGrid, Table, Button, Box } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { useStream } from '../hooks/useJetStream';
 import { useEnvironmentContext } from '../../environments/EnvironmentContext';
@@ -11,19 +11,12 @@ import { ConsumerActions } from './ConsumerActions';
 import { MessageBrowser } from './MessageBrowser';
 import { LoadingState } from '../../../shared/LoadingState';
 import { OpenRelationshipMapButton } from '../../relationships/components/OpenRelationshipMapButton';
+import { formatBytes } from '../../../shared/formatting';
 
 interface StreamDetailProps {
   streamName: string;
   onConsumerSelect: (consumerName: string) => void;
   onDeleted?: () => void;
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i] ?? 'B'}`;
 }
 
 export function StreamDetail({ streamName, onConsumerSelect, onDeleted }: StreamDetailProps) {
@@ -44,7 +37,7 @@ export function StreamDetail({ streamName, onConsumerSelect, onDeleted }: Stream
         <Title order={2}>{info.name}</Title>
         <Badge variant="outline">{config.retentionPolicy}</Badge>
         <Badge variant="outline">{config.storageType}</Badge>
-        <div style={{ flex: 1 }} />
+        <Box flex={1} />
         {selectedEnvironmentId && (
           <OpenRelationshipMapButton
             environmentId={selectedEnvironmentId}

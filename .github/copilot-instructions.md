@@ -3,12 +3,12 @@
 Auto-generated from all feature plans. Last updated: 2026-04-25
 
 ## Active Technologies
-- C# / .NET 10 (backend), TypeScript strict mode (frontend) + ASP.NET Core 10 (Minimal APIs), EF Core 10, NATS.Net v2, MediatR, FluentValidation, Serilog, React 19, Mantine 7, Recharts, TanStack Query, @tanstack/react-virtual, Vite, Vitest (001-nats-admin-app)
+- C# / .NET 10 (backend), TypeScript strict mode (frontend) + ASP.NET Core 10 (Minimal APIs), EF Core 10, NATS.Net v2, FluentValidation, Serilog, React 19, Mantine 9, Recharts, TanStack Query, @tanstack/react-virtual, Vite, Vitest (001-nats-admin-app)
 - SQLite (application data: environments, users, audit, bookmarks, preferences); NATS (live resource state) (001-nats-admin-app)
 - C# / .NET 10 (backend), TypeScript strict mode (frontend) + ASP.NET Core 10 SignalR (built-in, no new NuGet), `@microsoft/signalr` (new npm dep), `System.Net.Http.HttpClient` (built-in), Recharts 3.8.1 (existing) (copilot/add-live-monitoring-feature)
 - In-memory ring buffer only (no SQLite persistence for monitoring data). Two new nullable columns on existing `Environments` SQLite table via EF Core migration. (copilot/add-live-monitoring-feature)
 
-- C# / .NET 10 (backend), TypeScript (frontend) + ASP.NET Core 10 (Minimal APIs), EF Core 10, NATS.Net (official NATS .NET client v2), React 19, Mantine 7, Recharts (001-nats-admin-app)
+- C# / .NET 10 (backend), TypeScript (frontend) + ASP.NET Core 10 (Minimal APIs), EF Core 10, NATS.Net (official NATS .NET client v2), React 19, Mantine 9, Recharts (001-nats-admin-app)
 
 ## Project Structure
 

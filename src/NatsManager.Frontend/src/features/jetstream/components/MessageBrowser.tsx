@@ -5,17 +5,10 @@ import { useStreamMessages } from '../hooks/useJetStream';
 import { useEnvironmentContext } from '../../environments/EnvironmentContext';
 import { LoadingState } from '../../../shared/LoadingState';
 import { EmptyState } from '../../../shared/EmptyState';
+import { formatBytes, formatDateTime } from '../../../shared/formatting';
 
 interface MessageBrowserProps {
   streamName: string;
-}
-
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i] ?? 'B'}`;
 }
 
 export function MessageBrowser({ streamName }: MessageBrowserProps) {
@@ -87,8 +80,8 @@ export function MessageBrowser({ streamName }: MessageBrowserProps) {
                     </Table.Td>
                     <Table.Td><Text fw={500}>{msg.sequence}</Text></Table.Td>
                     <Table.Td><Badge variant="light" size="sm">{msg.subject}</Badge></Table.Td>
-                    <Table.Td>{new Date(msg.timestamp).toLocaleString()}</Table.Td>
-                    <Table.Td>{formatSize(msg.size)}</Table.Td>
+                    <Table.Td>{formatDateTime(msg.timestamp)}</Table.Td>
+                    <Table.Td>{formatBytes(msg.size)}</Table.Td>
                   </Table.Tr>
                   <Table.Tr key={`${msg.sequence}-detail`} style={{ display: expandedSeq === msg.sequence ? undefined : 'none' }}>
                     <Table.Td colSpan={5}>

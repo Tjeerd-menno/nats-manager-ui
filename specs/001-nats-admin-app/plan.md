@@ -5,15 +5,15 @@
 
 ## Summary
 
-Build a full-stack NATS administration web application providing a unified management UI for Core NATS, JetStream (streams/consumers), Key-Value Store, Object Store, and NATS Services. The backend uses .NET 10 with ASP.NET Core Minimal APIs and a modular monolith architecture (9 bounded contexts). The frontend uses React 19 with Mantine 7, built with Vite. Local development is orchestrated via .NET Aspire AppHost. Production deploys as a single OCI container.
+Build a full-stack NATS administration web application providing a unified management UI for Core NATS, JetStream (streams/consumers), Key-Value Store, Object Store, and NATS Services. The backend uses .NET 10 with ASP.NET Core Minimal APIs and a modular monolith architecture (9 bounded contexts). The frontend uses React 19 with Mantine 9, built with Vite. Local development is orchestrated via .NET Aspire AppHost. Production deploys as a single OCI container.
 
 ## Technical Context
 
 **Language/Version**: C# / .NET 10 (backend), TypeScript strict mode (frontend)  
-**Primary Dependencies**: ASP.NET Core 10 (Minimal APIs), EF Core 10, NATS.Net v2, MediatR, FluentValidation, Serilog, React 19, Mantine 7, Recharts, TanStack Query, @tanstack/react-virtual, Vite, Vitest  
+**Primary Dependencies**: ASP.NET Core 10 (Minimal APIs), EF Core 10, NATS.Net v2, FluentValidation, Serilog, React 19, Mantine 9, Recharts, TanStack Query, @tanstack/react-virtual, Vite, Vitest  
 **Dev Orchestration**: .NET Aspire (AppHost + ServiceDefaults) — development only; replaces docker-compose  
 **Storage**: SQLite (application data: environments, users, audit, bookmarks, preferences); NATS (live resource state)  
-**Testing**: xUnit + FluentAssertions (backend), Vitest + React Testing Library (frontend, colocated `*.test.ts(x)`), contract tests at API boundary  
+**Testing**: xUnit + Shouldly (backend), Vitest + React Testing Library (frontend, colocated `*.test.ts(x)`), contract tests at API boundary  
 **Target Platform**: Desktop browsers (internal network / VPN); Linux OCI container for production  
 **Project Type**: Web application (SPA + API)  
 **Performance Goals**: FCP ≤ 1.5s, TTI ≤ 2.0s, API p95 ≤ 1s, 1k-item list render ≤ 200ms, JS bundle ≤ 300KB gzipped  
@@ -125,7 +125,7 @@ src/
     │   │   ├── kv/
     │   │   ├── objectstore/
     │   │   ├── services/
-    │   │   ├── core-nats/
+    │   │   ├── corenats/
     │   │   ├── dashboard/
     │   │   ├── auth/
     │   │   ├── audit/
@@ -155,4 +155,4 @@ tests/
 | Violation | Why Needed | Simpler Alternative Rejected Because |
 |-----------|------------|-------------------------------------|
 | 6 .NET projects (vs 3) | Clean Architecture requires Domain/Application/Infrastructure/Web separation; Aspire requires AppHost + ServiceDefaults | A single project would mix domain logic with infrastructure concerns, violating single responsibility (Constitution I) |
-| MediatR for CQRS | Explicit separation of read-only queries from state-changing commands with audit logging | Direct service calls would conflate inspection with administration, making destructive operations harder to safeguard |
+| Custom IUseCase/IOutputPort CQRS pattern | Explicit separation of read-only queries from state-changing commands with audit logging | Direct service calls would conflate inspection with administration, making destructive operations harder to safeguard |

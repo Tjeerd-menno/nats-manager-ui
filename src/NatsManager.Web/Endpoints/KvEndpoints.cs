@@ -33,7 +33,7 @@ public static class KvEndpoints
     {
         var presenter = new Presenter<IReadOnlyList<KvBucketInfo>>();
         await useCase.ExecuteAsync(new GetKvBucketsQuery(envId), presenter, cancellationToken);
-        return presenter.ToResult();
+        return presenter.IsSuccess ? Results.Ok(new ListResponse<KvBucketInfo>(presenter.Value!)) : presenter.ToResult();
     }
 
     private static async Task<IResult> GetBucketDetail(Guid envId, string bucket, IUseCase<GetKvBucketDetailQuery, KvBucketInfo> useCase, CancellationToken cancellationToken)
@@ -79,8 +79,7 @@ public static class KvEndpoints
     {
         var presenter = new Presenter<IReadOnlyList<KvEntry>>();
         await useCase.ExecuteAsync(new GetKvKeysQuery(envId, bucket, search), presenter, cancellationToken);
-        if (presenter.IsSuccess) return Results.Ok(new { items = presenter.Value });
-        return presenter.ToResult();
+        return presenter.IsSuccess ? Results.Ok(new ListResponse<KvEntry>(presenter.Value!)) : presenter.ToResult();
     }
 
     private static async Task<IResult> GetKeyDetail(Guid envId, string bucket, string key, IUseCase<GetKvKeyDetailQuery, KvEntry> useCase, CancellationToken cancellationToken)
@@ -94,8 +93,7 @@ public static class KvEndpoints
     {
         var presenter = new Presenter<IReadOnlyList<KvKeyHistoryEntry>>();
         await useCase.ExecuteAsync(new GetKvKeyHistoryQuery(envId, bucket, key), presenter, cancellationToken);
-        if (presenter.IsSuccess) return Results.Ok(new { entries = presenter.Value });
-        return presenter.ToResult();
+        return presenter.IsSuccess ? Results.Ok(new ListResponse<KvKeyHistoryEntry>(presenter.Value!)) : presenter.ToResult();
     }
 
     private static async Task<IResult> PutKey(Guid envId, string bucket, string key, PutKvKeyRequest request, IUseCase<PutKvKeyCommand, long> useCase, CancellationToken cancellationToken)

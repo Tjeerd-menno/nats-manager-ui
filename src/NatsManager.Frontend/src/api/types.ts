@@ -8,6 +8,10 @@ export interface PaginatedResult<T> {
   hasPrevious: boolean;
 }
 
+export interface ListResponse<T> {
+  items: T[];
+}
+
 export interface ProblemDetails {
   type?: string;
   title?: string;

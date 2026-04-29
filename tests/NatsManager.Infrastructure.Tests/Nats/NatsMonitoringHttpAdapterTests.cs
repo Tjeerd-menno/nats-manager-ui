@@ -105,6 +105,41 @@ public sealed class NatsMonitoringHttpAdapterTests
         snapshot.Server.Version.ShouldBe("2.10.0");
     }
 
+    [Fact]
+    public async Task FetchSnapshotAsync_WhenJetStreamEndpointIsMissing_ShouldReturnOkSnapshotWithoutJetStreamMetrics()
+    {
+        var environment = CreateEnvironment();
+        var adapter = CreateAdapter(request =>
+        {
+            if (request.RequestUri!.AbsolutePath == "/varz")
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("""
+                        {"version":"2.10.0","connections":2,"total_connections":3,"max_connections":100,"in_msgs":200,"out_msgs":150,"in_bytes":3000,"out_bytes":2500,"uptime":"1s","mem":2048}
+                        """)
+                };
+            }
+
+            if (request.RequestUri!.AbsolutePath == "/jsz")
+            {
+                return new HttpResponseMessage(HttpStatusCode.NotFound);
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("""{"status":"ok"}""")
+            };
+        });
+
+        var snapshot = await adapter.FetchSnapshotAsync(environment, null, CancellationToken.None);
+
+        snapshot.Status.ShouldBe(MonitoringStatus.Ok);
+        snapshot.HealthStatus.ShouldBe(MonitoringStatus.Ok);
+        snapshot.JetStream.ShouldBeNull();
+        snapshot.Server.Version.ShouldBe("2.10.0");
+    }
+
     private static Environment CreateEnvironment()
     {
         var environment = Environment.Create("test", "nats://localhost:4222");

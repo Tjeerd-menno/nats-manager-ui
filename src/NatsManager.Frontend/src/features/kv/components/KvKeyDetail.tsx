@@ -7,6 +7,7 @@ import { useEnvironmentContext } from '../../environments/EnvironmentContext';
 import { LoadingState } from '../../../shared/LoadingState';
 import { KvKeyEditor } from './KvKeyEditor';
 import { OpenRelationshipMapButton } from '../../relationships/components/OpenRelationshipMapButton';
+import { formatDateTime } from '../../../shared/formatting';
 
 interface KvKeyDetailProps {
   bucketName: string;
@@ -62,55 +63,25 @@ export function KvKeyDetail({ bucketName, keyName }: KvKeyDetailProps) {
               resourceType="KvKey"
             />
           )}
-          <Button leftSection={<IconPencil size={16} />} variant="light" onClick={() => setEditorOpened(true)}>
-            Edit
-          </Button>
-          <Button leftSection={<IconTrash size={16} />} color="red" variant="light" onClick={handleDelete}>
-            Delete
-          </Button>
+          <Button leftSection={<IconPencil size={16} />} variant="light" onClick={() => setEditorOpened(true)}>Edit</Button>
+          <Button leftSection={<IconTrash size={16} />} color="red" variant="light" onClick={handleDelete}>Delete</Button>
         </Group>
       </Group>
 
-      <KvKeyEditor
-        opened={editorOpened}
-        onClose={() => setEditorOpened(false)}
-        bucketName={bucketName}
-        editKey={keyName}
-        editValue={decodedValue}
-        editRevision={entry.revision}
-      />
+      <KvKeyEditor opened={editorOpened} onClose={() => setEditorOpened(false)} bucketName={bucketName} editKey={keyName} editValue={decodedValue} editRevision={entry.revision} />
 
       <Card withBorder p="md">
         <Stack gap="xs">
-          <Group>
-            <Text size="sm" c="dimmed" w={120}>Revision:</Text>
-            <Badge variant="light">{entry.revision}</Badge>
-          </Group>
-          <Group>
-            <Text size="sm" c="dimmed" w={120}>Operation:</Text>
-            <Badge
-              variant="light"
-              color={entry.operation === 'Put' ? 'green' : entry.operation === 'Del' ? 'red' : 'gray'}
-            >
-              {entry.operation}
-            </Badge>
-          </Group>
-          <Group>
-            <Text size="sm" c="dimmed" w={120}>Size:</Text>
-            <Text size="sm">{entry.size} bytes</Text>
-          </Group>
-          <Group>
-            <Text size="sm" c="dimmed" w={120}>Updated:</Text>
-            <Text size="sm">{new Date(entry.createdAt).toLocaleString()}</Text>
-          </Group>
+          <Group><Text size="sm" c="dimmed" w={120}>Revision:</Text><Badge variant="light">{entry.revision}</Badge></Group>
+          <Group><Text size="sm" c="dimmed" w={120}>Operation:</Text><Badge variant="light" color={entry.operation === 'Put' ? 'green' : entry.operation === 'Del' ? 'red' : 'gray'}>{entry.operation}</Badge></Group>
+          <Group><Text size="sm" c="dimmed" w={120}>Size:</Text><Text size="sm">{entry.size} bytes</Text></Group>
+          <Group><Text size="sm" c="dimmed" w={120}>Updated:</Text><Text size="sm">{formatDateTime(entry.createdAt)}</Text></Group>
         </Stack>
       </Card>
 
       <Stack gap="xs">
         <Text fw={500}>Value</Text>
-        <Code block style={{ maxHeight: 300, overflow: 'auto' }}>
-          {decodedValue}
-        </Code>
+        <Code block style={{ maxHeight: 300, overflow: 'auto' }}>{decodedValue}</Code>
       </Stack>
 
       <Stack gap="xs">
@@ -128,20 +99,12 @@ export function KvKeyDetail({ bucketName, keyName }: KvKeyDetailProps) {
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {(historyData?.entries ?? []).map((h) => (
-                <Table.Tr key={h.revision}>
-                  <Table.Td>{h.revision}</Table.Td>
-                  <Table.Td>
-                    <Badge
-                      variant="light"
-                      size="sm"
-                      color={h.operation === 'Put' ? 'green' : h.operation === 'Del' ? 'red' : 'gray'}
-                    >
-                      {h.operation}
-                    </Badge>
-                  </Table.Td>
-                  <Table.Td>{h.size} bytes</Table.Td>
-                  <Table.Td>{new Date(h.createdAt).toLocaleString()}</Table.Td>
+              {(historyData?.items ?? []).map((history) => (
+                <Table.Tr key={history.revision}>
+                  <Table.Td>{history.revision}</Table.Td>
+                  <Table.Td><Badge variant="light" size="sm" color={history.operation === 'Put' ? 'green' : history.operation === 'Del' ? 'red' : 'gray'}>{history.operation}</Badge></Table.Td>
+                  <Table.Td>{history.size} bytes</Table.Td>
+                  <Table.Td>{formatDateTime(history.createdAt)}</Table.Td>
                 </Table.Tr>
               ))}
             </Table.Tbody>

@@ -12,6 +12,8 @@ public sealed partial class ServiceDiscoveryAdapter(
     INatsConnectionFactory connectionFactory,
     ILogger<ServiceDiscoveryAdapter> logger) : IServiceDiscoveryAdapter
 {
+    private static readonly TimeSpan DiscoveryTimeout = TimeSpan.FromSeconds(3);
+
     public async Task<IReadOnlyList<ServiceInfo>> DiscoverServicesAsync(Guid environmentId, CancellationToken cancellationToken = default)
     {
         var connection = (NatsConnection)await connectionFactory.GetConnectionAsync(environmentId, cancellationToken);
@@ -23,23 +25,25 @@ public sealed partial class ServiceDiscoveryAdapter(
             await using var sub = await connection.SubscribeCoreAsync<string>(inbox, cancellationToken: cancellationToken);
             await connection.PublishAsync("$SRV.INFO", inbox, cancellationToken: cancellationToken);
 
-            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cts.CancelAfter(TimeSpan.FromSeconds(3));
+            using var timeoutCts = new CancellationTokenSource(DiscoveryTimeout);
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
 
             try
             {
-                await foreach (var msg in sub.Msgs.ReadAllAsync(cts.Token))
+                await foreach (var msg in sub.Msgs.ReadAllAsync(linkedCts.Token))
                 {
                     if (msg.Data is not null)
                     {
                         var info = ParseServiceInfo(msg.Data);
-                        if (info is not null) services.Add(info);
+                        if (info is not null)
+                        {
+                            services.Add(info);
+                        }
                     }
                 }
             }
-            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
             {
-                // Timeout collecting responses — expected
             }
         }
         catch (Exception ex)
@@ -78,17 +82,17 @@ public sealed partial class ServiceDiscoveryAdapter(
                 foreach (var ep in eps.EnumerateArray())
                 {
                     endpoints.Add(new ServiceEndpoint(
-                        Name: ep.GetProperty("name").GetString() ?? "",
-                        Subject: ep.GetProperty("subject").GetString() ?? "",
+                        Name: ep.GetProperty("name").GetString() ?? string.Empty,
+                        Subject: ep.GetProperty("subject").GetString() ?? string.Empty,
                         QueueGroup: ep.TryGetProperty("queue_group", out var qg) ? qg.GetString() : null));
                 }
             }
 
             return new ServiceInfo(
-                Name: root.GetProperty("name").GetString() ?? "",
-                Id: root.GetProperty("id").GetString() ?? "",
-                Version: root.GetProperty("version").GetString() ?? "",
-                Description: root.TryGetProperty("description", out var desc) ? desc.GetString() ?? "" : "",
+                Name: root.GetProperty("name").GetString() ?? string.Empty,
+                Id: root.GetProperty("id").GetString() ?? string.Empty,
+                Version: root.GetProperty("version").GetString() ?? string.Empty,
+                Description: root.TryGetProperty("description", out var desc) ? desc.GetString() ?? string.Empty : string.Empty,
                 Endpoints: endpoints,
                 Stats: null);
         }
