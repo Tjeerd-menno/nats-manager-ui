@@ -43,8 +43,7 @@ public sealed class DatabaseInitializerPostgresTests : IAsyncLifetime
         {
             await _container.StartAsync();
         }
-        catch (Exception ex) when (
-            ex is FileNotFoundException
+        catch (Exception ex) when (ex is FileNotFoundException
             // Testcontainers wraps the underlying Docker.DotNet failures in these types, but we
             // also need a broad catch because the exact exception type varies across platforms
             // (TimeoutException, HttpRequestException, IOException, etc.) when the daemon is

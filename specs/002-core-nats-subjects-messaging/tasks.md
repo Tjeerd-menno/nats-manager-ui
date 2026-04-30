@@ -130,10 +130,10 @@
 **Purpose**: Lint, build, and full test validation.
 
 - [ ] T045 Run full backend test suite and confirm all tests pass: `dotnet test` from repository root
-- [ ] T046 Run frontend tests and confirm all tests pass: `cd src/NatsManager.Frontend && npm test`
-- [ ] T047 [P] Verify backend lint: `dotnet format --verify-no-changes` from repository root
-- [ ] T048 [P] Verify frontend lint: `cd src/NatsManager.Frontend && npm run lint`
-- [ ] T049 Run E2E tests (requires Aspire stack): `dotnet test tests/NatsManager.E2E.Tests`
+- [x] T046 Run frontend tests and confirm all tests pass: `cd src/NatsManager.Frontend && npm test`
+- [x] T047 [P] Verify backend lint: `dotnet format --verify-no-changes` from repository root
+- [x] T048 [P] Verify frontend lint: `cd src/NatsManager.Frontend && npm run lint`
+- [ ] T049 Run E2E tests (requires Aspire stack): `dotnet test --project tests/NatsManager.E2E.Tests/NatsManager.E2E.Tests.csproj`
 - [ ] T050 [P] Verify quickstart steps in `specs/002-core-nats-subjects-messaging/quickstart.md` are accurate and all verification steps pass
 
 ---

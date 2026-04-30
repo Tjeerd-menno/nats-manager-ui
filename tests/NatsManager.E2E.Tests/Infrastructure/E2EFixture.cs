@@ -73,9 +73,6 @@ public sealed class AppHostFixture : IAsyncLifetime
             context.EnvironmentVariables["ASPNETCORE_ENVIRONMENT"] = "Testing";
         }));
 
-        appHost.Services.ConfigureHttpClientDefaults(clientBuilder =>
-            clientBuilder.AddStandardResilienceHandler());
-
         this.app = await appHost.BuildAsync();
         this.resourceNotificationService = this.app.Services.GetRequiredService<ResourceNotificationService>();
         await this.app.StartAsync();

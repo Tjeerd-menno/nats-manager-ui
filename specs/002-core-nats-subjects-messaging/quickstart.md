@@ -102,8 +102,8 @@ dotnet test
 # Frontend unit tests
 cd src/NatsManager.Frontend && npm test
 
-# E2E tests (requires Aspire stack running)
-dotnet test tests/NatsManager.E2E.Tests
+# E2E tests (requires Docker/Aspire test host support)
+dotnet test --project tests/NatsManager.E2E.Tests/NatsManager.E2E.Tests.csproj
 ```
 
 ---
