@@ -15,7 +15,12 @@ describe('PayloadViewer', () => {
     );
 
     expect(screen.getByText('json')).toBeInTheDocument();
-    expect(screen.getAllByText('"***REDACTED***"')).toHaveLength(2);
+    expect(screen.getByText((_, element) =>
+      element?.textContent?.includes('"password": "***REDACTED***"') ?? false,
+    )).toBeInTheDocument();
+    expect(screen.getByText((_, element) =>
+      element?.textContent?.includes('"api_key": "***REDACTED***"') ?? false,
+    )).toBeInTheDocument();
     expect(screen.queryByText('secret')).not.toBeInTheDocument();
     expect(screen.queryByText('abc123')).not.toBeInTheDocument();
   });

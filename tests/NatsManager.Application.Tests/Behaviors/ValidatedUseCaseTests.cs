@@ -55,7 +55,7 @@ public sealed class ValidatedUseCaseTests
         await inner.DidNotReceive().ExecuteAsync(Arg.Any<TestRequest>(), Arg.Any<IOutputPort<string>>(), Arg.Any<CancellationToken>());
     }
 
-    private sealed record TestRequest(string Name);
+    public sealed record TestRequest(string Name);
 
     private sealed class TestRequestValidator : AbstractValidator<TestRequest>
     {

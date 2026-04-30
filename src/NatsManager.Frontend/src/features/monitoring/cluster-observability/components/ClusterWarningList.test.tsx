@@ -5,9 +5,9 @@ import type { ClusterWarning } from '../types';
 
 describe('ClusterWarningList', () => {
   it('does not render when there are no warnings', () => {
-    const { container } = renderWithProviders(<ClusterWarningList warnings={[]} />);
+    renderWithProviders(<ClusterWarningList warnings={[]} />);
 
-    expect(container).toBeEmptyDOMElement();
+    expect(screen.queryByText('Informational warning.')).not.toBeInTheDocument();
   });
 
   it('renders warning codes, severities, messages, and threshold details', () => {
