@@ -1,10 +1,12 @@
 using System.Text.Json;
+using System.Security.Claims;
 using Microsoft.Net.Http.Headers;
 using NatsManager.Application.Common;
 using NatsManager.Application.Modules.CoreNats.Commands;
 using NatsManager.Application.Modules.CoreNats.Models;
 using NatsManager.Application.Modules.CoreNats.Ports;
 using NatsManager.Application.Modules.CoreNats.Queries;
+using NatsManager.Application.Modules.Environments.Ports;
 using NatsManager.Web.Presenters;
 using NatsManager.Web.Security;
 
@@ -52,8 +54,17 @@ public static class CoreNatsEndpoints
         return presenter.ToResult();
     }
 
-    private static async Task<IResult> PublishMessage(Guid envId, PublishMessageBody body, IUseCase<PublishMessageCommand, Unit> useCase, CancellationToken cancellationToken)
+    private static async Task<IResult> PublishMessage(
+        Guid envId,
+        PublishMessageBody body,
+        ClaimsPrincipal user,
+        IEnvironmentRepository environmentRepository,
+        IUseCase<PublishMessageCommand, Unit> useCase,
+        CancellationToken cancellationToken)
     {
+        var guardResult = await HighImpactActionGuard.RequireAllowedAsync(envId, user, environmentRepository, cancellationToken);
+        if (guardResult is not null) return guardResult;
+
         var presenter = new Presenter<Unit>();
         await useCase.ExecuteAsync(new PublishMessageCommand
         {
@@ -73,48 +84,52 @@ public static class CoreNatsEndpoints
         PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
     };
 
-    private static async Task StreamMessages(
+    private static async Task<IResult> StreamMessages(
         Guid envId,
         string? subject,
         ICoreNatsAdapter adapter,
+        ClaimsPrincipal user,
+        IEnvironmentRepository environmentRepository,
         HttpContext context,
         CancellationToken cancellationToken)
     {
+        var guardResult = await HighImpactActionGuard.RequireAllowedAsync(envId, user, environmentRepository, cancellationToken);
+        if (guardResult is not null) return guardResult;
+
         if (string.IsNullOrWhiteSpace(subject))
         {
-            context.Response.StatusCode = StatusCodes.Status400BadRequest;
-            await context.Response.WriteAsJsonAsync(new
+            return Results.BadRequest(new
             {
-                status = 400,
-                title = "Bad Request",
-                detail = "Subject pattern must not be empty."
-            }, cancellationToken);
-            return;
+                error = "Subject pattern must not be empty."
+            });
         }
 
         if (subject.Contains(' '))
         {
-            context.Response.StatusCode = StatusCodes.Status400BadRequest;
-            await context.Response.WriteAsJsonAsync(new
+            return Results.BadRequest(new
             {
-                status = 400,
-                title = "Bad Request",
-                detail = "Subject pattern must not contain spaces."
-            }, cancellationToken);
-            return;
+                error = "Subject pattern must not contain spaces."
+            });
         }
 
-        context.Response.Headers[HeaderNames.ContentType] = "text/event-stream";
-        context.Response.Headers[HeaderNames.CacheControl] = "no-cache";
-        context.Response.Headers["X-Accel-Buffering"] = "no";
-        context.Response.Headers[HeaderNames.Connection] = "keep-alive";
-
-        await foreach (var msg in adapter.SubscribeAsync(envId, subject, cancellationToken))
+        context.Response.OnStarting(() =>
         {
-            var json = JsonSerializer.Serialize(msg, CamelCaseOptions);
-            await context.Response.WriteAsync($"event: message\ndata: {json}\n\n", cancellationToken);
-            await context.Response.Body.FlushAsync(cancellationToken);
-        }
+            context.Response.Headers[HeaderNames.CacheControl] = "no-cache";
+            context.Response.Headers["X-Accel-Buffering"] = "no";
+            context.Response.Headers[HeaderNames.Connection] = "keep-alive";
+            return Task.CompletedTask;
+        });
+
+        return Results.Stream(async stream =>
+        {
+            await foreach (var msg in adapter.SubscribeAsync(envId, subject, cancellationToken))
+            {
+                var json = JsonSerializer.Serialize(msg, CamelCaseOptions);
+                var bytes = System.Text.Encoding.UTF8.GetBytes($"event: message\ndata: {json}\n\n");
+                await stream.WriteAsync(bytes, cancellationToken);
+                await stream.FlushAsync(cancellationToken);
+            }
+        }, "text/event-stream");
     }
 }
 

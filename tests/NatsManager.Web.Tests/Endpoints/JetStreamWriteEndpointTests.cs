@@ -1,15 +1,20 @@
 using System.Net;
 using System.Net.Http.Json;
 using Shouldly;
+using NSubstitute;
+using NatsManager.Domain.Modules.Auth;
+using NatsEnvironment = NatsManager.Domain.Modules.Environments.Environment;
 
 namespace NatsManager.Web.Tests.Endpoints;
 
 public sealed class JetStreamWriteEndpointTests : IClassFixture<NatsManagerWebAppFactory>
 {
     private readonly HttpClient _client;
+    private readonly NatsManagerWebAppFactory _factory;
 
     public JetStreamWriteEndpointTests(NatsManagerWebAppFactory factory)
     {
+        _factory = factory;
         _client = factory.CreateClient();
     }
 
@@ -49,5 +54,19 @@ public sealed class JetStreamWriteEndpointTests : IClassFixture<NatsManagerWebAp
         var response = await _client.PostAsJsonAsync($"/api/environments/{envId}/jetstream/streams", payload);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
+    }
+
+    [Fact]
+    public async Task CreateStream_InProductionAsOperator_ShouldReturn403()
+    {
+        var client = _factory.CreateAuthenticatedClient(Role.PredefinedNames.Operator);
+        var env = NatsEnvironment.Create("prod", "nats://localhost:4222", isProduction: true);
+        _factory.EnvironmentRepository.GetByIdAsync(env.Id, Arg.Any<CancellationToken>())
+            .Returns(env);
+        var payload = new { Name = "test-stream", Subjects = new[] { "test.>" }, RetentionPolicy = "Limits", StorageType = "File" };
+
+        var response = await client.PostAsJsonAsync($"/api/environments/{env.Id}/jetstream/streams", payload);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 }

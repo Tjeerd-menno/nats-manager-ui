@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using NatsManager.Application.Common;
+using NatsManager.Application.Modules.Environments.Ports;
 using NatsManager.Application.Modules.KeyValue.Commands;
 using NatsManager.Application.Modules.KeyValue.Models;
 using NatsManager.Application.Modules.KeyValue.Queries;
@@ -43,8 +45,17 @@ public static class KvEndpoints
         return presenter.ToResult();
     }
 
-    private static async Task<IResult> CreateBucket(Guid envId, CreateKvBucketRequest request, IUseCase<CreateKvBucketCommand, Unit> useCase, CancellationToken cancellationToken)
+    private static async Task<IResult> CreateBucket(
+        Guid envId,
+        CreateKvBucketRequest request,
+        ClaimsPrincipal user,
+        IEnvironmentRepository environmentRepository,
+        IUseCase<CreateKvBucketCommand, Unit> useCase,
+        CancellationToken cancellationToken)
     {
+        var guardResult = await HighImpactActionGuard.RequireAllowedAsync(envId, user, environmentRepository, cancellationToken);
+        if (guardResult is not null) return guardResult;
+
         var presenter = new Presenter<Unit>();
         await useCase.ExecuteAsync(new CreateKvBucketCommand
         {
@@ -61,8 +72,13 @@ public static class KvEndpoints
     private static async Task<IResult> DeleteBucket(
         Guid envId, string bucket,
         HttpContext httpContext,
+        ClaimsPrincipal user,
+        IEnvironmentRepository environmentRepository,
         IUseCase<DeleteKvBucketCommand, Unit> useCase, CancellationToken cancellationToken)
     {
+        var guardResult = await HighImpactActionGuard.RequireAllowedAsync(envId, user, environmentRepository, cancellationToken);
+        if (guardResult is not null) return guardResult;
+
         var confirm = httpContext.Request.Headers["X-Confirm"].FirstOrDefault();
         if (!string.Equals(confirm, "true", StringComparison.OrdinalIgnoreCase))
             return Results.BadRequest(new { error = "X-Confirm: true header is required" });
@@ -96,8 +112,19 @@ public static class KvEndpoints
         return presenter.IsSuccess ? Results.Ok(new ListResponse<KvKeyHistoryEntry>(presenter.Value!)) : presenter.ToResult();
     }
 
-    private static async Task<IResult> PutKey(Guid envId, string bucket, string key, PutKvKeyRequest request, IUseCase<PutKvKeyCommand, long> useCase, CancellationToken cancellationToken)
+    private static async Task<IResult> PutKey(
+        Guid envId,
+        string bucket,
+        string key,
+        PutKvKeyRequest request,
+        ClaimsPrincipal user,
+        IEnvironmentRepository environmentRepository,
+        IUseCase<PutKvKeyCommand, long> useCase,
+        CancellationToken cancellationToken)
     {
+        var guardResult = await HighImpactActionGuard.RequireAllowedAsync(envId, user, environmentRepository, cancellationToken);
+        if (guardResult is not null) return guardResult;
+
         var presenter = new Presenter<long>();
         await useCase.ExecuteAsync(new PutKvKeyCommand
         {
@@ -114,8 +141,13 @@ public static class KvEndpoints
     private static async Task<IResult> DeleteKey(
         Guid envId, string bucket, string key,
         HttpContext httpContext,
+        ClaimsPrincipal user,
+        IEnvironmentRepository environmentRepository,
         IUseCase<DeleteKvKeyCommand, Unit> useCase, CancellationToken cancellationToken)
     {
+        var guardResult = await HighImpactActionGuard.RequireAllowedAsync(envId, user, environmentRepository, cancellationToken);
+        if (guardResult is not null) return guardResult;
+
         var confirm = httpContext.Request.Headers["X-Confirm"].FirstOrDefault();
         if (!string.Equals(confirm, "true", StringComparison.OrdinalIgnoreCase))
             return Results.BadRequest(new { error = "X-Confirm: true header is required" });

@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using NatsManager.Application.Common;
+using NatsManager.Application.Modules.Environments.Ports;
 using NatsManager.Application.Modules.JetStream.Commands;
 using NatsManager.Application.Modules.JetStream.Models;
 using NatsManager.Application.Modules.JetStream.Queries;
@@ -111,9 +113,14 @@ public static class JetStreamEndpoints
     private static async Task<IResult> CreateStream(
         Guid envId,
         CreateStreamRequest request,
+        ClaimsPrincipal user,
+        IEnvironmentRepository environmentRepository,
         IUseCase<CreateStreamCommand, Unit> useCase,
         CancellationToken cancellationToken)
     {
+        var guardResult = await HighImpactActionGuard.RequireAllowedAsync(envId, user, environmentRepository, cancellationToken);
+        if (guardResult is not null) return guardResult;
+
         var command = new CreateStreamCommand
         {
             EnvironmentId = envId,
@@ -137,9 +144,14 @@ public static class JetStreamEndpoints
         Guid envId,
         string streamName,
         UpdateStreamRequest request,
+        ClaimsPrincipal user,
+        IEnvironmentRepository environmentRepository,
         IUseCase<UpdateStreamCommand, Unit> useCase,
         CancellationToken cancellationToken)
     {
+        var guardResult = await HighImpactActionGuard.RequireAllowedAsync(envId, user, environmentRepository, cancellationToken);
+        if (guardResult is not null) return guardResult;
+
         var command = new UpdateStreamCommand
         {
             EnvironmentId = envId,
@@ -160,9 +172,14 @@ public static class JetStreamEndpoints
         Guid envId,
         string streamName,
         HttpContext httpContext,
+        ClaimsPrincipal user,
+        IEnvironmentRepository environmentRepository,
         IUseCase<DeleteStreamCommand, Unit> useCase,
         CancellationToken cancellationToken)
     {
+        var guardResult = await HighImpactActionGuard.RequireAllowedAsync(envId, user, environmentRepository, cancellationToken);
+        if (guardResult is not null) return guardResult;
+
         var confirm = httpContext.Request.Headers["X-Confirm"].FirstOrDefault();
         if (!string.Equals(confirm, "true", StringComparison.OrdinalIgnoreCase))
             return Results.BadRequest(new { error = "X-Confirm: true header is required for destructive operations" });
@@ -176,9 +193,14 @@ public static class JetStreamEndpoints
         Guid envId,
         string streamName,
         [FromHeader(Name = "X-Confirm")] string? confirm,
+        ClaimsPrincipal user,
+        IEnvironmentRepository environmentRepository,
         IUseCase<PurgeStreamCommand, Unit> useCase,
         CancellationToken cancellationToken)
     {
+        var guardResult = await HighImpactActionGuard.RequireAllowedAsync(envId, user, environmentRepository, cancellationToken);
+        if (guardResult is not null) return guardResult;
+
         if (!string.Equals(confirm, "true", StringComparison.OrdinalIgnoreCase))
             return Results.BadRequest(new { error = "X-Confirm: true header is required for destructive operations" });
 
@@ -191,9 +213,14 @@ public static class JetStreamEndpoints
         Guid envId,
         string streamName,
         CreateConsumerRequest request,
+        ClaimsPrincipal user,
+        IEnvironmentRepository environmentRepository,
         IUseCase<CreateConsumerCommand, Unit> useCase,
         CancellationToken cancellationToken)
     {
+        var guardResult = await HighImpactActionGuard.RequireAllowedAsync(envId, user, environmentRepository, cancellationToken);
+        if (guardResult is not null) return guardResult;
+
         var command = new CreateConsumerCommand
         {
             EnvironmentId = envId,
@@ -216,9 +243,14 @@ public static class JetStreamEndpoints
         string streamName,
         string consumerName,
         HttpContext httpContext,
+        ClaimsPrincipal user,
+        IEnvironmentRepository environmentRepository,
         IUseCase<DeleteConsumerCommand, Unit> useCase,
         CancellationToken cancellationToken)
     {
+        var guardResult = await HighImpactActionGuard.RequireAllowedAsync(envId, user, environmentRepository, cancellationToken);
+        if (guardResult is not null) return guardResult;
+
         var confirm = httpContext.Request.Headers["X-Confirm"].FirstOrDefault();
         if (!string.Equals(confirm, "true", StringComparison.OrdinalIgnoreCase))
             return Results.BadRequest(new { error = "X-Confirm: true header is required for destructive operations" });
