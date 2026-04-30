@@ -112,9 +112,13 @@ public static class CoreNatsEndpoints
             });
         }
 
-        context.Response.Headers[HeaderNames.CacheControl] = "no-cache";
-        context.Response.Headers["X-Accel-Buffering"] = "no";
-        context.Response.Headers[HeaderNames.Connection] = "keep-alive";
+        context.Response.OnStarting(() =>
+        {
+            context.Response.Headers[HeaderNames.CacheControl] = "no-cache";
+            context.Response.Headers["X-Accel-Buffering"] = "no";
+            context.Response.Headers[HeaderNames.Connection] = "keep-alive";
+            return Task.CompletedTask;
+        });
 
         return Results.Stream(async stream =>
         {

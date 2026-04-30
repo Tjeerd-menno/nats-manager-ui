@@ -161,8 +161,8 @@ public sealed partial class CoreNatsAdapter(
     private static NatsClientInfo ParseClientInfo(JsonElement client)
     {
         var id = GetInt64(client, "cid", "id");
-        var name = GetString(client, "name") ?? $"client-{id}";
-        var account = GetString(client, "account", "acc");
+        var name = GetString(client, "name") ?? $"unnamed-client-{id}";
+        string? account = GetString(client, "account", "acc");
         var ip = GetString(client, "ip") ?? string.Empty;
         var port = GetInt32(client, "port");
         var uptimeSeconds = NatsMonitoringUptimeParser.ParseSeconds(GetString(client, "uptime"));
