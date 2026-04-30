@@ -1,10 +1,12 @@
 using System.Text.Json;
+using System.Security.Claims;
 using Microsoft.Net.Http.Headers;
 using NatsManager.Application.Common;
 using NatsManager.Application.Modules.CoreNats.Commands;
 using NatsManager.Application.Modules.CoreNats.Models;
 using NatsManager.Application.Modules.CoreNats.Ports;
 using NatsManager.Application.Modules.CoreNats.Queries;
+using NatsManager.Application.Modules.Environments.Ports;
 using NatsManager.Web.Presenters;
 using NatsManager.Web.Security;
 
@@ -52,8 +54,17 @@ public static class CoreNatsEndpoints
         return presenter.ToResult();
     }
 
-    private static async Task<IResult> PublishMessage(Guid envId, PublishMessageBody body, IUseCase<PublishMessageCommand, Unit> useCase, CancellationToken cancellationToken)
+    private static async Task<IResult> PublishMessage(
+        Guid envId,
+        PublishMessageBody body,
+        ClaimsPrincipal user,
+        IEnvironmentRepository environmentRepository,
+        IUseCase<PublishMessageCommand, Unit> useCase,
+        CancellationToken cancellationToken)
     {
+        var guardResult = await HighImpactActionGuard.RequireAllowedAsync(envId, user, environmentRepository, cancellationToken);
+        if (guardResult is not null) return guardResult;
+
         var presenter = new Presenter<Unit>();
         await useCase.ExecuteAsync(new PublishMessageCommand
         {
@@ -77,9 +88,18 @@ public static class CoreNatsEndpoints
         Guid envId,
         string? subject,
         ICoreNatsAdapter adapter,
+        ClaimsPrincipal user,
+        IEnvironmentRepository environmentRepository,
         HttpContext context,
         CancellationToken cancellationToken)
     {
+        var guardResult = await HighImpactActionGuard.RequireAllowedAsync(envId, user, environmentRepository, cancellationToken);
+        if (guardResult is not null)
+        {
+            await guardResult.ExecuteAsync(context);
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(subject))
         {
             context.Response.StatusCode = StatusCodes.Status400BadRequest;

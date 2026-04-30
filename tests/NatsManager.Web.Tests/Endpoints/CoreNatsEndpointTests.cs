@@ -3,6 +3,8 @@ using System.Net.Http.Json;
 using Shouldly;
 using NSubstitute;
 using NatsManager.Application.Modules.CoreNats.Models;
+using NatsManager.Domain.Modules.Auth;
+using NatsEnvironment = NatsManager.Domain.Modules.Environments.Environment;
 
 namespace NatsManager.Web.Tests.Endpoints;
 
@@ -82,6 +84,39 @@ public sealed class CoreNatsEndpointTests : IClassFixture<NatsManagerWebAppFacto
         var response = await _client.PostAsJsonAsync($"/api/environments/{envId}/core-nats/publish", payload);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task GetClients_ShouldReturn200WithClientList()
+    {
+        var envId = Guid.NewGuid();
+        _factory.CoreNatsAdapter.ListClientsAsync(envId, Arg.Any<CancellationToken>())
+            .Returns(new List<NatsClientInfo>
+            {
+                new(1, "client-one", "ACC", "127.0.0.1", 4222, 10, 20, 100, 200, TimeSpan.FromSeconds(30)),
+            });
+
+        var response = await _client.GetAsync($"/api/environments/{envId}/core-nats/clients");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var body = await response.Content.ReadFromJsonAsync<List<NatsClientInfo>>();
+        body.ShouldNotBeNull();
+        body!.Single().Name.ShouldBe("client-one");
+    }
+
+    [Fact]
+    public async Task PublishMessage_InProductionAsOperator_ShouldReturn403()
+    {
+        var client = _factory.CreateAuthenticatedClient(Role.PredefinedNames.Operator);
+        var env = NatsEnvironment.Create("prod", "nats://localhost:4222", isProduction: true);
+        _factory.EnvironmentRepository.GetByIdAsync(env.Id, Arg.Any<CancellationToken>())
+            .Returns(env);
+
+        var payload = new { Subject = "test.subject", Payload = "hello" };
+
+        var response = await client.PostAsJsonAsync($"/api/environments/{env.Id}/core-nats/publish", payload);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
     [Fact]

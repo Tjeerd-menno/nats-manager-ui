@@ -1,4 +1,6 @@
+using System.Security.Claims;
 using NatsManager.Application.Common;
+using NatsManager.Application.Modules.Environments.Ports;
 using NatsManager.Application.Modules.ObjectStore.Commands;
 using NatsManager.Application.Modules.ObjectStore.Models;
 using NatsManager.Application.Modules.ObjectStore.Queries;
@@ -43,8 +45,17 @@ public static class ObjectStoreEndpoints
         return presenter.ToResult();
     }
 
-    private static async Task<IResult> CreateBucket(Guid envId, CreateObjectBucketRequest request, IUseCase<CreateObjectBucketCommand, Unit> useCase, CancellationToken cancellationToken)
+    private static async Task<IResult> CreateBucket(
+        Guid envId,
+        CreateObjectBucketRequest request,
+        ClaimsPrincipal user,
+        IEnvironmentRepository environmentRepository,
+        IUseCase<CreateObjectBucketCommand, Unit> useCase,
+        CancellationToken cancellationToken)
     {
+        var guardResult = await HighImpactActionGuard.RequireAllowedAsync(envId, user, environmentRepository, cancellationToken);
+        if (guardResult is not null) return guardResult;
+
         var presenter = new Presenter<Unit>();
         await useCase.ExecuteAsync(new CreateObjectBucketCommand
         {
@@ -60,8 +71,13 @@ public static class ObjectStoreEndpoints
     private static async Task<IResult> DeleteBucket(
         Guid envId, string bucket,
         HttpContext httpContext,
+        ClaimsPrincipal user,
+        IEnvironmentRepository environmentRepository,
         IUseCase<DeleteObjectBucketCommand, Unit> useCase, CancellationToken cancellationToken)
     {
+        var guardResult = await HighImpactActionGuard.RequireAllowedAsync(envId, user, environmentRepository, cancellationToken);
+        if (guardResult is not null) return guardResult;
+
         var confirm = httpContext.Request.Headers["X-Confirm"].FirstOrDefault();
         if (!string.Equals(confirm, "true", StringComparison.OrdinalIgnoreCase))
             return Results.BadRequest(new { error = "X-Confirm: true header is required" });
@@ -97,8 +113,13 @@ public static class ObjectStoreEndpoints
     private static async Task<IResult> UploadObject(
         Guid envId, string bucket, string objectName,
         HttpRequest httpRequest,
+        ClaimsPrincipal user,
+        IEnvironmentRepository environmentRepository,
         IUseCase<UploadObjectCommand, Unit> useCase, CancellationToken cancellationToken)
     {
+        var guardResult = await HighImpactActionGuard.RequireAllowedAsync(envId, user, environmentRepository, cancellationToken);
+        if (guardResult is not null) return guardResult;
+
         using var ms = new MemoryStream();
         await httpRequest.Body.CopyToAsync(ms, cancellationToken);
         var data = ms.ToArray();
@@ -119,8 +140,13 @@ public static class ObjectStoreEndpoints
     private static async Task<IResult> DeleteObject(
         Guid envId, string bucket, string objectName,
         HttpContext httpContext,
+        ClaimsPrincipal user,
+        IEnvironmentRepository environmentRepository,
         IUseCase<DeleteObjectCommand, Unit> useCase, CancellationToken cancellationToken)
     {
+        var guardResult = await HighImpactActionGuard.RequireAllowedAsync(envId, user, environmentRepository, cancellationToken);
+        if (guardResult is not null) return guardResult;
+
         var confirm = httpContext.Request.Headers["X-Confirm"].FirstOrDefault();
         if (!string.Equals(confirm, "true", StringComparison.OrdinalIgnoreCase))
             return Results.BadRequest(new { error = "X-Confirm: true header is required" });

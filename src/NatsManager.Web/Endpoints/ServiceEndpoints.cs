@@ -1,4 +1,6 @@
+using System.Security.Claims;
 using NatsManager.Application.Common;
+using NatsManager.Application.Modules.Environments.Ports;
 using NatsManager.Application.Modules.Services.Commands;
 using NatsManager.Application.Modules.Services.Models;
 using NatsManager.Application.Modules.Services.Queries;
@@ -36,8 +38,18 @@ public static class ServiceEndpoints
         return presenter.ToResult();
     }
 
-    private static async Task<IResult> TestServiceRequest(Guid envId, string name, TestServiceRequestBody body, IUseCase<TestServiceRequestCommand, string> useCase, CancellationToken cancellationToken)
+    private static async Task<IResult> TestServiceRequest(
+        Guid envId,
+        string name,
+        TestServiceRequestBody body,
+        ClaimsPrincipal user,
+        IEnvironmentRepository environmentRepository,
+        IUseCase<TestServiceRequestCommand, string> useCase,
+        CancellationToken cancellationToken)
     {
+        var guardResult = await HighImpactActionGuard.RequireAllowedAsync(envId, user, environmentRepository, cancellationToken);
+        if (guardResult is not null) return guardResult;
+
         var presenter = new Presenter<string>();
         await useCase.ExecuteAsync(new TestServiceRequestCommand
         {

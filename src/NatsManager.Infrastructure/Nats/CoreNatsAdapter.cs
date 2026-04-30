@@ -83,10 +83,7 @@ public sealed partial class CoreNatsAdapter(
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             cts.CancelAfter(_monitoring.HttpTimeout);
 
-            var monitoringBase = !string.IsNullOrEmpty(_monitoring.BaseUrl)
-                ? _monitoring.BaseUrl.TrimEnd('/')
-                : $"http://{ExtractHost(connection)}:{_monitoring.DefaultPort}";
-            var url = $"{monitoringBase}/subsz?subs=1";
+            var url = $"{BuildMonitoringBaseUrl(connection)}/subsz?subs=1";
             var json = await httpClient.GetStringAsync(url, cts.Token);
 
             using var doc = JsonDocument.Parse(json);
@@ -126,11 +123,95 @@ public sealed partial class CoreNatsAdapter(
         || root.TryGetProperty("subscriptions", out subscriptions)
         || root.TryGetProperty("subslist", out subscriptions);
 
-    public Task<IReadOnlyList<NatsClientInfo>> ListClientsAsync(Guid environmentId, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<NatsClientInfo>> ListClientsAsync(Guid environmentId, CancellationToken cancellationToken = default)
     {
-        // Client listing via $SYS subjects requires monitoring permissions
-        // Return empty for now — can be enhanced with NATS monitoring API
-        return Task.FromResult<IReadOnlyList<NatsClientInfo>>([]);
+        try
+        {
+            var connection = (NatsConnection)await connectionFactory.GetConnectionAsync(environmentId, cancellationToken);
+            var httpClient = httpClientFactory.CreateClient();
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(_monitoring.HttpTimeout);
+
+            var json = await httpClient.GetStringAsync($"{BuildMonitoringBaseUrl(connection)}/connz", cts.Token);
+            using var doc = JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty("connections", out var connections)
+                || connections.ValueKind != JsonValueKind.Array)
+            {
+                return [];
+            }
+
+            return connections
+                .EnumerateArray()
+                .Select(ParseClientInfo)
+                .OrderBy(client => client.Id)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            LogClientsUnavailable(environmentId, ex);
+            return [];
+        }
+    }
+
+    private string BuildMonitoringBaseUrl(NatsConnection connection) =>
+        !string.IsNullOrEmpty(_monitoring.BaseUrl)
+            ? _monitoring.BaseUrl.TrimEnd('/')
+            : $"http://{ExtractHost(connection)}:{_monitoring.DefaultPort}";
+
+    private static NatsClientInfo ParseClientInfo(JsonElement client)
+    {
+        var id = GetInt64(client, "cid", "id");
+        var name = GetString(client, "name") ?? $"client-{id}";
+        var account = GetString(client, "account", "acc");
+        var ip = GetString(client, "ip") ?? string.Empty;
+        var port = GetInt32(client, "port");
+        var uptimeSeconds = NatsMonitoringUptimeParser.ParseSeconds(GetString(client, "uptime"));
+
+        return new NatsClientInfo(
+            Id: id,
+            Name: name,
+            Account: account,
+            Ip: ip,
+            Port: port,
+            InMsgs: GetInt64(client, "in_msgs"),
+            OutMsgs: GetInt64(client, "out_msgs"),
+            InBytes: GetInt64(client, "in_bytes"),
+            OutBytes: GetInt64(client, "out_bytes"),
+            Uptime: TimeSpan.FromSeconds(uptimeSeconds));
+    }
+
+    private static string? GetString(JsonElement element, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String)
+            {
+                return value.GetString();
+            }
+        }
+
+        return null;
+    }
+
+    private static int GetInt32(JsonElement element, params string[] names) =>
+        (int)GetInt64(element, names);
+
+    private static long GetInt64(JsonElement element, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (!element.TryGetProperty(name, out var value))
+            {
+                continue;
+            }
+
+            if (value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out var number))
+            {
+                return number;
+            }
+        }
+
+        return 0;
     }
 
     public async Task PublishAsync(Guid environmentId, string subject, byte[] data,
@@ -258,6 +339,9 @@ public sealed partial class CoreNatsAdapter(
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "NATS monitoring unavailable for environment {EnvironmentId} — subject list will be empty")]
     private partial void LogSubjectsUnavailable(Guid environmentId, Exception ex);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "NATS monitoring unavailable for environment {EnvironmentId} — client list will be empty")]
+    private partial void LogClientsUnavailable(Guid environmentId, Exception ex);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Published message to {Subject} in environment {EnvironmentId}")]
     private partial void LogMessagePublished(string subject, Guid environmentId);
