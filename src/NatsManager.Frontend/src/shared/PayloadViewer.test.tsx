@@ -10,19 +10,15 @@ describe('PayloadViewer', () => {
   });
 
   it('detects json payloads and redacts sensitive values', () => {
-    renderWithProviders(
+    const { container } = renderWithProviders(
       <PayloadViewer data='{"username":"demo","password":"secret","api_key":"abc123"}' />,
     );
 
     expect(screen.getByText('json')).toBeInTheDocument();
-    expect(screen.getByText((_, element) =>
-      element?.textContent?.includes('"password": "***REDACTED***"') ?? false,
-    )).toBeInTheDocument();
-    expect(screen.getByText((_, element) =>
-      element?.textContent?.includes('"api_key": "***REDACTED***"') ?? false,
-    )).toBeInTheDocument();
-    expect(screen.queryByText('secret')).not.toBeInTheDocument();
-    expect(screen.queryByText('abc123')).not.toBeInTheDocument();
+    expect(container).toHaveTextContent('"password": "***REDACTED***"');
+    expect(container).toHaveTextContent('"api_key": "***REDACTED***"');
+    expect(container).not.toHaveTextContent('secret');
+    expect(container).not.toHaveTextContent('abc123');
   });
 
   it('uses the provided content type and shows truncation details', () => {
