@@ -41,9 +41,6 @@ public sealed class NatsFixture : IAsyncLifetime
                 args: [],
                 configureBuilder: (appOptions, _) => appOptions.DisableDashboard = true);
 
-        appHost.Services.ConfigureHttpClientDefaults(clientBuilder =>
-            clientBuilder.AddStandardResilienceHandler());
-
         _app = await appHost.BuildAsync();
         var resourceNotificationService = _app.Services.GetRequiredService<ResourceNotificationService>();
         await _app.StartAsync();
