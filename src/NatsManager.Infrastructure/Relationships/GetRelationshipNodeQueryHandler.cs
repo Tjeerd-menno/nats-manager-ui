@@ -54,7 +54,7 @@ public sealed class GetRelationshipNodeQueryHandler(
         var node = map.Nodes.FirstOrDefault(n => n.NodeId == query.NodeId);
 
         return new RelationshipNodeResult(
-            new RelationshipNodeDetails(
+            Node: new RelationshipNodeDetails(
                 query.NodeId,
                 focal.ResourceType,
                 focal.ResourceId,
@@ -63,7 +63,7 @@ public sealed class GetRelationshipNodeQueryHandler(
                 node?.Freshness ?? RelationshipFreshness.Unavailable,
                 focal.Route,
                 CanRecenter: true),
-            null,
+            NotFoundReason: null,
             ValidationError: null,
             RejectionReason: null);
     }
