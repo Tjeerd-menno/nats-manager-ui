@@ -4,6 +4,7 @@ import { useForm } from '@mantine/form';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { usePutKvKey } from '../hooks/useKv';
 import { useEnvironmentContext } from '../../environments/EnvironmentContext';
+import { validateObjectName } from '../../../shared/validation';
 
 interface KvKeyEditorProps {
   opened: boolean;
@@ -25,7 +26,7 @@ export function KvKeyEditor({ opened, onClose, bucketName, editKey, editValue, e
       value: editValue ?? '',
     },
     validate: {
-      key: (v) => (v.trim().length === 0 ? 'Key is required' : null),
+      key: (v) => validateObjectName(v, 'Key'),
     },
   });
 

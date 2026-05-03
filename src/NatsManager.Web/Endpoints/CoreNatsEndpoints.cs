@@ -98,18 +98,12 @@ public static class CoreNatsEndpoints
 
         if (string.IsNullOrWhiteSpace(subject))
         {
-            return Results.BadRequest(new
-            {
-                error = "Subject pattern must not be empty."
-            });
+            return ApiProblemResults.ValidationProblem("subject", "Subject pattern must not be empty.");
         }
 
         if (subject.Contains(' '))
         {
-            return Results.BadRequest(new
-            {
-                error = "Subject pattern must not contain spaces."
-            });
+            return ApiProblemResults.ValidationProblem("subject", "Subject pattern must not contain spaces.");
         }
 
         context.Response.OnStarting(() =>

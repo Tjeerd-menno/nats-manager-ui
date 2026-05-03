@@ -182,7 +182,7 @@ public static class JetStreamEndpoints
 
         var confirm = httpContext.Request.Headers["X-Confirm"].FirstOrDefault();
         if (!string.Equals(confirm, "true", StringComparison.OrdinalIgnoreCase))
-            return Results.BadRequest(new { error = "X-Confirm: true header is required for destructive operations" });
+            return ApiProblemResults.ConfirmationRequired("X-Confirm header must be 'true' for destructive operations.");
 
         var presenter = new Presenter<Unit>();
         await useCase.ExecuteAsync(new DeleteStreamCommand { EnvironmentId = envId, Name = streamName }, presenter, cancellationToken);
@@ -202,7 +202,7 @@ public static class JetStreamEndpoints
         if (guardResult is not null) return guardResult;
 
         if (!string.Equals(confirm, "true", StringComparison.OrdinalIgnoreCase))
-            return Results.BadRequest(new { error = "X-Confirm: true header is required for destructive operations" });
+            return ApiProblemResults.ConfirmationRequired("X-Confirm header must be 'true' for destructive operations.");
 
         var presenter = new Presenter<Unit>();
         await useCase.ExecuteAsync(new PurgeStreamCommand { EnvironmentId = envId, Name = streamName }, presenter, cancellationToken);
@@ -253,7 +253,7 @@ public static class JetStreamEndpoints
 
         var confirm = httpContext.Request.Headers["X-Confirm"].FirstOrDefault();
         if (!string.Equals(confirm, "true", StringComparison.OrdinalIgnoreCase))
-            return Results.BadRequest(new { error = "X-Confirm: true header is required for destructive operations" });
+            return ApiProblemResults.ConfirmationRequired("X-Confirm header must be 'true' for destructive operations.");
 
         var presenter = new Presenter<Unit>();
         await useCase.ExecuteAsync(new DeleteConsumerCommand { EnvironmentId = envId, StreamName = streamName, Name = consumerName }, presenter, cancellationToken);

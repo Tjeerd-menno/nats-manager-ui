@@ -168,7 +168,7 @@ public sealed class CoreNatsTests(AppHostFixture fixture) : E2ETestBase(fixture)
     }
 
     [Fact]
-    public async Task PublishWithEmptySubject_Returns422()
+    public async Task PublishWithEmptySubject_Returns400()
     {
         var (httpClient, handler) = await CreateAuthenticatedHttpClientAsync();
         using (httpClient) using (handler)
@@ -181,7 +181,7 @@ public sealed class CoreNatsTests(AppHostFixture fixture) : E2ETestBase(fixture)
                 new StringContent("""{"subject":"","payload":"test"}""",
                     Encoding.UTF8, "application/json"));
 
-            Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         }
     }
 

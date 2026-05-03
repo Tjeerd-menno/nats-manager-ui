@@ -61,12 +61,12 @@ public sealed class JetStreamReadEndpointTests : IClassFixture<NatsManagerWebApp
     }
 
     [Fact]
-    public async Task GetConsumers_WithInvalidPagination_ShouldReturn422()
+    public async Task GetConsumers_WithInvalidPagination_ShouldReturn400()
     {
         var envId = Guid.NewGuid();
 
         var response = await _client.GetAsync($"/api/environments/{envId}/jetstream/streams/orders/consumers?page=0&pageSize=0");
 
-        response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 }

@@ -34,6 +34,31 @@ const credentialTypeOptions = [
   { value: 'CredsFile', label: 'Credentials File' },
 ];
 
+const allowedServerSchemes = new Set(['nats', 'tls', 'ws', 'wss']);
+const serverUrlValidationMessage = 'Server URL must use nats://, tls://, ws://, or wss://. Use nats:// for standard TCP NATS endpoints.';
+
+function validateServerUrl(value: string): string | null {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return 'Server URL is required';
+
+  const urls = trimmed.split(',').map((segment) => segment.trim()).filter(Boolean);
+  if (urls.length === 0) return serverUrlValidationMessage;
+
+  for (const rawUrl of urls) {
+    try {
+      const url = new URL(rawUrl);
+      const scheme = url.protocol.replace(':', '');
+      if (!allowedServerSchemes.has(scheme) || url.hostname.trim().length === 0) {
+        return serverUrlValidationMessage;
+      }
+    } catch {
+      return serverUrlValidationMessage;
+    }
+  }
+
+  return null;
+}
+
 export function EnvironmentForm({ opened, onClose, environment }: EnvironmentFormProps) {
   const registerMutation = useRegisterEnvironment();
   const updateMutation = useUpdateEnvironment();
@@ -59,7 +84,7 @@ export function EnvironmentForm({ opened, onClose, environment }: EnvironmentFor
     },
     validate: {
       name: (value) => (value.trim().length === 0 ? 'Name is required' : null),
-      serverUrl: (value) => (!isEditing && value.trim().length === 0 ? 'Server URL is required' : null),
+      serverUrl: validateServerUrl,
       username: (value, values) => (values.credentialType === 'UserPassword' && value.trim().length === 0 ? 'Username is required' : null),
       password: (value, values) => (values.credentialType === 'UserPassword' && value.trim().length === 0 ? 'Password is required' : null),
       token: (value, values) => (values.credentialType === 'Token' && value.trim().length === 0 ? 'Token is required' : null),
@@ -170,7 +195,8 @@ export function EnvironmentForm({ opened, onClose, environment }: EnvironmentFor
           <TextInput
             label="Server URL"
             placeholder="nats://localhost:4222"
-            required={!isEditing}
+            description="Use nats:// for Aspire TCP endpoints, keeping the same host and port."
+            required
             {...form.getInputProps('serverUrl')}
           />
           <Select

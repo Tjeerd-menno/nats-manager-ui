@@ -4,6 +4,7 @@ import { useServices, useService, useTestService } from './hooks/useServices';
 import { useEnvironmentContext } from '../environments/EnvironmentContext';
 import { useParams, useNavigate } from 'react-router-dom';
 import { OpenRelationshipMapButton } from '../relationships/components/OpenRelationshipMapButton';
+import { validateNatsSubject } from '../../shared/validation';
 
 export default function ServicesPage() {
   const { serviceName } = useParams();
@@ -73,6 +74,7 @@ function ServiceDetail({ environmentId, serviceName }: { environmentId: string |
   const [testModalOpen, setTestModalOpen] = useState(false);
   const [testSubject, setTestSubject] = useState('');
   const [testPayload, setTestPayload] = useState('');
+  const subjectError = testSubject.length > 0 ? validateNatsSubject(testSubject, 'Subject') : null;
 
   if (isLoading) return <Center h={200}><Loader /></Center>;
 
@@ -81,6 +83,7 @@ function ServiceDetail({ environmentId, serviceName }: { environmentId: string |
   }
 
   const handleTest = () => {
+    if (!testSubject || subjectError) return;
     testMutation.mutate({ serviceName, subject: testSubject, payload: testPayload || undefined });
   };
 
@@ -141,9 +144,9 @@ function ServiceDetail({ environmentId, serviceName }: { environmentId: string |
 
       <Modal opened={testModalOpen} onClose={() => setTestModalOpen(false)} title="Test Service Request">
         <Stack>
-          <TextInput label="Subject" value={testSubject} onChange={(e) => setTestSubject(e.currentTarget.value)} required />
+          <TextInput label="Subject" value={testSubject} onChange={(e) => setTestSubject(e.currentTarget.value)} error={subjectError ?? undefined} required />
           <Textarea label="Payload" value={testPayload} onChange={(e) => setTestPayload(e.currentTarget.value)} minRows={3} />
-          <Button onClick={handleTest} loading={testMutation.isPending}>Send</Button>
+          <Button onClick={handleTest} loading={testMutation.isPending} disabled={!testSubject || !!subjectError}>Send</Button>
           {testMutation.data && (
             <div>
               <Text size="sm" fw={500}>Response:</Text>

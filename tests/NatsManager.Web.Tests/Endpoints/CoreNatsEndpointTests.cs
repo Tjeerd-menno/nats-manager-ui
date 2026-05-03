@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Shouldly;
 using NSubstitute;
 using NatsManager.Application.Modules.CoreNats.Models;
@@ -147,7 +148,7 @@ public sealed class CoreNatsEndpointTests : IClassFixture<NatsManagerWebAppFacto
     }
 
     [Fact]
-    public async Task PublishMessage_WithInvalidJsonFormat_Returns422()
+    public async Task PublishMessage_WithInvalidJsonFormat_Returns400()
     {
         var envId = Guid.NewGuid();
 
@@ -160,11 +161,11 @@ public sealed class CoreNatsEndpointTests : IClassFixture<NatsManagerWebAppFacto
 
         var response = await _client.PostAsJsonAsync($"/api/environments/{envId}/core-nats/publish", payload);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
     [Fact]
-    public async Task PublishMessage_WithInvalidHexFormat_Returns422()
+    public async Task PublishMessage_WithInvalidHexFormat_Returns400()
     {
         var envId = Guid.NewGuid();
 
@@ -177,11 +178,11 @@ public sealed class CoreNatsEndpointTests : IClassFixture<NatsManagerWebAppFacto
 
         var response = await _client.PostAsJsonAsync($"/api/environments/{envId}/core-nats/publish", payload);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
     [Fact]
-    public async Task PublishMessage_WithWhitespaceHeaderKey_Returns422()
+    public async Task PublishMessage_WithWhitespaceHeaderKey_Returns400()
     {
         var envId = Guid.NewGuid();
 
@@ -194,7 +195,7 @@ public sealed class CoreNatsEndpointTests : IClassFixture<NatsManagerWebAppFacto
 
         var response = await _client.PostAsJsonAsync($"/api/environments/{envId}/core-nats/publish", payload);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
     [Fact]
@@ -227,6 +228,10 @@ public sealed class CoreNatsEndpointTests : IClassFixture<NatsManagerWebAppFacto
         var response = await _client.GetAsync($"/api/environments/{envId}/core-nats/stream");
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        json.RootElement.GetProperty("errors").GetProperty("subject").EnumerateArray().Single().GetString()
+            .ShouldBe("Subject pattern must not be empty.");
     }
 
     [Fact]
@@ -237,5 +242,9 @@ public sealed class CoreNatsEndpointTests : IClassFixture<NatsManagerWebAppFacto
         var response = await _client.GetAsync($"/api/environments/{envId}/core-nats/stream?subject=orders+with+spaces");
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        json.RootElement.GetProperty("errors").GetProperty("subject").EnumerateArray().Single().GetString()
+            .ShouldBe("Subject pattern must not contain spaces.");
     }
 }

@@ -13,6 +13,7 @@ import {
 import { IconTrash, IconPlus, IconCheck, IconX } from '@tabler/icons-react';
 import type { PayloadFormat, PublishRequest } from '../types';
 import { usePublishMessage } from '../hooks/useCoreNats';
+import { validateNatsSubject, validateOptionalNatsSubject } from '../../../shared/validation';
 
 function isValidJson(value: string): boolean {
   try {
@@ -56,9 +57,11 @@ export function PublishMessageForm({ environmentId }: PublishMessageFormProps) {
     .filter((key) => key.length > 0);
   const duplicateKeys = new Set(normalizedKeys.filter((key, index) => normalizedKeys.indexOf(key) !== index));
   const duplicateKeyError = duplicateKeys.size > 0;
+  const subjectError = subject.length > 0 ? validateNatsSubject(subject, 'Subject') : null;
+  const replyToError = validateOptionalNatsSubject(replyTo, 'Reply-To');
 
   const isSubmitDisabled =
-    !subject || publishMutation.isPending || jsonError || hexError || emptyKeyError || duplicateKeyError;
+    !subject || !!subjectError || !!replyToError || publishMutation.isPending || jsonError || hexError || emptyKeyError || duplicateKeyError;
 
   const addHeader = () =>
     setHeaders((prev) => [...prev, { id: crypto.randomUUID(), key: '', value: '' }]);
@@ -100,6 +103,7 @@ export function PublishMessageForm({ environmentId }: PublishMessageFormProps) {
         placeholder="e.g. orders.created"
         value={subject}
         onChange={(e) => setSubject(e.currentTarget.value)}
+        error={subjectError ?? undefined}
         required
       />
 
@@ -145,6 +149,7 @@ export function PublishMessageForm({ environmentId }: PublishMessageFormProps) {
         placeholder="e.g. orders.reply"
         value={replyTo}
         onChange={(e) => setReplyTo(e.currentTarget.value)}
+        error={replyToError ?? undefined}
       />
 
       <Stack gap="xs">

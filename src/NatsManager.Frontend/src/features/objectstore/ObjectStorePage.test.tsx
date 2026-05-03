@@ -1,6 +1,8 @@
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../test-utils';
 import ObjectStorePage from './ObjectStorePage';
+import { useCreateObjectBucket } from './hooks/useObjectStore';
 
 vi.mock('./hooks/useObjectStore', () => ({
   useObjectBuckets: vi.fn(),
@@ -81,5 +83,32 @@ describe('ObjectStorePage', () => {
     renderWithProviders(<ObjectStorePage />);
     expect(screen.getByText('assets')).toBeInTheDocument();
     expect(screen.getByText('backups')).toBeInTheDocument();
+  });
+
+  it('validates object bucket name before submitting', async () => {
+    const user = userEvent.setup();
+    const createBucket = vi.fn();
+    vi.mocked(useCreateObjectBucket).mockReturnValue({
+      mutate: createBucket,
+      isPending: false,
+    } as unknown as ReturnType<typeof useCreateObjectBucket>);
+    mockUseEnvironmentContext.mockReturnValue({
+      selectedEnvironmentId: 'env-1',
+      selectEnvironment: vi.fn(),
+    });
+    mockUseObjectBuckets.mockReturnValue({
+      data: { items: [] },
+      isLoading: false,
+    } as unknown as ReturnType<typeof useObjectBuckets>);
+
+    renderWithProviders(<ObjectStorePage />);
+
+    await user.click(screen.getByRole('button', { name: 'Create Bucket' }));
+    await waitFor(() => expect(screen.getByText('Create Object Bucket')).toBeInTheDocument());
+    await user.type(screen.getAllByRole('textbox')[0], 'bad bucket');
+    await user.click(screen.getByRole('button', { name: 'Create' }));
+
+    expect(await screen.findByText('Bucket name can only contain letters, numbers, dots, hyphens, and underscores')).toBeInTheDocument();
+    expect(createBucket).not.toHaveBeenCalled();
   });
 });

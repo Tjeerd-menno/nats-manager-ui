@@ -1,6 +1,8 @@
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../test-utils';
 import UsersPage from './UsersPage';
+import { useCreateUser } from './hooks/useAdmin';
 
 vi.mock('./hooks/useAdmin', () => ({
   useUsers: vi.fn(),
@@ -57,5 +59,34 @@ describe('UsersPage', () => {
     renderWithProviders(<UsersPage />);
     expect(screen.getByText('Active')).toBeInTheDocument();
     expect(screen.getByText('Inactive')).toBeInTheDocument();
+  });
+
+  it('validates user creation input before submitting', async () => {
+    const user = userEvent.setup();
+    const createUser = vi.fn();
+    vi.mocked(useCreateUser).mockReturnValue({
+      mutate: createUser,
+      isPending: false,
+    } as unknown as ReturnType<typeof useCreateUser>);
+    mockUseUsers.mockReturnValue({
+      data: [],
+      isLoading: false,
+    } as unknown as ReturnType<typeof useUsers>);
+
+    renderWithProviders(<UsersPage />);
+
+    await user.click(screen.getByRole('button', { name: 'Create User' }));
+    await waitFor(() => expect(document.querySelector('.mantine-Modal-content')).toBeInTheDocument());
+    const textInputs = screen.getAllByRole('textbox');
+    const passwordInput = document.querySelector('input[type="password"]');
+
+    expect(passwordInput).toBeInstanceOf(HTMLInputElement);
+    await user.type(textInputs[0], 'operator');
+    await user.type(textInputs[1], 'Operator');
+    await user.type(passwordInput as HTMLInputElement, 'short');
+    await user.click(screen.getByRole('button', { name: 'Create' }));
+
+    expect(await screen.findByText('Password must be at least 12 characters long')).toBeInTheDocument();
+    expect(createUser).not.toHaveBeenCalled();
   });
 });

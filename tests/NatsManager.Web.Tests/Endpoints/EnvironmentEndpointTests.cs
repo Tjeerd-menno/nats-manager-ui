@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Shouldly;
 using NSubstitute;
 using NatsManager.Application.Modules.Environments.Commands;
@@ -82,6 +83,33 @@ public sealed class EnvironmentEndpointTests : IClassFixture<NatsManagerWebAppFa
         var response = await client.PostAsync($"/api/environments/{requestedEnvironmentId}/test", null);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task RegisterEnvironment_WithInvalidServerUrl_ShouldReturn400ValidationProblem()
+    {
+        _factory.EnvironmentRepository.ClearReceivedCalls();
+        var request = new RegisterEnvironmentRequest(
+            "Invalid",
+            null,
+            "tcp://localhost:4222",
+            CredentialType.None,
+            null,
+            false);
+
+        var response = await _client.PostAsJsonAsync("/api/environments", request);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        json.RootElement.GetProperty("title").GetString().ShouldBe("One or more validation errors occurred.");
+        var serverUrlError = json.RootElement.GetProperty("errors")
+            .GetProperty(nameof(RegisterEnvironmentCommand.ServerUrl))
+            .EnumerateArray()
+            .Single()
+            .GetString();
+        serverUrlError.ShouldBe("ServerUrl must be an absolute URL using one of the allowed schemes: nats://, tls://, ws://, wss://.");
+        await _factory.EnvironmentRepository.DidNotReceive().AddAsync(Arg.Any<Environment>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

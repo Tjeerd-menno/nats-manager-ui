@@ -2,6 +2,7 @@ import { Modal, TextInput, Select, NumberInput, Button, Group, Stack, TagsInput 
 import { useForm } from '@mantine/form';
 import { useCreateStream, useUpdateStream } from '../hooks/useJetStream';
 import { useEnvironmentContext } from '../../environments/EnvironmentContext';
+import { validateInteger, validateNatsName, validateNatsSubject, validateUnlimitedInteger } from '../../../shared/validation';
 import type { StreamConfig } from '../types';
 
 interface StreamFormProps {
@@ -57,8 +58,18 @@ export function StreamForm({ opened, onClose, existingConfig }: StreamFormProps)
       discardPolicy: existingConfig?.discardPolicy ?? 'Old',
     },
     validate: {
-      name: (value) => (!isEditing && value.trim().length === 0 ? 'Name is required' : null),
-      subjects: (value) => (value.length === 0 ? 'At least one subject is required' : null),
+      name: (value) => (isEditing ? null : validateNatsName(value, 'Stream name')),
+      subjects: (value) => {
+        if (value.length === 0) return 'At least one subject is required';
+        for (const subject of value) {
+          const error = validateNatsSubject(subject, 'Subject');
+          if (error) return error;
+        }
+        return null;
+      },
+      maxMessages: (value) => validateUnlimitedInteger(value, 'Max Messages', 1),
+      maxBytes: (value) => validateUnlimitedInteger(value, 'Max Bytes', 1),
+      replicas: (value) => validateInteger(value, 'Replicas', 1, 5),
     },
   });
 
@@ -103,6 +114,7 @@ export function StreamForm({ opened, onClose, existingConfig }: StreamFormProps)
               label="Name"
               placeholder="my-stream"
               required
+              description="Letters, numbers, dots, hyphens, and underscores only"
               {...form.getInputProps('name')}
             />
           )}
@@ -114,6 +126,7 @@ export function StreamForm({ opened, onClose, existingConfig }: StreamFormProps)
           <TagsInput
             label="Subjects"
             placeholder="Type a subject and press Enter"
+            description="Use NATS subjects such as orders.*, payments.created, or user.>"
             {...form.getInputProps('subjects')}
           />
           {!isEditing && (
@@ -137,12 +150,12 @@ export function StreamForm({ opened, onClose, existingConfig }: StreamFormProps)
           )}
           <NumberInput
             label="Max Messages"
-            description="-1 for unlimited"
+            description="-1 for unlimited, or at least 1"
             {...form.getInputProps('maxMessages')}
           />
           <NumberInput
             label="Max Bytes"
-            description="-1 for unlimited"
+            description="-1 for unlimited, or at least 1"
             {...form.getInputProps('maxBytes')}
           />
           <NumberInput

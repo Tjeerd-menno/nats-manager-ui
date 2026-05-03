@@ -81,7 +81,7 @@ public static class KvEndpoints
 
         var confirm = httpContext.Request.Headers["X-Confirm"].FirstOrDefault();
         if (!string.Equals(confirm, "true", StringComparison.OrdinalIgnoreCase))
-            return Results.BadRequest(new { error = "X-Confirm: true header is required" });
+            return ApiProblemResults.ConfirmationRequired("X-Confirm header must be 'true' for destructive operations.");
 
         var presenter = new Presenter<Unit>();
         await useCase.ExecuteAsync(new DeleteKvBucketCommand { EnvironmentId = envId, BucketName = bucket }, presenter, cancellationToken);
@@ -150,7 +150,7 @@ public static class KvEndpoints
 
         var confirm = httpContext.Request.Headers["X-Confirm"].FirstOrDefault();
         if (!string.Equals(confirm, "true", StringComparison.OrdinalIgnoreCase))
-            return Results.BadRequest(new { error = "X-Confirm: true header is required" });
+            return ApiProblemResults.ConfirmationRequired("X-Confirm header must be 'true' for destructive operations.");
 
         var presenter = new Presenter<Unit>();
         await useCase.ExecuteAsync(new DeleteKvKeyCommand { EnvironmentId = envId, BucketName = bucket, Key = key }, presenter, cancellationToken);

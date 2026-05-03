@@ -1,6 +1,8 @@
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../../test-utils';
 import { KvKeyEditor } from './KvKeyEditor';
+import { usePutKvKey } from '../hooks/useKv';
 
 vi.mock('../hooks/useKv', () => ({
   usePutKvKey: vi.fn(() => ({ mutateAsync: vi.fn(), isPending: false })),
@@ -51,5 +53,23 @@ describe('KvKeyEditor', () => {
   it('does not render when closed', () => {
     renderWithProviders(<KvKeyEditor {...defaultProps} opened={false} />);
     expect(screen.queryByText('Key')).not.toBeInTheDocument();
+  });
+
+  it('validates key input before submitting', async () => {
+    const user = userEvent.setup();
+    const putKey = vi.fn();
+    vi.mocked(usePutKvKey).mockReturnValue({
+      mutate: putKey,
+      isPending: false,
+    } as unknown as ReturnType<typeof usePutKvKey>);
+
+    renderWithProviders(<KvKeyEditor {...defaultProps} />);
+    const keyInput = screen.getAllByRole('textbox')[0];
+
+    await user.type(keyInput, '../secret');
+    await user.click(screen.getByRole('button', { name: 'Create' }));
+
+    expect(await screen.findByText('Key contains invalid path characters')).toBeInTheDocument();
+    expect(putKey).not.toHaveBeenCalled();
   });
 });

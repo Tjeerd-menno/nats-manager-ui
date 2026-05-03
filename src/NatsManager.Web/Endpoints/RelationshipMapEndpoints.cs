@@ -63,10 +63,10 @@ public static partial class RelationshipMapEndpoints
         var focalType = resourceType ?? type;
         var focalId = resourceId ?? id;
         if (string.IsNullOrWhiteSpace(focalType) || string.IsNullOrWhiteSpace(focalId))
-            return Results.BadRequest(new { error = "resourceType and resourceId are required." });
+            return ApiProblemResults.ValidationProblem("resourceType", "resourceType and resourceId are required.");
 
         if (!TryParseResourceType(focalType, out var parsedResourceType))
-            return Results.BadRequest(new { error = $"Unknown resource type: '{focalType}'. Valid values: {string.Join(", ", Enum.GetNames<ResourceType>())}" });
+            return ApiProblemResults.ValidationProblem("resourceType", $"Unknown resource type: '{focalType}'. Valid values: {string.Join(", ", Enum.GetNames<ResourceType>())}");
 
         LogMapRequestReceived(
             logger,
@@ -83,7 +83,7 @@ public static partial class RelationshipMapEndpoints
         if (!string.IsNullOrEmpty(confidence))
         {
             if (!Enum.TryParse<RelationshipConfidence>(confidence, ignoreCase: true, out var parsed))
-                return Results.BadRequest(new { error = $"Unknown confidence: '{confidence}'." });
+                return ApiProblemResults.ValidationProblem("minimumConfidence", $"Unknown confidence: '{confidence}'.");
             confidenceFilter = parsed;
         }
 
@@ -95,7 +95,7 @@ public static partial class RelationshipMapEndpoints
             foreach (var part in relationshipTypes.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             {
                 if (!Enum.TryParse<RelationshipType>(part, ignoreCase: true, out var rel))
-                    return Results.BadRequest(new { error = $"Unknown relationship type: '{part}'." });
+                    return ApiProblemResults.ValidationProblem("relationshipTypes", $"Unknown relationship type: '{part}'.");
                 parsed.Add(rel);
             }
             relTypeFilter = parsed;
@@ -109,7 +109,7 @@ public static partial class RelationshipMapEndpoints
             foreach (var part in resourceTypes.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             {
                 if (!TryParseResourceType(part, out var res))
-                    return Results.BadRequest(new { error = $"Unknown resource type: '{part}'." });
+                    return ApiProblemResults.ValidationProblem("resourceTypes", $"Unknown resource type: '{part}'.");
                 parsed.Add(res);
             }
             resTypeFilter = parsed;
@@ -122,7 +122,7 @@ public static partial class RelationshipMapEndpoints
             foreach (var part in healthStates.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             {
                 if (!Enum.TryParse<ResourceHealthStatus>(part, ignoreCase: true, out var health))
-                    return Results.BadRequest(new { error = $"Unknown health state: '{part}'." });
+                    return ApiProblemResults.ValidationProblem("healthStates", $"Unknown health state: '{part}'.");
                 parsed.Add(health);
             }
             healthStateFilter = parsed;
@@ -149,7 +149,7 @@ public static partial class RelationshipMapEndpoints
                 httpContext.TraceIdentifier,
                 parsedResourceType,
                 "InvalidFilter");
-            return Results.BadRequest(new { errors = validation.Errors.Select(e => e.ErrorMessage) });
+            return ApiProblemResults.ValidationProblem(validation.Errors);
         }
 
         var query = new GetRelationshipMapQuery(environmentId, parsedResourceType, focalId, filter);
@@ -163,7 +163,7 @@ public static partial class RelationshipMapEndpoints
                 httpContext.TraceIdentifier,
                 parsedResourceType,
                 "FocalNotFound");
-            return Results.NotFound(new { error = result.NotFoundReason });
+            return ApiProblemResults.NotFound(result.NotFoundReason ?? "Resource was not found.");
         }
 
         LogMapRequestCompleted(
@@ -189,13 +189,13 @@ public static partial class RelationshipMapEndpoints
         if (result.IsInvalid)
         {
             LogNodeRequestRejected(logger, environmentId, httpContext.TraceIdentifier, GetNodeRejectionReason(result));
-            return Results.BadRequest(new { error = result.ValidationError });
+            return ApiProblemResults.ValidationProblem("nodeId", result.ValidationError ?? "Node id is invalid.");
         }
 
         if (result.IsNotFound || result.Node is null)
         {
             LogNodeRequestRejected(logger, environmentId, httpContext.TraceIdentifier, GetNodeRejectionReason(result));
-            return Results.NotFound(new { error = result.NotFoundReason ?? "Node was not found." });
+            return ApiProblemResults.NotFound(result.NotFoundReason ?? "Node was not found.");
         }
 
         LogNodeRequestReceived(logger, environmentId, httpContext.TraceIdentifier, result.Node.ResourceType);

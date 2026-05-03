@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { Title, Table, Badge, Stack, Group, Button, TextInput, PasswordInput, Modal, Loader, Center, ActionIcon, Select, Text } from '@mantine/core';
+import { useForm } from '@mantine/form';
 import { useUsers, useRoles, useUserRoles, useCreateUser, useDeactivateUser, useAssignRole, useRevokeRole } from './hooks/useAdmin';
 import type { Role } from './types';
 import { formatDate, formatDateTime } from '../../shared/formatting';
+import { validatePassword } from '../../shared/validation';
 
 export default function UsersPage() {
   const { data: users, isLoading } = useUsers();
@@ -10,18 +12,37 @@ export default function UsersPage() {
   const createMutation = useCreateUser();
   const deactivateMutation = useDeactivateUser();
   const [createOpen, setCreateOpen] = useState(false);
-  const [username, setUsername] = useState('');
-  const [displayName, setDisplayName] = useState('');
-  const [password, setPassword] = useState('');
   const [selectedUserId, setSelectedUserId] = useState<string | undefined>();
+  const createForm = useForm({
+    initialValues: {
+      username: '',
+      displayName: '',
+      password: '',
+    },
+    validate: {
+      username: (value) => {
+        const trimmed = value.trim();
+        if (trimmed.length === 0) return 'Username is required';
+        if (trimmed.length > 100) return 'Username must be 100 characters or fewer';
+        return null;
+      },
+      displayName: (value) => {
+        const trimmed = value.trim();
+        if (trimmed.length === 0) return 'Display name is required';
+        if (trimmed.length > 200) return 'Display name must be 200 characters or fewer';
+        return null;
+      },
+      password: validatePassword,
+    },
+  });
 
   if (isLoading) return <Center h={200}><Loader /></Center>;
 
-  const handleCreate = () => {
-    createMutation.mutate({ username, displayName, password }, {
-      onSuccess: () => { setCreateOpen(false); setUsername(''); setDisplayName(''); setPassword(''); },
+  const handleCreate = createForm.onSubmit((values) => {
+    createMutation.mutate({ username: values.username, displayName: values.displayName, password: values.password }, {
+      onSuccess: () => { setCreateOpen(false); createForm.reset(); },
     });
-  };
+  });
 
   return (
     <Stack>
@@ -58,12 +79,14 @@ export default function UsersPage() {
       {selectedUserId && <UserRoleManager userId={selectedUserId} roles={roles ?? []} onClose={() => setSelectedUserId(undefined)} />}
 
       <Modal opened={createOpen} onClose={() => setCreateOpen(false)} title="Create User">
-        <Stack>
-          <TextInput label="Username" value={username} onChange={(e) => setUsername(e.currentTarget.value)} required />
-          <TextInput label="Display Name" value={displayName} onChange={(e) => setDisplayName(e.currentTarget.value)} required />
-          <PasswordInput label="Password" value={password} onChange={(e) => setPassword(e.currentTarget.value)} required />
-          <Button onClick={handleCreate} loading={createMutation.isPending}>Create</Button>
-        </Stack>
+        <form onSubmit={handleCreate}>
+          <Stack>
+            <TextInput label="Username" required {...createForm.getInputProps('username')} />
+            <TextInput label="Display Name" required {...createForm.getInputProps('displayName')} />
+            <PasswordInput label="Password" required {...createForm.getInputProps('password')} />
+            <Button type="submit" loading={createMutation.isPending}>Create</Button>
+          </Stack>
+        </form>
       </Modal>
     </Stack>
   );

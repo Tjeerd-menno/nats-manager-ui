@@ -1,3 +1,4 @@
+using System.Text.Json;
 using FluentValidation;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
@@ -11,18 +12,7 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
     {
         var problemDetails = exception switch
         {
-            ValidationException validationEx => new ProblemDetails
-            {
-                Status = StatusCodes.Status422UnprocessableEntity,
-                Title = "Validation Error",
-                Type = "https://tools.ietf.org/html/rfc9110#section-15.5.21",
-                Extensions =
-                {
-                    ["errors"] = validationEx.Errors
-                        .GroupBy(e => e.PropertyName)
-                        .ToDictionary(g => g.Key, g => g.Select(e => e.ErrorMessage).ToArray())
-                }
-            },
+            ValidationException validationEx => CreateValidationProblemDetails(validationEx),
             NotFoundException notFoundEx => new ProblemDetails
             {
                 Status = StatusCodes.Status404NotFound,
@@ -80,7 +70,24 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
         };
 
         httpContext.Response.StatusCode = problemDetails.Status ?? 500;
-        await httpContext.Response.WriteAsJsonAsync(problemDetails, cancellationToken);
+        httpContext.Response.ContentType = "application/problem+json";
+        await JsonSerializer.SerializeAsync(
+            httpContext.Response.Body,
+            problemDetails,
+            problemDetails.GetType(),
+            cancellationToken: cancellationToken);
         return true;
     }
+
+    private static ValidationProblemDetails CreateValidationProblemDetails(ValidationException validationException)
+        => new(validationException.Errors
+            .GroupBy(error => error.PropertyName)
+            .ToDictionary(
+                group => group.Key,
+                group => group.Select(error => error.ErrorMessage).ToArray()))
+        {
+            Status = StatusCodes.Status400BadRequest,
+            Title = "One or more validation errors occurred.",
+            Type = "https://tools.ietf.org/html/rfc9110#section-15.5.1"
+        };
 }
