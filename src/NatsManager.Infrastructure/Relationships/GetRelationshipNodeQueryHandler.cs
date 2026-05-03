@@ -64,8 +64,8 @@ public sealed class GetRelationshipNodeQueryHandler(
                 focal.Route,
                 CanRecenter: true),
             null,
-            null,
-            null);
+            ValidationError: null,
+            RejectionReason: null);
     }
 
     private static bool TryParseResourceType(string value, out ResourceType resourceType)

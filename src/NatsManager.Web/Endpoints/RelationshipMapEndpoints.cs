@@ -219,7 +219,7 @@ public static partial class RelationshipMapEndpoints
     private static partial void LogNodeRequestRejected(ILogger logger, Guid environmentId, string correlationId, string reason);
 
     private static string GetNodeRejectionReason(RelationshipNodeResult result) =>
-        result.RejectionReason?.ToString() ?? "NodeNotFound";
+        result.RejectionReason?.ToString() ?? RelationshipNodeRejectionReason.NodeNotFound.ToString();
 
     private sealed class RelationshipMapEndpointLogCategory;
 }
