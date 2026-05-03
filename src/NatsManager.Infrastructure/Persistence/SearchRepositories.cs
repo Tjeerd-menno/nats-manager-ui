@@ -7,7 +7,9 @@ namespace NatsManager.Infrastructure.Persistence;
 public sealed class BookmarkRepository(AppDbContext context) : IBookmarkRepository
 {
     public async Task<IReadOnlyList<Bookmark>> GetByUserAsync(Guid userId, CancellationToken cancellationToken = default)
-        => await context.Bookmarks.AsNoTracking().Where(b => b.UserId == userId).OrderByDescending(b => b.CreatedAt).ToListAsync(cancellationToken);
+        => (await context.Bookmarks.AsNoTracking().Where(b => b.UserId == userId).ToListAsync(cancellationToken))
+            .OrderByDescending(b => b.CreatedAt)
+            .ToList();
 
     public async Task<Bookmark?> GetByIdAsync(Guid bookmarkId, CancellationToken cancellationToken = default)
         => await context.Bookmarks.FirstOrDefaultAsync(b => b.Id == bookmarkId, cancellationToken);

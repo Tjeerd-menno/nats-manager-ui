@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using Shouldly;
 using NSubstitute;
 using NatsManager.Application.Modules.Environments.Commands;
+using NatsManager.Domain.Modules.Auth;
 using NatsManager.Domain.Modules.Common;
 using NatsManager.Web.Endpoints;
 using Environment = NatsManager.Domain.Modules.Environments.Environment;
@@ -55,6 +56,32 @@ public sealed class EnvironmentEndpointTests : IClassFixture<NatsManagerWebAppFa
         var response = await _client.PostAsync($"/api/environments/{env.Id}/test", null);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task TestConnection_WithScopedOperatorForMatchingEnvironment_ShouldReturn200()
+    {
+        var env = Environment.Create("Scoped", "nats://localhost:4222");
+        using var client = _factory.CreateAuthenticatedClientWithScopedRole(Role.PredefinedNames.Operator, env.Id);
+        _factory.EnvironmentRepository.GetByIdAsync(env.Id, Arg.Any<CancellationToken>()).Returns(env);
+        _factory.HealthChecker.CheckHealthAsync(Arg.Any<Environment>(), Arg.Any<CancellationToken>())
+            .Returns(new TestConnectionResult(true, 5, "2.10.0", true));
+
+        var response = await client.PostAsync($"/api/environments/{env.Id}/test", null);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task TestConnection_WithScopedOperatorForDifferentEnvironment_ShouldReturn403()
+    {
+        var assignedEnvironmentId = Guid.NewGuid();
+        var requestedEnvironmentId = Guid.NewGuid();
+        using var client = _factory.CreateAuthenticatedClientWithScopedRole(Role.PredefinedNames.Operator, assignedEnvironmentId);
+
+        var response = await client.PostAsync($"/api/environments/{requestedEnvironmentId}/test", null);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
     [Fact]

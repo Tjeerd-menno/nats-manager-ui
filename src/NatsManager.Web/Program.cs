@@ -176,6 +176,8 @@ builder.Services.AddAntiforgery(options =>
 {
     options.HeaderName = "X-XSRF-TOKEN";
 });
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, EnvironmentScopedRoleAuthorizationHandler>();
 builder.Services.AddAuthentication(SessionAuthHandler.SchemeName)
     .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, SessionAuthHandler>(SessionAuthHandler.SchemeName, null);
 builder.Services.AddAuthorization(options =>
@@ -190,7 +192,9 @@ builder.Services.AddAuthorization(options =>
 
     options.AddPolicy(AuthorizationPolicyNames.OperatorAccess, policy =>
         policy.RequireAuthenticatedUser()
-            .RequireRole(Role.PredefinedNames.Administrator, Role.PredefinedNames.Operator));
+            .AddRequirements(new EnvironmentScopedRoleRequirement(
+                Role.PredefinedNames.Administrator,
+                Role.PredefinedNames.Operator)));
 });
 
 // CORS — by default the frontend is served from the same origin as the API

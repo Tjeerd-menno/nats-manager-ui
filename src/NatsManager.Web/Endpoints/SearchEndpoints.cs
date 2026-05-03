@@ -3,6 +3,7 @@ using NatsManager.Application.Modules.Search.Commands;
 using NatsManager.Application.Modules.Search.Queries;
 using NatsManager.Domain.Modules.Common;
 using NatsManager.Web.Presenters;
+using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
 namespace NatsManager.Web.Endpoints;
@@ -14,11 +15,29 @@ public static class SearchEndpoints
         var group = app.MapGroup("/api")
             .RequireAuthorization();
 
+        group.MapGet("/search", Search);
         group.MapGet("/bookmarks", GetBookmarks);
         group.MapPost("/bookmarks", AddBookmark);
         group.MapDelete("/bookmarks/{bookmarkId:guid}", RemoveBookmark);
         group.MapGet("/preferences", GetPreferences);
         group.MapPut("/preferences/{key}", SetPreference);
+    }
+
+    private static async Task<IResult> Search(
+        [AsParameters] SearchRequest request,
+        HttpContext httpContext,
+        IUseCase<SearchQuery, IReadOnlyList<SearchResult>> useCase,
+        CancellationToken cancellationToken)
+    {
+        var userId = GetUserId(httpContext);
+        if (userId is null) return Results.Unauthorized();
+
+        var presenter = new Presenter<IReadOnlyList<SearchResult>>();
+        await useCase.ExecuteAsync(
+            new SearchQuery(userId.Value, request.Q, request.EnvironmentId, request.Type),
+            presenter,
+            cancellationToken);
+        return presenter.ToResult();
     }
 
     private static async Task<IResult> GetBookmarks(HttpContext httpContext, IUseCase<GetBookmarksQuery, IReadOnlyList<BookmarkDto>> useCase, CancellationToken cancellationToken)
@@ -77,6 +96,13 @@ public static class SearchEndpoints
         var userIdStr = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
         return userIdStr is not null && Guid.TryParse(userIdStr, out var userId) ? userId : null;
     }
+}
+
+public sealed record SearchRequest
+{
+    [FromQuery(Name = "q")] public string Q { get; init; } = string.Empty;
+    [FromQuery] public Guid? EnvironmentId { get; init; }
+    [FromQuery] public ResourceType? Type { get; init; }
 }
 
 public sealed record AddBookmarkRequest(Guid EnvironmentId, ResourceType ResourceType, string ResourceId, string DisplayName);
