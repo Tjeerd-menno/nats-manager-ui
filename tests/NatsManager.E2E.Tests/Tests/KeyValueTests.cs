@@ -222,7 +222,7 @@ public sealed class KeyValueTests(AppHostFixture fixture) : E2ETestBase(fixture)
             var histDoc = System.Text.Json.JsonDocument.Parse(histBody);
 
             // History should contain 3 entries
-            Assert.Equal(3, histDoc.RootElement.GetProperty("entries").GetArrayLength());
+            Assert.Equal(3, histDoc.RootElement.GetProperty("items").GetArrayLength());
         }
     }
 

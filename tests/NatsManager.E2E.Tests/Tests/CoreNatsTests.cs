@@ -278,7 +278,7 @@ public sealed class CoreNatsTests(AppHostFixture fixture) : E2ETestBase(fixture)
     }
 
     [Fact]
-    public async Task GetClientsViaApi_ReturnsEmptyList()
+    public async Task GetClientsViaApi_ReturnsActiveNatsManagerClient()
     {
         var (httpClient, handler) = await CreateAuthenticatedHttpClientAsync();
         using (httpClient) using (handler)
@@ -292,7 +292,8 @@ public sealed class CoreNatsTests(AppHostFixture fixture) : E2ETestBase(fixture)
             var body = await response.Content.ReadAsStringAsync();
             var doc = JsonDocument.Parse(body);
             Assert.Equal(JsonValueKind.Array, doc.RootElement.ValueKind);
-            Assert.Equal(0, doc.RootElement.GetArrayLength());
+            Assert.Contains(doc.RootElement.EnumerateArray(), client =>
+                client.GetProperty("name").GetString() == $"NatsManager-{envName}");
         }
     }
 
