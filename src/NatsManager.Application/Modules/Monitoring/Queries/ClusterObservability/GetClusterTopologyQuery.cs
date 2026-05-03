@@ -39,7 +39,7 @@ public sealed class GetClusterTopologyQueryHandler(
 
         // Build node set from relationships
         var nodeIds = allRelationships
-            .SelectMany(r => new List<string> { r.SourceNodeId, r.TargetNodeId })
+            .SelectMany(r => (string[])[r.SourceNodeId, r.TargetNodeId])
             .Distinct()
             .ToList();
 
