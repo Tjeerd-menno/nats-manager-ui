@@ -18,19 +18,14 @@ namespace NatsManager.Infrastructure.Persistence;
 /// </para>
 /// </summary>
 #pragma warning disable EF1001 // Internal EF Core API usage — required to override migration discovery.
-internal sealed class ProviderScopedMigrationsAssembly : MigrationsAssembly
+internal sealed class ProviderScopedMigrationsAssembly(
+    ICurrentDbContext currentContext,
+    IDbContextOptions options,
+    IMigrationsIdGenerator idGenerator,
+    IDiagnosticsLogger<DbLoggerCategory.Migrations> logger)
+    : MigrationsAssembly(currentContext, options, idGenerator, logger)
 {
-    private readonly ICurrentDbContext _currentContext;
-
-    public ProviderScopedMigrationsAssembly(
-        ICurrentDbContext currentContext,
-        IDbContextOptions options,
-        IMigrationsIdGenerator idGenerator,
-        IDiagnosticsLogger<DbLoggerCategory.Migrations> logger)
-        : base(currentContext, options, idGenerator, logger)
-    {
-        _currentContext = currentContext;
-    }
+    private readonly ICurrentDbContext _currentContext = currentContext;
 
     private const string MigrationsRootNamespace = "NatsManager.Infrastructure.Persistence.Migrations";
 

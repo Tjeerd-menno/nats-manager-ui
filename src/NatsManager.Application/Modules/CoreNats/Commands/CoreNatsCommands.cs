@@ -61,19 +61,13 @@ public sealed class PublishMessageCommandHandler(ICoreNatsAdapter adapter, IAudi
 {
     public async Task ExecuteAsync(PublishMessageCommand request, IOutputPort<Unit> outputPort, CancellationToken cancellationToken)
     {
-        byte[] data;
-        if (request.Payload is null)
-        {
-            data = [];
-        }
-        else
-        {
-            data = request.PayloadFormat switch
+        byte[] data = request.Payload is null
+            ? []
+            : request.PayloadFormat switch
             {
                 PayloadFormat.HexBytes => Convert.FromHexString(request.Payload),
                 _ => System.Text.Encoding.UTF8.GetBytes(request.Payload),
             };
-        }
 
         var headers = request.Headers.Count > 0 ? request.Headers : null;
         await adapter.PublishAsync(request.EnvironmentId, request.Subject, data, headers, request.ReplyTo, cancellationToken);

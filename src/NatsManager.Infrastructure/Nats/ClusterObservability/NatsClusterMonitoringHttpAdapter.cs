@@ -6,7 +6,6 @@ using NatsManager.Application.Modules.Environments.Ports;
 using NatsManager.Application.Modules.Monitoring;
 using NatsManager.Application.Modules.Monitoring.Models.ClusterObservability;
 using NatsManager.Application.Modules.Monitoring.Ports.ClusterObservability;
-using NatsManager.Infrastructure.Nats;
 
 namespace NatsManager.Infrastructure.Nats.ClusterObservability;
 
@@ -373,7 +372,7 @@ public sealed partial class NatsClusterMonitoringHttpAdapter(
 
             if (server.Connections.HasValue && server.MaxConnections.HasValue && server.MaxConnections.Value > 0)
             {
-                var pressure = (server.Connections.Value * 100) / server.MaxConnections.Value;
+                var pressure = server.Connections.Value * 100 / server.MaxConnections.Value;
                 if (pressure >= opts.ConnectionPressureWarningPercent)
                 {
                     warnings.Add(new ClusterWarning("ConnectionPressure", "Warning", $"{server.ServerId} connection pressure at {pressure}%", server.ServerId));

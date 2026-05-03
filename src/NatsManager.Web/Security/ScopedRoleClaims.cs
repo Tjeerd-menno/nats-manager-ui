@@ -1,6 +1,5 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
-using NatsManager.Domain.Modules.Auth;
 
 namespace NatsManager.Web.Security;
 

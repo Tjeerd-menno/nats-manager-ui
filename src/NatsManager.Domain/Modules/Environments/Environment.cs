@@ -73,15 +73,9 @@ public sealed class Environment
         //   * credentialType == None  ⇒ reference is always cleared, regardless of input.
         //   * credentialType != None  ⇒ either a new non-empty reference must be provided,
         //                               or the currently stored reference is reused.
-        string finalReference;
-        if (credentialType == CredentialType.None)
-        {
-            finalReference = string.Empty;
-        }
-        else
-        {
-            finalReference = credentialReference ?? CredentialReference;
-        }
+        var finalReference = credentialType == CredentialType.None
+            ? string.Empty
+            : credentialReference ?? CredentialReference;
 
         ValidateCredentialInvariant(credentialType, finalReference);
 

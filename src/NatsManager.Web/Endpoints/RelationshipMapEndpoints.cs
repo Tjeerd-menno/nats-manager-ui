@@ -1,4 +1,3 @@
-using FluentValidation;
 using NatsManager.Application.Modules.Relationships.Models;
 using NatsManager.Application.Modules.Relationships.Queries;
 using NatsManager.Infrastructure.Relationships;
