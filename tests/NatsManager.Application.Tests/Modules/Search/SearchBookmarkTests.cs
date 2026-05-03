@@ -210,6 +210,38 @@ public sealed class GetBookmarksQueryTests
     }
 }
 
+public sealed class SearchQueryTests
+{
+    private readonly IBookmarkRepository _repository = Substitute.For<IBookmarkRepository>();
+    private readonly SearchQueryHandler _handler;
+
+    public SearchQueryTests()
+    {
+        _handler = new SearchQueryHandler(_repository);
+    }
+
+    [Fact]
+    public async Task Handle_ShouldFilterBookmarksByQueryAndEnvironment()
+    {
+        var userId = Guid.NewGuid();
+        var matchingEnvironmentId = Guid.NewGuid();
+        var otherEnvironmentId = Guid.NewGuid();
+        var matching = Bookmark.Create(userId, matchingEnvironmentId, ResourceType.Stream, "orders-stream", "Orders");
+        var wrongEnvironment = Bookmark.Create(userId, otherEnvironmentId, ResourceType.Stream, "orders-copy", "Orders Copy");
+        var wrongTerm = Bookmark.Create(userId, matchingEnvironmentId, ResourceType.Stream, "invoices", "Invoices");
+        _repository.GetByUserAsync(userId, Arg.Any<CancellationToken>())
+            .Returns(new List<Bookmark> { matching, wrongEnvironment, wrongTerm });
+
+        var outputPort = new TestOutputPort<IReadOnlyList<SearchResult>>();
+        await _handler.ExecuteAsync(new SearchQuery(userId, "orders", matchingEnvironmentId), outputPort, CancellationToken.None);
+
+        outputPort.IsSuccess.ShouldBeTrue();
+        var result = outputPort.Value.ShouldHaveSingleItem();
+        result.DisplayName.ShouldBe("Orders");
+        result.EnvironmentId.ShouldBe(matchingEnvironmentId);
+    }
+}
+
 public sealed class GetUserPreferencesQueryTests
 {
     private readonly IUserPreferenceRepository _repository = Substitute.For<IUserPreferenceRepository>();

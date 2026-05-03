@@ -14,7 +14,7 @@ public sealed partial class RelationshipProjectionService(
     IEnumerable<IRelationshipSource> sources,
     ILogger<RelationshipProjectionService> logger)
 {
-    private readonly IReadOnlyList<IRelationshipSource> _sources = sources.ToList();
+    private readonly IReadOnlyList<IRelationshipSource> _sources = [.. sources];
 
     public async Task<RelationshipMap> ProjectAsync(
         FocalResource focal,
@@ -128,7 +128,7 @@ public sealed partial class RelationshipProjectionService(
         }
 
         var truncatedEdges = Math.Max(0, includedEdges.Count - filters.MaxEdges);
-        includedEdges = includedEdges.Take(filters.MaxEdges).ToList();
+        includedEdges = [.. includedEdges.Take(filters.MaxEdges)];
 
         // Resolve nodes from sources
         var resolvedNodes = await ResolveNodesAsync(includedNodeIds, focal, filters, ct);

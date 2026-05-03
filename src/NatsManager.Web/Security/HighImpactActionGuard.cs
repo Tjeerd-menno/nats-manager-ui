@@ -18,7 +18,7 @@ public static class HighImpactActionGuard
             return null;
         }
 
-        if (user.IsInRole(Role.PredefinedNames.Administrator))
+        if (user.IsInRoleForEnvironment(Role.PredefinedNames.Administrator, environmentId))
         {
             return null;
         }

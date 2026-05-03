@@ -18,7 +18,7 @@ public sealed partial class ClusterObservationPoller(
     IOptions<MonitoringOptions> options,
     ILogger<ClusterObservationPoller> logger) : BackgroundService
 {
-    private readonly Dictionary<Guid, DateTimeOffset> _nextPollTimes = new();
+    private readonly Dictionary<Guid, DateTimeOffset> _nextPollTimes = [];
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {

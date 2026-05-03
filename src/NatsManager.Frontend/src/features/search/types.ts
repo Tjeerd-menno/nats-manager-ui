@@ -1,11 +1,10 @@
 export interface SearchResult {
   resourceType: string;
   resourceId: string;
-  name: string;
-  environmentId: string;
-  environmentName: string;
+  displayName: string;
+  environmentId?: string | null;
+  environmentName?: string | null;
   description?: string;
-  navigationUrl: string;
 }
 
 export interface BookmarkDto {
@@ -14,7 +13,7 @@ export interface BookmarkDto {
   resourceType: string;
   resourceId: string;
   displayName: string;
-  navigationUrl: string;
+  environmentId: string;
   createdAt: string;
 }
 
@@ -24,8 +23,8 @@ export interface UserPreferenceDto {
 }
 
 export interface CreateBookmarkRequest {
+  environmentId: string;
   resourceType: string;
   resourceId: string;
   displayName: string;
-  navigationUrl: string;
 }

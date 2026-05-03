@@ -95,10 +95,10 @@ export function usePutKvKey(environmentId: string | null, bucketName: string | u
       const response = await apiClient.put(apiEndpoints.kvKey(environmentId, bucketName, key), data);
       return response.data as { revision: number };
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.kvKeys(environmentId, bucketName) });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.kvKey(environmentId, bucketName) });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.kvKeyHistory(environmentId, bucketName) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.kvKey(environmentId, bucketName, variables.key) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.kvKeyHistory(environmentId, bucketName, variables.key) });
     },
   });
 }

@@ -27,24 +27,24 @@ public sealed class GetClusterTopologyQueryHandler(
 
         // Apply type filter
         if (query.Types is { Count: > 0 })
-            allRelationships = allRelationships.Where(r => query.Types.Contains(r.Type)).ToList();
+            allRelationships = [.. allRelationships.Where(r => query.Types.Contains(r.Type))];
 
         // Apply status filter
         if (query.Status.HasValue)
-            allRelationships = allRelationships.Where(r => r.Status == query.Status.Value).ToList();
+            allRelationships = [.. allRelationships.Where(r => r.Status == query.Status.Value)];
 
         // Apply stale filter
         if (!query.IncludeStale)
-            allRelationships = allRelationships.Where(r => r.Freshness != ObservationFreshness.Stale).ToList();
+            allRelationships = [.. allRelationships.Where(r => r.Freshness != ObservationFreshness.Stale)];
 
         // Build node set from relationships
         var nodeIds = allRelationships
-            .SelectMany(r => new[] { r.SourceNodeId, r.TargetNodeId })
+            .SelectMany(r => (string[])[r.SourceNodeId, r.TargetNodeId])
             .Distinct()
             .ToList();
 
         var filteredNodes = Math.Max(0, nodeIds.Count - maxNodes);
-        nodeIds = nodeIds.Take(maxNodes).ToList();
+        nodeIds = [.. nodeIds.Take(maxNodes)];
 
         var nodeSet = nodeIds.ToHashSet();
         var filteredEdges = 0;
@@ -70,7 +70,7 @@ public sealed class GetClusterTopologyQueryHandler(
                 ServerId: server?.ServerId,
                 Metadata: server is not null
                     ? new Dictionary<string, object?> { ["version"] = server.Version, ["clusterName"] = server.ClusterName }
-                    : new Dictionary<string, object?>());
+                    : []);
         }).ToList();
 
         return new ClusterTopologyGraphResult(

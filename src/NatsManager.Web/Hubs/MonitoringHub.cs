@@ -15,9 +15,8 @@ public sealed class MonitoringHub(
         if (!Guid.TryParse(environmentId, out var id))
             throw new HubException("Invalid environment id.");
 
-        var environment = await environmentRepository.GetByIdAsync(id, Context.ConnectionAborted);
-        if (environment is null)
-            throw new HubException("Environment not found.");
+        _ = await environmentRepository.GetByIdAsync(id, Context.ConnectionAborted)
+            ?? throw new HubException("Environment not found.");
 
         await Groups.AddToGroupAsync(Context.ConnectionId, $"env-{id}", Context.ConnectionAborted);
 

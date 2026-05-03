@@ -1,5 +1,4 @@
 using NatsManager.Application.Modules.Relationships.Models;
-using NatsManager.Application.Modules.Relationships.Ports;
 
 namespace NatsManager.Application.Modules.Relationships.Queries;
 

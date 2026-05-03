@@ -20,7 +20,7 @@ public sealed class MonitoringMetricsStore(IOptions<MonitoringOptions> options) 
     public IReadOnlyList<MonitoringSnapshot> GetHistory(Guid environmentId) =>
         _store.TryGetValue(environmentId, out var buffer)
             ? buffer.GetAll()
-            : Array.Empty<MonitoringSnapshot>();
+            : [];
 
     public MonitoringSnapshot? GetLatest(Guid environmentId) =>
         _store.TryGetValue(environmentId, out var buffer) ? buffer.GetLatest() : null;
@@ -29,7 +29,7 @@ public sealed class MonitoringMetricsStore(IOptions<MonitoringOptions> options) 
 internal sealed class EnvironmentMetricsBuffer(int maxCapacity)
 {
     private readonly Queue<MonitoringSnapshot> _queue = new();
-    private readonly object _lock = new();
+    private readonly Lock _lock = new();
     private MonitoringSnapshot? _latest;
 
     public void Add(MonitoringSnapshot snapshot)

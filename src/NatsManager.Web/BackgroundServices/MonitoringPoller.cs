@@ -5,7 +5,6 @@ using NatsManager.Application.Modules.Environments.Ports;
 using NatsManager.Application.Modules.Monitoring;
 using NatsManager.Application.Modules.Monitoring.Models;
 using NatsManager.Application.Modules.Monitoring.Ports;
-using NatsManager.Domain.Modules.Environments;
 using NatsEnvironment = NatsManager.Domain.Modules.Environments.Environment;
 using NatsManager.Web.Hubs;
 

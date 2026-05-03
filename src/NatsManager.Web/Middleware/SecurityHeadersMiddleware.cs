@@ -4,7 +4,7 @@ namespace NatsManager.Web.Middleware;
 /// Adds baseline HTTP security response headers on every request.
 /// Complements HSTS (registered separately) and the antiforgery cookie.
 /// </summary>
-public sealed class SecurityHeadersMiddleware
+public sealed class SecurityHeadersMiddleware(RequestDelegate next)
 {
     // Baseline CSP. The frontend is served as static assets and calls the same origin,
     // so 'self' is sufficient. 'unsafe-inline' on style-src is a temporary concession
@@ -21,13 +21,6 @@ public sealed class SecurityHeadersMiddleware
         "frame-ancestors 'none'; " +
         "base-uri 'self'; " +
         "form-action 'self'";
-
-    private readonly RequestDelegate _next;
-
-    public SecurityHeadersMiddleware(RequestDelegate next)
-    {
-        _next = next;
-    }
 
     public Task InvokeAsync(HttpContext context)
     {
@@ -50,6 +43,6 @@ public sealed class SecurityHeadersMiddleware
             headers["Content-Security-Policy"] = ContentSecurityPolicy;
         }
 
-        return _next(context);
+        return next(context);
     }
 }
