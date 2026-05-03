@@ -182,55 +182,24 @@ public static partial class RelationshipMapEndpoints
         string nodeId,
         HttpContext httpContext,
         ILogger<RelationshipMapEndpointLogCategory> logger,
-        GetRelationshipMapQueryHandler handler = default!,
+        GetRelationshipNodeQueryHandler handler = default!,
         CancellationToken ct = default)
     {
-        var prefix = $"{environmentId}:";
-        if (!nodeId.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        var result = await handler.HandleAsync(new GetRelationshipNodeQuery(environmentId, nodeId), ct);
+        if (result.IsInvalid)
         {
-            LogNodeRequestRejected(logger, environmentId, httpContext.TraceIdentifier, "CrossEnvironment");
-            return Results.NotFound(new { error = "Node was not found in this environment." });
+            LogNodeRequestRejected(logger, environmentId, httpContext.TraceIdentifier, GetNodeRejectionReason(result));
+            return Results.BadRequest(new { error = result.ValidationError });
         }
 
-        var remainder = nodeId[prefix.Length..];
-        var separator = remainder.IndexOf(':');
-        if (separator <= 0 || separator == remainder.Length - 1)
+        if (result.IsNotFound || result.Node is null)
         {
-            LogNodeRequestRejected(logger, environmentId, httpContext.TraceIdentifier, "InvalidNodeId");
-            return Results.BadRequest(new { error = "Invalid node id." });
-        }
-
-        var typeName = remainder[..separator];
-        var resourceId = remainder[(separator + 1)..];
-        if (!TryParseResourceType(typeName, out var resourceType))
-        {
-            LogNodeRequestRejected(logger, environmentId, httpContext.TraceIdentifier, "UnknownNodeType");
-            return Results.BadRequest(new { error = $"Unknown resource type in node id: '{typeName}'." });
-        }
-
-        LogNodeRequestReceived(logger, environmentId, httpContext.TraceIdentifier, resourceType);
-        var result = await handler.HandleAsync(
-            new GetRelationshipMapQuery(environmentId, resourceType, resourceId, MapFilter.Default),
-            ct);
-        if (result.IsNotFound || result.Map is null)
-        {
-            LogNodeRequestRejected(logger, environmentId, httpContext.TraceIdentifier, "NodeNotFound");
+            LogNodeRequestRejected(logger, environmentId, httpContext.TraceIdentifier, GetNodeRejectionReason(result));
             return Results.NotFound(new { error = result.NotFoundReason ?? "Node was not found." });
         }
 
-        var focal = result.Map.FocalResource;
-        var node = result.Map.Nodes.FirstOrDefault(n => n.NodeId == nodeId);
-        return Results.Ok(new
-        {
-            nodeId,
-            resourceType = focal.ResourceType,
-            resourceId = focal.ResourceId,
-            displayName = focal.DisplayName,
-            status = node?.Status ?? ResourceHealthStatus.Unknown,
-            freshness = node?.Freshness ?? RelationshipFreshness.Unavailable,
-            detailRoute = focal.Route,
-            canRecenter = true
-        });
+        LogNodeRequestReceived(logger, environmentId, httpContext.TraceIdentifier, result.Node.ResourceType);
+        return Results.Ok(result.Node);
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Relationship map request received for environment {EnvironmentId}, correlation {CorrelationId}, resource type {ResourceType}, depth {Depth}, max nodes {MaxNodes}, max edges {MaxEdges}.")]
@@ -247,6 +216,9 @@ public static partial class RelationshipMapEndpoints
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Relationship node request rejected for environment {EnvironmentId}, correlation {CorrelationId}, reason {Reason}.")]
     private static partial void LogNodeRequestRejected(ILogger logger, Guid environmentId, string correlationId, string reason);
+
+    private static string GetNodeRejectionReason(RelationshipNodeResult result) =>
+        result.RejectionReason?.ToString() ?? "Unknown";
 
     private sealed class RelationshipMapEndpointLogCategory;
 }

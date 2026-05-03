@@ -1,4 +1,5 @@
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../../test-utils';
 import { EnvironmentForm } from './EnvironmentForm';
 
@@ -46,6 +47,19 @@ describe('EnvironmentForm', () => {
 
     expect(screen.getByLabelText('Monitoring URL')).toBeInTheDocument();
     expect(screen.getByLabelText('Polling Interval (seconds)')).toBeInTheDocument();
+  });
+
+  it('validates monitoring URL input', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<EnvironmentForm {...defaultProps} />);
+
+    await user.type(screen.getByPlaceholderText('production-us-east'), 'Local');
+    await user.type(screen.getByPlaceholderText('nats://localhost:4222'), 'nats://localhost:4222');
+    await user.type(screen.getByLabelText('Monitoring URL'), 'nats://localhost:8222');
+    await user.click(screen.getByRole('button', { name: 'Register' }));
+
+    expect(await screen.findByText('Monitoring URL must use http:// or https://')).toBeInTheDocument();
+    expect(screen.getByText('Override default polling interval (5–300 seconds)')).toBeInTheDocument();
   });
 
   it('does not render when opened is false', () => {
