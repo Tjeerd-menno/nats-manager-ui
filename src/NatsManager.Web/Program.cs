@@ -112,7 +112,7 @@ builder.Services.AddSingleton<IMonitoringAdapter, NatsMonitoringHttpAdapter>();
 builder.Services.AddSingleton<IMonitoringMetricsStore, MonitoringMetricsStore>();
 
 // Cluster Observability
-builder.Services.AddSingleton<IClusterMonitoringAdapter, NatsClusterMonitoringHttpAdapter>();
+builder.Services.AddScoped<IClusterMonitoringAdapter, NatsClusterMonitoringHttpAdapter>();
 builder.Services.AddSingleton<IClusterObservationStore, ClusterObservationStore>();
 
 // Relationships

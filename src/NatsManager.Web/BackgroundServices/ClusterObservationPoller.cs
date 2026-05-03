@@ -13,7 +13,6 @@ namespace NatsManager.Web.BackgroundServices;
 /// </summary>
 public sealed partial class ClusterObservationPoller(
     IServiceScopeFactory scopeFactory,
-    IClusterMonitoringAdapter clusterMonitoringAdapter,
     IClusterObservationStore observationStore,
     IOptions<MonitoringOptions> options,
     ILogger<ClusterObservationPoller> logger) : BackgroundService
@@ -45,10 +44,13 @@ public sealed partial class ClusterObservationPoller(
         LogPollerStopped();
     }
 
-    private async Task PollDueEnvironmentsAsync(CancellationToken ct)
+    internal async Task PollDueEnvironmentsAsync(CancellationToken ct)
     {
         using var scope = scopeFactory.CreateScope();
+        // Hosted services are singletons, so scoped dependencies must be resolved
+        // from a scope created for each polling cycle.
         var environmentRepository = scope.ServiceProvider.GetRequiredService<IEnvironmentRepository>();
+        var clusterMonitoringAdapter = scope.ServiceProvider.GetRequiredService<IClusterMonitoringAdapter>();
         var environments = await environmentRepository.GetEnabledAsync(ct);
         var monitorableEnvironments = environments
             .Where(e => e.MonitoringUrl is not null)
