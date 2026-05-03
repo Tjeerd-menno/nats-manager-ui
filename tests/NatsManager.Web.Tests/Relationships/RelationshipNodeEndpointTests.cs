@@ -77,4 +77,15 @@ public sealed class RelationshipNodeEndpointTests : IClassFixture<NatsManagerWeb
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
+
+    [Fact]
+    public async Task GetRelationshipNode_WhenNodeTypeIsUnknown_ShouldReturn400()
+    {
+        var environmentId = Guid.NewGuid();
+        var nodeId = $"{environmentId}:Bogus:orders";
+
+        var response = await _client.GetAsync($"/api/environments/{environmentId}/relationships/nodes/{Uri.EscapeDataString(nodeId)}");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
 }

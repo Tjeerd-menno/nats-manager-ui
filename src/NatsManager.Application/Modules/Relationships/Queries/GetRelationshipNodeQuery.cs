@@ -17,8 +17,17 @@ public sealed record RelationshipNodeDetails(
 public sealed record RelationshipNodeResult(
     RelationshipNodeDetails? Node,
     string? NotFoundReason,
-    string? ValidationError)
+    string? ValidationError,
+    RelationshipNodeRejectionReason? RejectionReason)
 {
     public bool IsNotFound => Node is null && NotFoundReason is not null;
     public bool IsInvalid => ValidationError is not null;
+}
+
+public enum RelationshipNodeRejectionReason
+{
+    CrossEnvironment,
+    InvalidNodeId,
+    UnknownNodeType,
+    NodeNotFound
 }

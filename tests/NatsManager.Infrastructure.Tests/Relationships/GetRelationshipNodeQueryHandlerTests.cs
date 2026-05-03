@@ -23,6 +23,7 @@ public sealed class GetRelationshipNodeQueryHandlerTests
 
         result.IsNotFound.ShouldBeTrue();
         result.NotFoundReason.ShouldBe("Node was not found in this environment.");
+        result.RejectionReason.ShouldBe(RelationshipNodeRejectionReason.CrossEnvironment);
         resolver.ResolveCallCount.ShouldBe(0);
     }
 
@@ -36,6 +37,35 @@ public sealed class GetRelationshipNodeQueryHandlerTests
 
         result.IsInvalid.ShouldBeTrue();
         result.ValidationError.ShouldBe("Invalid node id.");
+        result.RejectionReason.ShouldBe(RelationshipNodeRejectionReason.InvalidNodeId);
+    }
+
+    [Fact]
+    public async Task HandleAsync_WhenNodeTypeIsUnknown_ShouldReturnValidationError()
+    {
+        var environmentId = Guid.NewGuid();
+        var handler = CreateHandler(new FakeFocalResourceResolver(), []);
+
+        var result = await handler.HandleAsync(new GetRelationshipNodeQuery(environmentId, $"{environmentId}:Bogus:orders"));
+
+        result.IsInvalid.ShouldBeTrue();
+        result.ValidationError.ShouldBe("Unknown resource type in node id: 'Bogus'.");
+        result.RejectionReason.ShouldBe(RelationshipNodeRejectionReason.UnknownNodeType);
+    }
+
+    [Fact]
+    public async Task HandleAsync_WhenResourceIsNotFound_ShouldReturnNodeNotFoundReason()
+    {
+        var environmentId = Guid.NewGuid();
+        var handler = CreateHandler(new FakeFocalResourceResolver(), []);
+
+        var result = await handler.HandleAsync(new GetRelationshipNodeQuery(
+            environmentId,
+            ResourceNode.BuildNodeId(environmentId, ResourceType.Stream, "orders")));
+
+        result.IsNotFound.ShouldBeTrue();
+        result.NotFoundReason.ShouldBe($"Resource 'Stream:orders' not found in environment {environmentId}.");
+        result.RejectionReason.ShouldBe(RelationshipNodeRejectionReason.NodeNotFound);
     }
 
     [Fact]

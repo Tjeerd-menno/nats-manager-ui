@@ -189,13 +189,13 @@ public static partial class RelationshipMapEndpoints
         var result = await handler.HandleAsync(new GetRelationshipNodeQuery(environmentId, nodeId), ct);
         if (result.IsInvalid)
         {
-            LogNodeRequestRejected(logger, environmentId, httpContext.TraceIdentifier, "InvalidNodeId");
+            LogNodeRequestRejected(logger, environmentId, httpContext.TraceIdentifier, GetNodeRejectionReason(result));
             return Results.BadRequest(new { error = result.ValidationError });
         }
 
         if (result.IsNotFound || result.Node is null)
         {
-            LogNodeRequestRejected(logger, environmentId, httpContext.TraceIdentifier, "NodeNotFound");
+            LogNodeRequestRejected(logger, environmentId, httpContext.TraceIdentifier, GetNodeRejectionReason(result));
             return Results.NotFound(new { error = result.NotFoundReason ?? "Node was not found." });
         }
 
@@ -217,6 +217,9 @@ public static partial class RelationshipMapEndpoints
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Relationship node request rejected for environment {EnvironmentId}, correlation {CorrelationId}, reason {Reason}.")]
     private static partial void LogNodeRequestRejected(ILogger logger, Guid environmentId, string correlationId, string reason);
+
+    private static string GetNodeRejectionReason(RelationshipNodeResult result) =>
+        result.RejectionReason?.ToString() ?? "NodeNotFound";
 
     private sealed class RelationshipMapEndpointLogCategory;
 }
