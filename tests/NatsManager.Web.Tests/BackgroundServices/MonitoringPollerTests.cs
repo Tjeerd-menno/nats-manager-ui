@@ -27,6 +27,7 @@ public sealed class MonitoringPollerTests
         var snapshot = CreateSnapshot(monitored.Id);
         adapter.FetchSnapshotAsync(monitored, null, Arg.Any<CancellationToken>()).Returns(snapshot);
         var metricsStore = Substitute.For<IMonitoringMetricsStore>();
+        metricsStore.GetHistory(monitored.Id).Returns([snapshot]);
         var poller = CreatePoller(repository, adapter, metricsStore, out var clientProxy);
 
         await poller.PollDueEnvironmentsAsync(CancellationToken.None);
@@ -53,6 +54,7 @@ public sealed class MonitoringPollerTests
         var snapshot = CreateSnapshot(succeeding.Id);
         adapter.FetchSnapshotAsync(succeeding, null, Arg.Any<CancellationToken>()).Returns(snapshot);
         var metricsStore = Substitute.For<IMonitoringMetricsStore>();
+        metricsStore.GetHistory(succeeding.Id).Returns([snapshot]);
         var poller = CreatePoller(repository, adapter, metricsStore, out var clientProxy);
 
         await poller.PollDueEnvironmentsAsync(CancellationToken.None);
@@ -73,9 +75,12 @@ public sealed class MonitoringPollerTests
         var repository = Substitute.For<IEnvironmentRepository>();
         repository.GetEnabledAsync(Arg.Any<CancellationToken>()).Returns([environment]);
         var adapter = Substitute.For<IMonitoringAdapter>();
+        var snapshot = CreateSnapshot(environment.Id);
         adapter.FetchSnapshotAsync(environment, null, Arg.Any<CancellationToken>())
-            .Returns(CreateSnapshot(environment.Id));
-        var poller = CreatePoller(repository, adapter, Substitute.For<IMonitoringMetricsStore>(), out _);
+            .Returns(snapshot);
+        var metricsStore = Substitute.For<IMonitoringMetricsStore>();
+        metricsStore.GetHistory(environment.Id).Returns([snapshot]);
+        var poller = CreatePoller(repository, adapter, metricsStore, out _);
 
         await poller.PollDueEnvironmentsAsync(CancellationToken.None);
         await poller.PollDueEnvironmentsAsync(CancellationToken.None);
