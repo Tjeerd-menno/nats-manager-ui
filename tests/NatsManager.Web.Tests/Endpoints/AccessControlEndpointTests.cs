@@ -34,6 +34,16 @@ public sealed class AccessControlEndpointTests : IClassFixture<NatsManagerWebApp
     }
 
     [Fact]
+    public async Task GetRoles_WhenAdminIsEnvironmentScoped_ShouldReturn403()
+    {
+        using var client = _factory.CreateAuthenticatedClientWithScopedRole(Role.PredefinedNames.Administrator, Guid.NewGuid());
+
+        var response = await client.GetAsync("/api/access-control/roles");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
     public async Task GetRoles_WhenAdmin_ShouldReturn200()
     {
         using var client = _factory.CreateAuthenticatedClient(Role.PredefinedNames.Administrator);

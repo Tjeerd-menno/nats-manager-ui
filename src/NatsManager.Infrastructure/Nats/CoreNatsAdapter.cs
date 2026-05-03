@@ -140,11 +140,10 @@ public sealed partial class CoreNatsAdapter(
                 return [];
             }
 
-            return connections
+            return [.. connections
                 .EnumerateArray()
                 .Select(ParseClientInfo)
-                .OrderBy(client => client.Id)
-                .ToList();
+                .OrderBy(client => client.Id)];
         }
         catch (Exception ex)
         {
@@ -224,7 +223,7 @@ public sealed partial class CoreNatsAdapter(
         NatsHeaders? natsHeaders = null;
         if (headers is { Count: > 0 })
         {
-            natsHeaders = new NatsHeaders();
+            natsHeaders = [];
             foreach (var (key, value) in headers)
                 natsHeaders.Add(key, value);
         }

@@ -2,7 +2,6 @@ using FluentValidation;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Antiforgery;
-using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 using NatsManager.Application.Behaviors;
 using NatsManager.Application.Common;
@@ -13,7 +12,6 @@ using NatsManager.Application.Modules.Monitoring;
 using NatsManager.Application.Modules.Monitoring.Ports;
 using NatsManager.Application.Modules.Monitoring.Ports.ClusterObservability;
 using NatsManager.Application.Modules.Relationships.Ports;
-using NatsManager.Application.Modules.Relationships.Queries;
 using NatsManager.Domain.Modules.Auth;
 using NatsManager.Infrastructure.Auth;
 using NatsManager.Infrastructure.Configuration;
@@ -176,6 +174,8 @@ builder.Services.AddAntiforgery(options =>
 {
     options.HeaderName = "X-XSRF-TOKEN";
 });
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, EnvironmentScopedRoleAuthorizationHandler>();
 builder.Services.AddAuthentication(SessionAuthHandler.SchemeName)
     .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, SessionAuthHandler>(SessionAuthHandler.SchemeName, null);
 builder.Services.AddAuthorization(options =>
@@ -190,7 +190,9 @@ builder.Services.AddAuthorization(options =>
 
     options.AddPolicy(AuthorizationPolicyNames.OperatorAccess, policy =>
         policy.RequireAuthenticatedUser()
-            .RequireRole(Role.PredefinedNames.Administrator, Role.PredefinedNames.Operator));
+            .AddRequirements(new EnvironmentScopedRoleRequirement(
+                Role.PredefinedNames.Administrator,
+                Role.PredefinedNames.Operator)));
 });
 
 // CORS — by default the frontend is served from the same origin as the API

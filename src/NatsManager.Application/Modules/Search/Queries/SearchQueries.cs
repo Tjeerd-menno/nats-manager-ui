@@ -12,7 +12,43 @@ public sealed record SearchResult(
     string? EnvironmentName,
     string? Description);
 
-public sealed record SearchQuery(string Query, Guid? EnvironmentId = null, ResourceType? ResourceType = null);
+public sealed record SearchQuery(Guid UserId, string Query, Guid? EnvironmentId = null, ResourceType? ResourceType = null);
+
+public sealed class SearchQueryHandler(IBookmarkRepository repository) : IUseCase<SearchQuery, IReadOnlyList<SearchResult>>
+{
+    public async Task ExecuteAsync(
+        SearchQuery request,
+        IOutputPort<IReadOnlyList<SearchResult>> outputPort,
+        CancellationToken cancellationToken)
+    {
+        var term = request.Query.Trim();
+        if (term.Length < 2)
+        {
+            outputPort.Success([]);
+            return;
+        }
+
+        var bookmarks = await repository.GetByUserAsync(request.UserId, cancellationToken);
+        var results = bookmarks
+            .Where(bookmark => request.EnvironmentId is null || bookmark.EnvironmentId == request.EnvironmentId)
+            .Where(bookmark => request.ResourceType is null || bookmark.ResourceType == request.ResourceType)
+            .Where(bookmark =>
+                bookmark.DisplayName.Contains(term, StringComparison.OrdinalIgnoreCase)
+                || bookmark.ResourceId.Contains(term, StringComparison.OrdinalIgnoreCase)
+                || bookmark.ResourceType.ToString().Contains(term, StringComparison.OrdinalIgnoreCase))
+            .Select(bookmark => new SearchResult(
+                bookmark.ResourceType,
+                bookmark.ResourceId,
+                bookmark.DisplayName,
+                bookmark.EnvironmentId,
+                null,
+                null))
+            .Take(20)
+            .ToList();
+
+        outputPort.Success(results);
+    }
+}
 
 public sealed record BookmarkDto(Guid Id, Guid UserId, ResourceType ResourceType, string ResourceId, string DisplayName, Guid EnvironmentId, DateTimeOffset CreatedAt);
 

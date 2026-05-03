@@ -12,6 +12,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
 using NSubstitute;
 using NatsManager.Domain.Modules.Auth;
+using NatsManager.Web.Security;
 using NatsManager.Application.Modules.Audit.Ports;
 using NatsManager.Application.Modules.CoreNats.Ports;
 using NatsManager.Application.Modules.Environments.Ports;
@@ -124,6 +125,28 @@ public sealed class NatsManagerWebAppFactory : WebApplicationFactory<Program>
         return client;
     }
 
+    public HttpClient CreateAuthenticatedClient(Guid userId, params string[] roles)
+    {
+        var client = CreateAuthenticatedClient(roles);
+        client.DefaultRequestHeaders.Remove(TestAuthHandler.UserIdHeaderName);
+        client.DefaultRequestHeaders.Add(TestAuthHandler.UserIdHeaderName, userId.ToString());
+        return client;
+    }
+
+    public HttpClient CreateAuthenticatedClientWithScopedRole(string role, Guid environmentId, params string[] globalRoles)
+    {
+        var client = base.CreateClient();
+        client.DefaultRequestHeaders.Add(TestAuthHandler.AuthModeHeaderName, "authenticated");
+        client.DefaultRequestHeaders.Add(TestAuthHandler.UserIdHeaderName, TestAuthHandler.DefaultUserId.ToString());
+        client.DefaultRequestHeaders.Add(TestAuthHandler.UsernameHeaderName, BootstrapAdminUsername);
+        client.DefaultRequestHeaders.Add(TestAuthHandler.DisplayNameHeaderName, "Scoped user");
+        client.DefaultRequestHeaders.Add(
+            TestAuthHandler.RolesHeaderName,
+            globalRoles.Length == 0 ? "__none__" : string.Join(',', globalRoles));
+        client.DefaultRequestHeaders.Add(TestAuthHandler.ScopedRolesHeaderName, $"{role}|{environmentId:D}");
+        return client;
+    }
+
     private static void ReplaceService<T>(IServiceCollection services, T substitute) where T : class
     {
         var descriptors = services.Where(d => d.ServiceType == typeof(T)).ToList();
@@ -148,6 +171,7 @@ internal sealed class TestAuthHandler(
     internal const string UsernameHeaderName = "X-Test-Username";
     internal const string DisplayNameHeaderName = "X-Test-DisplayName";
     internal const string RolesHeaderName = "X-Test-Roles";
+    internal const string ScopedRolesHeaderName = "X-Test-Scoped-Roles";
     internal static readonly Guid DefaultUserId = Guid.Parse("11111111-1111-1111-1111-111111111111");
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
@@ -170,17 +194,36 @@ internal sealed class TestAuthHandler(
         var roles = Request.Headers.TryGetValue(RolesHeaderName, out var roleValues)
             ? roleValues.ToString().Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             : [Role.PredefinedNames.Administrator];
+        var scopedRoles = Request.Headers.TryGetValue(ScopedRolesHeaderName, out var scopedRoleValues)
+            ? scopedRoleValues.ToString().Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            : [];
 
-        var claims = new[]
+        var claims = new List<Claim>
         {
             new Claim(ClaimTypes.NameIdentifier, userId),
             new Claim(ClaimTypes.Name, username),
             new Claim("DisplayName", displayName),
-        }.Concat(roles.Select(role => new Claim(ClaimTypes.Role, role)));
+        };
+        claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
+        claims.AddRange(scopedRoles.SelectMany(ReadScopedRoleClaim));
 
         var identity = new ClaimsIdentity(claims, "Test");
         var principal = new ClaimsPrincipal(identity);
         var ticket = new AuthenticationTicket(principal, "Test");
         return Task.FromResult(AuthenticateResult.Success(ticket));
+    }
+
+    private static IEnumerable<Claim> ReadScopedRoleClaim(string value)
+    {
+        var separatorIndex = value.LastIndexOf('|');
+        if (separatorIndex <= 0 || separatorIndex == value.Length - 1)
+        {
+            yield break;
+        }
+
+        if (Guid.TryParse(value[(separatorIndex + 1)..], out var environmentId))
+        {
+            yield return ScopedRoleClaims.Create(value[..separatorIndex], environmentId);
+        }
     }
 }

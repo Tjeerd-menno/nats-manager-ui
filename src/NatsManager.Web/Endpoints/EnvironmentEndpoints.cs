@@ -89,7 +89,7 @@ public static class EnvironmentEndpoints
         var environment = await environmentRepository.GetByIdAsync(id, cancellationToken);
         if (environment is not null
             && HasMonitoringUrlChanged(environment.MonitoringUrl, request.MonitoringUrl)
-            && !user.IsInRole(Role.PredefinedNames.Administrator))
+            && !user.IsInRoleForEnvironment(Role.PredefinedNames.Administrator, id))
         {
             return Results.Forbid();
         }

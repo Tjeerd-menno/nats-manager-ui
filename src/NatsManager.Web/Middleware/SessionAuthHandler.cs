@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using NatsManager.Infrastructure.Persistence;
+using NatsManager.Web.Security;
 
 namespace NatsManager.Web.Middleware;
 
@@ -39,16 +40,19 @@ public sealed class SessionAuthHandler(
             new("DisplayName", user.DisplayName)
         };
 
-        // Load roles
+        // Load roles. Environment-scoped assignments are intentionally kept out
+        // of ClaimTypes.Role so global policies cannot treat them as global.
         var roles = await context.UserRoleAssignments
             .AsNoTracking()
             .Where(a => a.UserId == userId)
-            .Join(context.Roles, a => a.RoleId, r => r.Id, (a, r) => r.Name)
+            .Join(context.Roles, a => a.RoleId, r => r.Id, (a, r) => new { r.Name, a.EnvironmentId })
             .ToListAsync();
 
-        foreach (var role in roles)
+        foreach (var assignment in roles)
         {
-            claims.Add(new Claim(ClaimTypes.Role, role));
+            claims.Add(assignment.EnvironmentId.HasValue
+                ? ScopedRoleClaims.Create(assignment.Name, assignment.EnvironmentId.Value)
+                : new Claim(ClaimTypes.Role, assignment.Name));
         }
 
         var identity = new ClaimsIdentity(claims, SchemeName);

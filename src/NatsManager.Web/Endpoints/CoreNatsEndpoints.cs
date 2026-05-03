@@ -72,7 +72,7 @@ public static class CoreNatsEndpoints
             Subject = body.Subject,
             Payload = body.Payload,
             PayloadFormat = body.PayloadFormat,
-            Headers = body.Headers ?? new Dictionary<string, string>(),
+            Headers = body.Headers ?? [],
             ReplyTo = body.ReplyTo,
         }, presenter, cancellationToken);
         if (presenter.IsSuccess) return Results.Ok(new { published = true });

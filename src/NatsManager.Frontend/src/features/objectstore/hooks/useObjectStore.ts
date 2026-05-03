@@ -96,7 +96,9 @@ export function useDeleteObject(environmentId: string | null, bucketName: string
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (objectName: string) => {
-      await apiClient.delete(apiEndpoints.objectInfo(environmentId, bucketName, objectName));
+      await apiClient.delete(apiEndpoints.objectInfo(environmentId, bucketName, objectName), {
+        headers: { 'X-Confirm': 'true' },
+      });
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.objects(environmentId, bucketName) });

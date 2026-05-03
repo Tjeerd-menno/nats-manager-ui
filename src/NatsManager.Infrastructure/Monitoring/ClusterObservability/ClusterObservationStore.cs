@@ -28,13 +28,13 @@ public sealed class ClusterObservationStore(IOptions<MonitoringOptions> options)
     public IReadOnlyList<ClusterObservation> GetRetained(Guid environmentId) =>
         _store.TryGetValue(environmentId, out var buffer)
             ? buffer.GetAll()
-            : Array.Empty<ClusterObservation>();
+            : [];
 }
 
 internal sealed class EnvironmentObservationBuffer(int maxCapacity)
 {
     private readonly Queue<ClusterObservation> _queue = new();
-    private readonly object _lock = new();
+    private readonly Lock _lock = new();
     private ClusterObservation? _latest;
 
     public void Add(ClusterObservation observation)
