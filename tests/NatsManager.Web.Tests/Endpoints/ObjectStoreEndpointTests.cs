@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using Shouldly;
 using NSubstitute;
 using NatsManager.Application.Modules.ObjectStore.Models;
+using NatsManager.Web.Configuration;
 
 namespace NatsManager.Web.Tests.Endpoints;
 
@@ -61,5 +62,40 @@ public sealed class ObjectStoreEndpointTests : IClassFixture<NatsManagerWebAppFa
 
         // The handler catches exception and returns null → NotFound
         response.StatusCode.ShouldBeOneOf(HttpStatusCode.NotFound, HttpStatusCode.InternalServerError);
+    }
+
+    [Fact]
+    public async Task UploadObject_WhenContentLengthExceedsLimit_ShouldReturn413()
+    {
+        var envId = Guid.NewGuid();
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"/api/environments/{envId}/objectstore/buckets/bucket/objects/large.bin/upload")
+        {
+            Content = new DeclaredLengthContent(ObjectStoreUploadOptions.DefaultMaxUploadBytes + 1)
+        };
+
+        var response = await _client.SendAsync(request);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.RequestEntityTooLarge);
+        await _factory.ObjectStoreAdapter.DidNotReceiveWithAnyArgs().UploadObjectAsync(
+            default,
+            string.Empty,
+            string.Empty,
+            [],
+            default,
+            default);
+    }
+
+    private sealed class DeclaredLengthContent(long contentLength) : HttpContent
+    {
+        protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context) =>
+            Task.CompletedTask;
+
+        protected override bool TryComputeLength(out long length)
+        {
+            length = contentLength;
+            return true;
+        }
     }
 }

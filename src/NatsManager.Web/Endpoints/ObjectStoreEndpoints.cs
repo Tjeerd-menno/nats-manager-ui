@@ -1,9 +1,12 @@
+using System.Buffers;
 using System.Security.Claims;
+using Microsoft.Extensions.Options;
 using NatsManager.Application.Common;
 using NatsManager.Application.Modules.Environments.Ports;
 using NatsManager.Application.Modules.ObjectStore.Commands;
 using NatsManager.Application.Modules.ObjectStore.Models;
 using NatsManager.Application.Modules.ObjectStore.Queries;
+using NatsManager.Web.Configuration;
 using NatsManager.Web.Presenters;
 using NatsManager.Web.Security;
 
@@ -115,14 +118,21 @@ public static class ObjectStoreEndpoints
         HttpRequest httpRequest,
         ClaimsPrincipal user,
         IEnvironmentRepository environmentRepository,
+        IOptions<ObjectStoreUploadOptions> uploadOptions,
         IUseCase<UploadObjectCommand, Unit> useCase, CancellationToken cancellationToken)
     {
         var guardResult = await HighImpactActionGuard.RequireAllowedAsync(envId, user, environmentRepository, cancellationToken);
         if (guardResult is not null) return guardResult;
 
-        using var ms = new MemoryStream();
-        await httpRequest.Body.CopyToAsync(ms, cancellationToken);
-        var data = ms.ToArray();
+        var data = await ReadBoundedBodyAsync(httpRequest, uploadOptions.Value.MaxUploadBytes, cancellationToken);
+        if (data is null)
+        {
+            return Results.Problem(
+                title: "Object upload too large",
+                detail: $"Object uploads are limited to {uploadOptions.Value.MaxUploadBytes} bytes.",
+                statusCode: StatusCodes.Status413PayloadTooLarge);
+        }
+
         var contentType = httpRequest.ContentType;
 
         var presenter = new Presenter<Unit>();
@@ -154,6 +164,77 @@ public static class ObjectStoreEndpoints
         var presenter = new Presenter<Unit>();
         await useCase.ExecuteAsync(new DeleteObjectCommand { EnvironmentId = envId, BucketName = bucket, ObjectName = objectName }, presenter, cancellationToken);
         return presenter.ToNoContentResult();
+    }
+
+    private static async Task<byte[]?> ReadBoundedBodyAsync(HttpRequest request, long maxBytes, CancellationToken cancellationToken)
+    {
+        if (request.ContentLength is > 0 and var contentLength)
+        {
+            if (contentLength > maxBytes)
+            {
+                return null;
+            }
+
+            return await ReadKnownLengthBodyAsync(request.Body, (int)contentLength, cancellationToken);
+        }
+
+        return await ReadUnknownLengthBodyAsync(request.Body, maxBytes, cancellationToken);
+    }
+
+    private static async Task<byte[]> ReadKnownLengthBodyAsync(Stream body, int contentLength, CancellationToken cancellationToken)
+    {
+        var data = new byte[contentLength];
+        var totalRead = 0;
+
+        while (totalRead < data.Length)
+        {
+            var read = await body.ReadAsync(data.AsMemory(totalRead), cancellationToken);
+            if (read == 0)
+            {
+                break;
+            }
+
+            totalRead += read;
+        }
+
+        if (totalRead == data.Length)
+        {
+            return data;
+        }
+
+        Array.Resize(ref data, totalRead);
+        return data;
+    }
+
+    private static async Task<byte[]?> ReadUnknownLengthBodyAsync(Stream body, long maxBytes, CancellationToken cancellationToken)
+    {
+        using var ms = new MemoryStream();
+        var buffer = ArrayPool<byte>.Shared.Rent(81920);
+        var totalRead = 0L;
+
+        try
+        {
+            while (true)
+            {
+                var read = await body.ReadAsync(buffer, cancellationToken);
+                if (read == 0)
+                {
+                    return ms.ToArray();
+                }
+
+                totalRead += read;
+                if (totalRead > maxBytes)
+                {
+                    return null;
+                }
+
+                ms.Write(buffer.AsSpan(0, read));
+            }
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
     }
 }
 

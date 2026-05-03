@@ -23,6 +23,7 @@ using NatsManager.Infrastructure.Persistence;
 using NatsManager.Infrastructure.Relationships;
 using NatsManager.Infrastructure.Relationships.Sources;
 using NatsManager.Web.BackgroundServices;
+using NatsManager.Web.Configuration;
 using NatsManager.Web.Endpoints;
 using NatsManager.Web.Hubs;
 using NatsManager.Web.Middleware;
@@ -85,6 +86,11 @@ builder.Services.Configure<BootstrapAdminOptions>(
 builder.Services.AddOptions<MonitoringOptions>()
     .Bind(builder.Configuration.GetSection(MonitoringOptions.SectionName))
     .Validate(MonitoringOptions.IsValid, "Monitoring options are invalid. DefaultPollingIntervalSeconds must be 5-300, MaxSnapshotsPerEnvironment must be 1-10000, and HttpTimeoutSeconds must be 1-60.")
+    .ValidateOnStart();
+
+builder.Services.AddOptions<ObjectStoreUploadOptions>()
+    .Bind(builder.Configuration.GetSection(ObjectStoreUploadOptions.SectionName))
+    .Validate(ObjectStoreUploadOptions.IsValid, "ObjectStore options are invalid. MaxUploadBytes must be between 1 and 2147483647.")
     .ValidateOnStart();
 
 builder.Services.AddHttpClient("NatsMonitoring", (sp, client) =>
@@ -304,6 +310,8 @@ if (!app.Environment.IsDevelopment() && !app.Environment.IsEnvironment("Testing"
 // (including error responses) is covered.
 app.UseMiddleware<SecurityHeadersMiddleware>();
 
+app.UseDefaultFiles();
+app.UseStaticFiles();
 app.UseSerilogRequestLogging();
 app.UseCors();
 app.UseSession();
@@ -322,20 +330,44 @@ if (!app.Environment.IsEnvironment("Testing"))
     app.UseAntiforgery();
     app.Use(async (context, next) =>
     {
-        if (HttpMethods.IsGet(context.Request.Method) && context.Request.Path.StartsWithSegments("/api"))
+        if (context.Request.Path.StartsWithSegments("/api"))
         {
             var antiforgery = context.RequestServices.GetRequiredService<IAntiforgery>();
-            var tokens = antiforgery.GetAndStoreTokens(context);
 
-            if (!string.IsNullOrEmpty(tokens.RequestToken))
+            if (!HttpMethods.IsGet(context.Request.Method)
+                && !HttpMethods.IsHead(context.Request.Method)
+                && !HttpMethods.IsOptions(context.Request.Method)
+                && !HttpMethods.IsTrace(context.Request.Method)
+                && !context.Request.Path.Equals("/api/auth/login", StringComparison.OrdinalIgnoreCase))
             {
-                context.Response.Cookies.Append("XSRF-TOKEN", tokens.RequestToken, new CookieOptions
+                try
                 {
-                    HttpOnly = false,
-                    IsEssential = true,
-                    SameSite = SameSiteMode.Strict,
-                    Secure = context.Request.IsHttps
-                });
+                    await antiforgery.ValidateRequestAsync(context);
+                }
+                catch (AntiforgeryValidationException)
+                {
+                    await Results.Problem(
+                        title: "Invalid antiforgery token",
+                        detail: "Unsafe API requests require a valid X-XSRF-TOKEN header.",
+                        statusCode: StatusCodes.Status400BadRequest)
+                        .ExecuteAsync(context);
+                    return;
+                }
+            }
+            else if (HttpMethods.IsGet(context.Request.Method))
+            {
+                var tokens = antiforgery.GetAndStoreTokens(context);
+
+                if (!string.IsNullOrEmpty(tokens.RequestToken))
+                {
+                    context.Response.Cookies.Append("XSRF-TOKEN", tokens.RequestToken, new CookieOptions
+                    {
+                        HttpOnly = false,
+                        IsEssential = true,
+                        SameSite = crossOriginEnabled ? SameSiteMode.None : SameSiteMode.Strict,
+                        Secure = crossOriginEnabled || context.Request.IsHttps
+                    });
+                }
             }
         }
 
@@ -365,6 +397,28 @@ app.MapAuditEndpoints();
 app.MapSearchEndpoints();
 app.MapMonitoringEndpoints();
 app.MapRelationshipMapEndpoints();
+
+app.MapFallback(async (HttpContext context, IWebHostEnvironment environment) =>
+{
+    if (context.Request.Path.StartsWithSegments("/api")
+        || context.Request.Path.StartsWithSegments("/hubs"))
+    {
+        context.Response.StatusCode = StatusCodes.Status404NotFound;
+        return;
+    }
+
+    var indexFile = environment.WebRootFileProvider.GetFileInfo("index.html");
+    if (!indexFile.Exists)
+    {
+        context.Response.StatusCode = StatusCodes.Status404NotFound;
+        return;
+    }
+
+    context.Response.ContentType = "text/html; charset=utf-8";
+    context.Response.ContentLength = indexFile.Length;
+    await using var stream = indexFile.CreateReadStream();
+    await stream.CopyToAsync(context.Response.Body, context.RequestAborted);
+});
 
 app.Run();
 

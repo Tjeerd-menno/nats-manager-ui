@@ -9,6 +9,7 @@ RUN npm run build
 # Stage 2: Build backend
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS backend-build
 WORKDIR /src
+COPY Directory.Build.props Directory.Packages.props global.json NuGet.Config ./
 COPY NatsManager.slnx ./
 COPY src/NatsManager.Domain/NatsManager.Domain.csproj src/NatsManager.Domain/
 COPY src/NatsManager.Application/NatsManager.Application.csproj src/NatsManager.Application/
