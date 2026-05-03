@@ -47,7 +47,7 @@ public sealed partial class MonitoringPoller(
         LogPollerStopped();
     }
 
-    private async Task PollDueEnvironmentsAsync(CancellationToken ct)
+    internal async Task PollDueEnvironmentsAsync(CancellationToken ct)
     {
         using var scope = scopeFactory.CreateScope();
         var environmentRepository = scope.ServiceProvider.GetRequiredService<IEnvironmentRepository>();

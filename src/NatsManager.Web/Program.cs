@@ -121,6 +121,7 @@ builder.Services.AddSingleton<IRelationshipSource, MonitoringRelationshipSource>
 builder.Services.AddSingleton<IFocalResourceResolver, FocalResourceResolver>();
 builder.Services.AddSingleton<RelationshipProjectionService>();
 builder.Services.AddScoped<GetRelationshipMapQueryHandler>();
+builder.Services.AddScoped<GetRelationshipNodeQueryHandler>();
 
 builder.Services.AddSingleton<ICredentialEncryptionService>(_ =>
 {
