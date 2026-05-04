@@ -4,8 +4,9 @@ const natsSubjectPattern = /^[A-Za-z0-9._*>-]+$/;
 export function validateNatsName(value: string, fieldName = 'Name', maxLength = 256): string | null {
   const trimmed = value.trim();
   if (trimmed.length === 0) return `${fieldName} is required`;
-  if (trimmed.length > maxLength) return `${fieldName} must be ${maxLength} characters or fewer`;
-  if (!natsNamePattern.test(trimmed)) return `${fieldName} can only contain letters, numbers, dots, hyphens, and underscores`;
+  if (value.length > maxLength) return `${fieldName} must be ${maxLength} characters or fewer`;
+  if (value !== trimmed) return `${fieldName} must not start or end with whitespace`;
+  if (!natsNamePattern.test(value)) return `${fieldName} can only contain letters, numbers, dots, hyphens, and underscores`;
   return null;
 }
 
