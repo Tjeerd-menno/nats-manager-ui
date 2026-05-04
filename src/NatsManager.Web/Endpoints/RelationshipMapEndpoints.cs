@@ -62,8 +62,10 @@ public static partial class RelationshipMapEndpoints
     {
         var focalType = resourceType ?? type;
         var focalId = resourceId ?? id;
-        if (string.IsNullOrWhiteSpace(focalType) || string.IsNullOrWhiteSpace(focalId))
-            return ApiProblemResults.ValidationProblem("resourceType", "resourceType and resourceId are required.");
+        if (string.IsNullOrWhiteSpace(focalType))
+            return ApiProblemResults.ValidationProblem("resourceType", "resourceType is required.");
+        if (string.IsNullOrWhiteSpace(focalId))
+            return ApiProblemResults.ValidationProblem("resourceId", "resourceId is required.");
 
         if (!TryParseResourceType(focalType, out var parsedResourceType))
             return ApiProblemResults.ValidationProblem("resourceType", $"Unknown resource type: '{focalType}'. Valid values: {string.Join(", ", Enum.GetNames<ResourceType>())}");

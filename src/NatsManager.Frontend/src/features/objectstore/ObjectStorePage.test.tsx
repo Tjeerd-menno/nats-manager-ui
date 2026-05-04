@@ -2,7 +2,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../test-utils';
 import ObjectStorePage from './ObjectStorePage';
-import { useCreateObjectBucket } from './hooks/useObjectStore';
+import { useCreateObjectBucket, useObjects, useUploadObject } from './hooks/useObjectStore';
 
 vi.mock('./hooks/useObjectStore', () => ({
   useObjectBuckets: vi.fn(),
@@ -10,12 +10,16 @@ vi.mock('./hooks/useObjectStore', () => ({
   useObjectInfo: vi.fn(() => ({ data: undefined, isLoading: false })),
   useCreateObjectBucket: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
   useDeleteObjectBucket: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
-  useUploadObject: vi.fn(() => ({ mutateAsync: vi.fn(), isPending: false })),
+  useUploadObject: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
   useDeleteObject: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
 }));
 
 vi.mock('../environments/EnvironmentContext', () => ({
   useEnvironmentContext: vi.fn(),
+}));
+
+vi.mock('../relationships/components/OpenRelationshipMapButton', () => ({
+  OpenRelationshipMapButton: () => null,
 }));
 
 vi.mock('react-router-dom', async () => {
@@ -29,8 +33,11 @@ vi.mock('react-router-dom', async () => {
 
 import { useObjectBuckets } from './hooks/useObjectStore';
 import { useEnvironmentContext } from '../environments/EnvironmentContext';
+import { useParams } from 'react-router-dom';
 const mockUseObjectBuckets = vi.mocked(useObjectBuckets);
+const mockUseObjects = vi.mocked(useObjects);
 const mockUseEnvironmentContext = vi.mocked(useEnvironmentContext);
+const mockUseParams = vi.mocked(useParams);
 
 describe('ObjectStorePage', () => {
   beforeEach(() => {
@@ -110,5 +117,35 @@ describe('ObjectStorePage', () => {
 
     expect(await screen.findByText('Bucket name can only contain letters, numbers, dots, hyphens, and underscores')).toBeInTheDocument();
     expect(createBucket).not.toHaveBeenCalled();
+  });
+
+  it('blocks upload when object name contains a path separator', async () => {
+    const user = userEvent.setup();
+    const upload = vi.fn();
+    vi.mocked(useUploadObject).mockReturnValue({
+      mutate: upload,
+      isPending: false,
+    } as unknown as ReturnType<typeof useUploadObject>);
+    mockUseParams.mockReturnValue({ bucketName: 'assets' });
+    mockUseEnvironmentContext.mockReturnValue({
+      selectedEnvironmentId: 'env-1',
+      selectEnvironment: vi.fn(),
+    });
+    mockUseObjects.mockReturnValue({
+      data: { items: [] },
+      isLoading: false,
+    } as unknown as ReturnType<typeof useObjects>);
+
+    renderWithProviders(<ObjectStorePage />);
+
+    await user.click(screen.getByRole('button', { name: 'Upload Object' }));
+    await waitFor(() => expect(screen.getByText('Upload Object', { selector: 'h2' })).toBeInTheDocument());
+
+    const nameInput = screen.getByRole('textbox', { name: /object name/i });
+    await user.type(nameInput, 'path/to/file.txt');
+
+    expect(await screen.findByText('Object name contains invalid path characters')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Upload' })).toBeDisabled();
+    expect(upload).not.toHaveBeenCalled();
   });
 });
