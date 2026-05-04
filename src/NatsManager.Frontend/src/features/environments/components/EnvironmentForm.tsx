@@ -145,12 +145,13 @@ export function EnvironmentForm({ opened, onClose, environment }: EnvironmentFor
 
   const handleSubmit = form.onSubmit(async (values) => {
     const credential = buildCredential(values);
+    const serverUrl = values.serverUrl.split(',').map((s) => s.trim()).filter(Boolean).join(',');
     if (isEditing) {
       await updateMutation.mutateAsync({
         id: environment.id,
         name: values.name,
         description: values.description || undefined,
-        serverUrl: values.serverUrl,
+        serverUrl,
         credentialType: values.credentialType,
         credential,
         isProduction: values.isProduction,
@@ -162,7 +163,7 @@ export function EnvironmentForm({ opened, onClose, environment }: EnvironmentFor
       await registerMutation.mutateAsync({
         name: values.name,
         description: values.description || undefined,
-        serverUrl: values.serverUrl,
+        serverUrl,
         credentialType: values.credentialType,
         credential,
         isProduction: values.isProduction,
