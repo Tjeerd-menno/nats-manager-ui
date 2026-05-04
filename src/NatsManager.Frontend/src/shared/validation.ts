@@ -13,8 +13,9 @@ export function validateNatsName(value: string, fieldName = 'Name', maxLength = 
 export function validateNatsSubject(value: string, fieldName = 'Subject'): string | null {
   const trimmed = value.trim();
   if (trimmed.length === 0) return `${fieldName} is required`;
-  if (/\s/.test(trimmed)) return `${fieldName} must not contain whitespace`;
-  if (!natsSubjectPattern.test(trimmed)) return `${fieldName} can only contain letters, numbers, dots, hyphens, underscores, * and >`;
+  if (value !== trimmed) return `${fieldName} must not contain whitespace`;
+  if (/\s/.test(value)) return `${fieldName} must not contain whitespace`;
+  if (!natsSubjectPattern.test(value)) return `${fieldName} can only contain letters, numbers, dots, hyphens, underscores, * and >`;
   return null;
 }
 
