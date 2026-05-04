@@ -49,7 +49,13 @@ export function validateObjectName(value: string, fieldName = 'Object name'): st
   const trimmed = value.trim();
   if (trimmed.length === 0) return `${fieldName} is required`;
   if (trimmed.length > 512) return `${fieldName} must be 512 characters or fewer`;
-  if (trimmed.startsWith('/') || trimmed.startsWith('~') || trimmed.includes('..') || Array.from(trimmed).some((char) => char.charCodeAt(0) < 32)) {
+  if (
+    trimmed.startsWith('/') ||
+    trimmed.startsWith('~') ||
+    trimmed.includes('/') ||
+    trimmed.includes('..') ||
+    Array.from(trimmed).some((char) => char.charCodeAt(0) < 32)
+  ) {
     return `${fieldName} contains invalid path characters`;
   }
   return null;
