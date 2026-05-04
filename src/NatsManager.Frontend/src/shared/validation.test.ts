@@ -26,7 +26,8 @@ describe('validation utilities', () => {
   });
 
   it('validates object names', () => {
-    expect(validateObjectName('path/to/object.txt')).toBeNull();
+    expect(validateObjectName('my-object.txt')).toBeNull();
+    expect(validateObjectName('path/to/object.txt')).toBe('Object name contains invalid path characters');
     expect(validateObjectName('../secret')).toBe('Object name contains invalid path characters');
   });
 

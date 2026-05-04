@@ -66,10 +66,17 @@ describe('KvKeyEditor', () => {
     renderWithProviders(<KvKeyEditor {...defaultProps} />);
     const keyInput = screen.getAllByRole('textbox')[0];
 
-    await user.type(keyInput, '../secret');
+    // Whitespace-only key trims to empty and should be rejected
+    await user.type(keyInput, '   ');
     await user.click(screen.getByRole('button', { name: 'Create' }));
 
-    expect(await screen.findByText('Key contains invalid path characters')).toBeInTheDocument();
+    expect(await screen.findByText('Key is required')).toBeInTheDocument();
     expect(putKey).not.toHaveBeenCalled();
+
+    // Keys with special characters like ../secret are valid KV keys
+    await user.clear(keyInput);
+    await user.type(keyInput, '../secret');
+    await user.click(screen.getByRole('button', { name: 'Create' }));
+    expect(putKey).toHaveBeenCalledWith(expect.objectContaining({ key: '../secret' }), expect.anything());
   });
 });
