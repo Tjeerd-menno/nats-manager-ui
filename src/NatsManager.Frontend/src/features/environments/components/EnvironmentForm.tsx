@@ -46,13 +46,11 @@ function validateServerUrl(value: string): string | null {
   if (normalized.length === 0) return 'Server URL is required';
 
   const urls = normalized.split(',');
-  if (urls.length === 0) return serverUrlValidationMessage;
-
   for (const rawUrl of urls) {
     try {
       const url = new URL(rawUrl);
       const scheme = url.protocol.replace(':', '');
-      if (!allowedServerSchemes.has(scheme) || url.hostname.trim().length === 0) {
+      if (!allowedServerSchemes.has(scheme) || url.hostname.length === 0) {
         return serverUrlValidationMessage;
       }
     } catch {

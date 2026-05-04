@@ -89,7 +89,7 @@ public sealed class AuditEventRepository(AppDbContext context) : IAuditEventRepo
         // ordering/range comparisons for DateTimeOffset. Apply non-temporal filters in SQL,
         // then perform timestamp filtering, ordering, and pagination in memory.
         var events = await query.ToListAsync(cancellationToken);
-        var filteredEvents = events.AsEnumerable();
+        IEnumerable<AuditEvent> filteredEvents = events;
 
         if (fromDate.HasValue)
         {
