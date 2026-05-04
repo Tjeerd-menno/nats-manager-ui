@@ -45,6 +45,10 @@ export function validateNonNegativeInteger(value: number | string, fieldName: st
   return validateInteger(value, fieldName, 0);
 }
 
+export function validateNonEmpty(value: string, fieldName: string): string | null {
+  return value.trim().length === 0 ? `${fieldName} is required` : null;
+}
+
 export function validateObjectName(value: string, fieldName = 'Object name'): string | null {
   const trimmed = value.trim();
   if (trimmed.length === 0) return `${fieldName} is required`;
