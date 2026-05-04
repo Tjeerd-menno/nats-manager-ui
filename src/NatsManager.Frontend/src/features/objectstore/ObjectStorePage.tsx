@@ -29,7 +29,7 @@ function BucketList({ environmentId }: { environmentId: string | null }) {
   const [bucketNameInput, setBucketNameInput] = useState('');
   const [description, setDescription] = useState('');
   const [maxSize, setMaxSize] = useState<number | string>('');
-  const bucketNameError = bucketNameInput.length > 0 ? validateNatsName(bucketNameInput, 'Bucket name') : null;
+  const bucketNameError = bucketNameInput.length > 0 ? validateNatsName(bucketNameInput, 'Bucket name', 255) : null;
   const maxSizeError = maxSize !== '' ? validateUnlimitedInteger(maxSize, 'Max Size', 1) : null;
 
   if (!environmentId) {
