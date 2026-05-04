@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Shouldly;
 using NSubstitute;
 using NatsManager.Application.Modules.ObjectStore.Models;
@@ -48,7 +49,7 @@ public sealed class ObjectStoreEndpointTests : IClassFixture<NatsManagerWebAppFa
         var envId = Guid.NewGuid();
         var response = await _client.DeleteAsync($"/api/environments/{envId}/objectstore/buckets/test");
 
-        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        await ShouldBeConfirmationValidationProblem(response);
     }
 
     [Fact]
@@ -97,5 +98,14 @@ public sealed class ObjectStoreEndpointTests : IClassFixture<NatsManagerWebAppFa
             length = contentLength;
             return true;
         }
+    }
+
+    private static async Task ShouldBeConfirmationValidationProblem(HttpResponseMessage response)
+    {
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        json.RootElement.GetProperty("errors").GetProperty("X-Confirm").EnumerateArray().Single().GetString()
+            .ShouldBe("X-Confirm header must be 'true' for destructive operations.");
     }
 }

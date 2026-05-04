@@ -2,6 +2,7 @@ import { Modal, TextInput, Select, NumberInput, Button, Group, Stack } from '@ma
 import { useForm } from '@mantine/form';
 import { useCreateConsumer } from '../hooks/useJetStream';
 import { useEnvironmentContext } from '../../environments/EnvironmentContext';
+import { validateNatsName, validateOptionalNatsSubject, validateUnlimitedInteger } from '../../../shared/validation';
 
 interface ConsumerFormProps {
   opened: boolean;
@@ -47,7 +48,9 @@ export function ConsumerForm({ opened, onClose, streamName }: ConsumerFormProps)
       maxDeliver: -1,
     },
     validate: {
-      name: (value) => (value.trim().length === 0 ? 'Name is required' : null),
+      name: (value) => validateNatsName(value, 'Consumer name'),
+      filterSubject: (value) => validateOptionalNatsSubject(value, 'Filter subject'),
+      maxDeliver: (value) => validateUnlimitedInteger(value, 'Max Deliver', 1),
     },
   });
 
@@ -77,6 +80,7 @@ export function ConsumerForm({ opened, onClose, streamName }: ConsumerFormProps)
             label="Name"
             placeholder="my-consumer"
             required
+            description="Letters, numbers, dots, hyphens, and underscores only"
             {...form.getInputProps('name')}
           />
           <TextInput
@@ -97,11 +101,12 @@ export function ConsumerForm({ opened, onClose, streamName }: ConsumerFormProps)
           <TextInput
             label="Filter Subject"
             placeholder="Optional subject filter"
+            description="Optional NATS subject such as orders.*"
             {...form.getInputProps('filterSubject')}
           />
           <NumberInput
             label="Max Deliver"
-            description="-1 for unlimited"
+            description="-1 for unlimited, or at least 1"
             {...form.getInputProps('maxDeliver')}
           />
           <Group justify="flex-end">

@@ -5,6 +5,7 @@ import { useEnvironmentContext } from '../environments/EnvironmentContext';
 import { useParams, useNavigate } from 'react-router-dom';
 import { OpenRelationshipMapButton } from '../relationships/components/OpenRelationshipMapButton';
 import { formatBytes, formatDateTime } from '../../shared/formatting';
+import { validateNatsName, validateObjectName, validateUnlimitedInteger } from '../../shared/validation';
 
 export default function ObjectStorePage() {
   const { bucketName, objectName } = useParams();
@@ -28,6 +29,8 @@ function BucketList({ environmentId }: { environmentId: string | null }) {
   const [bucketNameInput, setBucketNameInput] = useState('');
   const [description, setDescription] = useState('');
   const [maxSize, setMaxSize] = useState<number | string>('');
+  const bucketNameError = bucketNameInput.length > 0 ? validateNatsName(bucketNameInput, 'Bucket name', 255) : null;
+  const maxSizeError = maxSize !== '' ? validateUnlimitedInteger(maxSize, 'Max Size', 1) : null;
 
   if (!environmentId) {
     return (
@@ -43,6 +46,7 @@ function BucketList({ environmentId }: { environmentId: string | null }) {
   const buckets = data?.items ?? [];
 
   const handleCreate = () => {
+    if (!bucketNameInput || bucketNameError || maxSizeError) return;
     createMutation.mutate({
       bucketName: bucketNameInput,
       description: description || undefined,
@@ -81,10 +85,10 @@ function BucketList({ environmentId }: { environmentId: string | null }) {
 
       <Modal opened={createOpen} onClose={() => setCreateOpen(false)} title="Create Object Bucket">
         <Stack>
-          <TextInput label="Bucket Name" value={bucketNameInput} onChange={(e) => setBucketNameInput(e.currentTarget.value)} required />
+          <TextInput label="Bucket Name" value={bucketNameInput} onChange={(e) => setBucketNameInput(e.currentTarget.value)} error={bucketNameError ?? undefined} required />
           <TextInput label="Description" value={description} onChange={(e) => setDescription(e.currentTarget.value)} />
-          <NumberInput label="Max Size (bytes)" value={maxSize} onChange={setMaxSize} />
-          <Button onClick={handleCreate} loading={createMutation.isPending}>Create</Button>
+          <NumberInput label="Max Size (bytes)" value={maxSize} onChange={setMaxSize} error={maxSizeError ?? undefined} />
+          <Button onClick={handleCreate} loading={createMutation.isPending} disabled={!bucketNameInput || !!bucketNameError || !!maxSizeError}>Create</Button>
         </Stack>
       </Modal>
     </Stack>
@@ -98,17 +102,25 @@ function ObjectList({ environmentId, bucketName }: { environmentId: string | nul
   const deleteMutation = useDeleteObject(environmentId, bucketName);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [objectNameInput, setObjectNameInput] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const objectNameError = objectNameInput.length > 0 ? validateObjectName(objectNameInput) : null;
 
   if (isLoading) return <Center h={200}><Loader /></Center>;
 
   const objects = data?.items ?? [];
 
+  const closeUpload = () => {
+    setUploadOpen(false);
+    setObjectNameInput('');
+    setSelectedFile(null);
+  };
+
   const handleUpload = () => {
     const file = fileRef.current?.files?.[0];
-    if (!file || !objectNameInput) return;
+    if (!file || !objectNameInput || objectNameError) return;
     uploadMutation.mutate({ objectName: objectNameInput, file }, {
-      onSuccess: () => { setUploadOpen(false); setObjectNameInput(''); },
+      onSuccess: closeUpload,
     });
   };
 
@@ -146,11 +158,16 @@ function ObjectList({ environmentId, bucketName }: { environmentId: string | nul
         </Table.Tbody>
       </Table>
 
-      <Modal opened={uploadOpen} onClose={() => setUploadOpen(false)} title="Upload Object">
+      <Modal opened={uploadOpen} onClose={closeUpload} title="Upload Object">
         <Stack>
-          <TextInput label="Object Name" value={objectNameInput} onChange={(e) => setObjectNameInput(e.currentTarget.value)} required />
-          <input type="file" ref={fileRef} />
-          <Button onClick={handleUpload} loading={uploadMutation.isPending}>Upload</Button>
+          <TextInput label="Object Name" value={objectNameInput} onChange={(e) => setObjectNameInput(e.currentTarget.value)} error={objectNameError ?? undefined} required />
+          <input
+            aria-label="Object file"
+            type="file"
+            ref={fileRef}
+            onChange={(event) => setSelectedFile(event.currentTarget.files?.[0] ?? null)}
+          />
+          <Button onClick={handleUpload} loading={uploadMutation.isPending} disabled={!objectNameInput || !!objectNameError || !selectedFile}>Upload</Button>
         </Stack>
       </Modal>
     </Stack>

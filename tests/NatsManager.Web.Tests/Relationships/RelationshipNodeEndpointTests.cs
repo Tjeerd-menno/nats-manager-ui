@@ -76,6 +76,9 @@ public sealed class RelationshipNodeEndpointTests : IClassFixture<NatsManagerWeb
         var response = await _client.GetAsync($"/api/environments/{environmentId}/relationships/nodes/{environmentId}:stream");
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        json.RootElement.GetProperty("errors").TryGetProperty("nodeId", out _).ShouldBeTrue();
     }
 
     [Fact]
@@ -87,5 +90,6 @@ public sealed class RelationshipNodeEndpointTests : IClassFixture<NatsManagerWeb
         var response = await _client.GetAsync($"/api/environments/{environmentId}/relationships/nodes/{Uri.EscapeDataString(nodeId)}");
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
     }
 }

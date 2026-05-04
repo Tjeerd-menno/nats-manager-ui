@@ -30,10 +30,10 @@ public static class MonitoringEndpoints
     {
         var environment = await environmentRepository.GetByIdAsync(envId, ct);
         if (environment is null)
-            return Results.NotFound(new { error = $"Environment '{envId}' not found." });
+            return ApiProblemResults.NotFound($"Environment '{envId}' not found.");
 
         if (environment.MonitoringUrl is null)
-            return Results.BadRequest(new { error = "Monitoring is not configured for this environment." });
+            return ApiProblemResults.BadRequest("Monitoring is not configured for this environment.");
 
         var history = metricsStore.GetHistory(envId);
         var result = new MonitoringHistoryResult(envId, history);
@@ -48,10 +48,10 @@ public static class MonitoringEndpoints
     {
         var environment = await environmentRepository.GetByIdAsync(environmentId, ct);
         if (environment is null)
-            return Results.NotFound(new { error = $"Environment '{environmentId}' not found." });
+            return ApiProblemResults.NotFound($"Environment '{environmentId}' not found.");
 
         if (environment.MonitoringUrl is null)
-            return Results.BadRequest(new { error = "Monitoring is not configured for this environment." });
+            return ApiProblemResults.BadRequest("Monitoring is not configured for this environment.");
 
         var handler = new GetClusterOverviewQueryHandler(observationStore);
         var observation = handler.Handle(new GetClusterOverviewQuery(environmentId));
@@ -76,13 +76,13 @@ public static class MonitoringEndpoints
     {
         var environment = await environmentRepository.GetByIdAsync(environmentId, ct);
         if (environment is null)
-            return Results.NotFound(new { error = $"Environment '{environmentId}' not found." });
+            return ApiProblemResults.NotFound($"Environment '{environmentId}' not found.");
 
         if (environment.MonitoringUrl is null)
-            return Results.BadRequest(new { error = "Monitoring is not configured for this environment." });
+            return ApiProblemResults.BadRequest("Monitoring is not configured for this environment.");
 
         if (maxNodes is < 1 or > 1000)
-            return Results.UnprocessableEntity(new { error = "maxNodes must be between 1 and 1000." });
+            return ApiProblemResults.ValidationProblem("maxNodes", "maxNodes must be between 1 and 1000.");
 
         IReadOnlyList<TopologyRelationshipType>? typeFilter = null;
         if (!string.IsNullOrWhiteSpace(types))
@@ -93,14 +93,19 @@ public static class MonitoringEndpoints
                 if (Enum.TryParse<TopologyRelationshipType>(t, ignoreCase: true, out var rt))
                     parsed.Add(rt);
                 else
-                    return Results.UnprocessableEntity(new { error = $"Invalid topology type: {t}" });
+                    return ApiProblemResults.ValidationProblem("types", $"Invalid topology type: {t}");
             }
             typeFilter = parsed;
         }
 
         RelationshipStatus? statusFilter = null;
-        if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<RelationshipStatus>(status, ignoreCase: true, out var parsedStatus))
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            if (!Enum.TryParse<RelationshipStatus>(status, ignoreCase: true, out var parsedStatus))
+                return ApiProblemResults.ValidationProblem("status", $"Invalid relationship status: {status}");
+
             statusFilter = parsedStatus;
+        }
 
         var handler = new GetClusterTopologyQueryHandler(observationStore);
         var result = handler.Handle(new GetClusterTopologyQuery(environmentId, typeFilter, statusFilter, includeStale, maxNodes));

@@ -53,6 +53,16 @@ it('JSON format with invalid JSON disables submit', async () => {
   expect(button).toBeDisabled();
 });
 
+it('subject with whitespace disables submit', async () => {
+  const user = userEvent.setup();
+  renderWithProviders(<PublishMessageForm environmentId="env-1" />);
+
+  await user.type(screen.getByLabelText(/subject/i), 'orders with spaces');
+
+  expect(await screen.findByText('Subject must not contain whitespace')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /publish/i })).toBeDisabled();
+});
+
 it('Hex Bytes format with invalid hex disables submit', async () => {
   const user = userEvent.setup();
   renderWithProviders(<PublishMessageForm environmentId="env-1" />);

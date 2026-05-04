@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Shouldly;
 using NSubstitute;
 using NatsManager.Domain.Modules.Auth;
@@ -24,7 +25,7 @@ public sealed class JetStreamWriteEndpointTests : IClassFixture<NatsManagerWebAp
         var envId = Guid.NewGuid();
         var response = await _client.DeleteAsync($"/api/environments/{envId}/jetstream/streams/orders");
 
-        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        await ShouldBeConfirmationValidationProblem(response);
     }
 
     [Fact]
@@ -33,7 +34,7 @@ public sealed class JetStreamWriteEndpointTests : IClassFixture<NatsManagerWebAp
         var envId = Guid.NewGuid();
         var response = await _client.PostAsync($"/api/environments/{envId}/jetstream/streams/orders/purge", null);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        await ShouldBeConfirmationValidationProblem(response);
     }
 
     [Fact]
@@ -42,7 +43,7 @@ public sealed class JetStreamWriteEndpointTests : IClassFixture<NatsManagerWebAp
         var envId = Guid.NewGuid();
         var response = await _client.DeleteAsync($"/api/environments/{envId}/jetstream/streams/orders/consumers/worker");
 
-        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        await ShouldBeConfirmationValidationProblem(response);
     }
 
     [Fact]
@@ -68,5 +69,14 @@ public sealed class JetStreamWriteEndpointTests : IClassFixture<NatsManagerWebAp
         var response = await client.PostAsJsonAsync($"/api/environments/{env.Id}/jetstream/streams", payload);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    private static async Task ShouldBeConfirmationValidationProblem(HttpResponseMessage response)
+    {
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        json.RootElement.GetProperty("errors").GetProperty("X-Confirm").EnumerateArray().Single().GetString()
+            .ShouldBe("X-Confirm header must be 'true' for destructive operations.");
     }
 }

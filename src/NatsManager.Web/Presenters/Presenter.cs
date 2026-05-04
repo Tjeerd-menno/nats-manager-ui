@@ -52,16 +52,25 @@ public sealed class Presenter<T> : IOutputPort<T>
             return typeof(T) == typeof(Unit) ? Results.Ok() : Results.Ok(Value);
 
         if (IsNotFound)
-            return Results.NotFound(new { error = ErrorMessage, resourceType = ResourceType, resourceId = ResourceId });
+            return NatsManager.Web.Endpoints.ApiProblemResults.Problem(
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Not Found",
+                detail: ErrorMessage,
+                type: "https://tools.ietf.org/html/rfc9110#section-15.5.5",
+                extensions: new Dictionary<string, object?>
+                {
+                    ["resourceType"] = ResourceType,
+                    ["resourceId"] = ResourceId
+                });
 
         if (IsConflict)
-            return Results.Conflict(new { error = ErrorMessage });
+            return NatsManager.Web.Endpoints.ApiProblemResults.Conflict(ErrorMessage ?? "The request conflicts with the current resource state.");
 
         if (IsUnauthorized)
-            return Results.Json(new { error = ErrorMessage }, statusCode: StatusCodes.Status401Unauthorized);
+            return NatsManager.Web.Endpoints.ApiProblemResults.Unauthorized(ErrorMessage ?? "Authentication is required.");
 
         if (IsForbidden)
-            return Results.Json(new { error = ErrorMessage }, statusCode: StatusCodes.Status403Forbidden);
+            return NatsManager.Web.Endpoints.ApiProblemResults.Forbidden(ErrorMessage ?? "The current user is not allowed to perform this action.");
 
         return Results.Problem("An unexpected error occurred.");
     }

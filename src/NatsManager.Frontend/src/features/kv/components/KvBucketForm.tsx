@@ -2,6 +2,7 @@ import { Modal, TextInput, NumberInput, Stack, Button, Group } from '@mantine/co
 import { useForm } from '@mantine/form';
 import { useCreateKvBucket } from '../hooks/useKv';
 import { useEnvironmentContext } from '../../environments/EnvironmentContext';
+import { validateInteger, validateNatsName, validateNonNegativeInteger, validateUnlimitedInteger } from '../../../shared/validation';
 
 interface KvBucketFormProps {
   opened: boolean;
@@ -21,8 +22,11 @@ export function KvBucketForm({ opened, onClose }: KvBucketFormProps) {
       ttl: 0,
     },
     validate: {
-      bucketName: (v) => (v.trim().length === 0 ? 'Bucket name is required' : null),
-      history: (v) => (v < 1 ? 'History must be at least 1' : null),
+      bucketName: (v) => validateNatsName(v, 'Bucket name'),
+      history: (v) => validateInteger(v, 'History', 1, 64),
+      maxBytes: (v) => validateUnlimitedInteger(v, 'Max Bytes', 1),
+      maxValueSize: (v) => validateUnlimitedInteger(v, 'Max Value Size', 1),
+      ttl: (v) => validateNonNegativeInteger(v, 'TTL'),
     },
   });
 
@@ -48,7 +52,7 @@ export function KvBucketForm({ opened, onClose }: KvBucketFormProps) {
     <Modal opened={opened} onClose={onClose} title="Create KV Bucket">
       <form onSubmit={handleSubmit}>
         <Stack>
-          <TextInput label="Bucket Name" required {...form.getInputProps('bucketName')} />
+          <TextInput label="Bucket Name" required description="Letters, numbers, dots, hyphens, and underscores only" {...form.getInputProps('bucketName')} />
           <NumberInput label="History" description="Max historical entries per key" min={1} max={64} {...form.getInputProps('history')} />
           <NumberInput label="Max Bytes" description="Max bucket size (-1 for unlimited)" {...form.getInputProps('maxBytes')} />
           <NumberInput label="Max Value Size" description="Max value size per key (-1 for unlimited)" {...form.getInputProps('maxValueSize')} />

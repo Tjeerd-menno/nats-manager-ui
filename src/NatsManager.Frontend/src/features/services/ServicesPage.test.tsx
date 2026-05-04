@@ -1,11 +1,12 @@
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../test-utils';
 import ServicesPage from './ServicesPage';
 
 vi.mock('./hooks/useServices', () => ({
   useServices: vi.fn(),
   useService: vi.fn(() => ({ data: undefined, isLoading: false })),
-  useTestService: vi.fn(() => ({ mutateAsync: vi.fn(), isPending: false })),
+  useTestService: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
 }));
 
 vi.mock('../environments/EnvironmentContext', () => ({
@@ -21,10 +22,14 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-import { useServices } from './hooks/useServices';
+import { useServices, useService, useTestService } from './hooks/useServices';
 import { useEnvironmentContext } from '../environments/EnvironmentContext';
+import { useParams } from 'react-router-dom';
 const mockUseServices = vi.mocked(useServices);
+const mockUseService = vi.mocked(useService);
+const mockUseTestService = vi.mocked(useTestService);
 const mockUseEnvironmentContext = vi.mocked(useEnvironmentContext);
+const mockUseParams = vi.mocked(useParams);
 
 describe('ServicesPage', () => {
   beforeEach(() => {
@@ -81,5 +86,40 @@ describe('ServicesPage', () => {
     renderWithProviders(<ServicesPage />);
     expect(screen.getByText('auth-service')).toBeInTheDocument();
     expect(screen.getByText('1.0.0')).toBeInTheDocument();
+  });
+
+  it('blocks test request when subject is invalid', async () => {
+    const user = userEvent.setup();
+    mockUseParams.mockReturnValue({ serviceName: 'test-svc' });
+    mockUseEnvironmentContext.mockReturnValue({
+      selectedEnvironmentId: 'env-1',
+      selectEnvironment: vi.fn(),
+    });
+    mockUseService.mockReturnValue({
+      data: {
+        name: 'test-svc',
+        version: '1.0.0',
+        description: 'A test service',
+        endpoints: [{ name: 'ping', subject: 'test.ping', queueGroup: null }],
+        stats: { totalRequests: 0, totalErrors: 0, averageProcessingTime: 0 },
+      },
+      isLoading: false,
+    } as unknown as ReturnType<typeof useService>);
+    const mutate = vi.fn();
+    mockUseTestService.mockReturnValue({
+      mutate,
+      isPending: false,
+    } as unknown as ReturnType<typeof useTestService>);
+
+    renderWithProviders(<ServicesPage />);
+
+    await user.click(screen.getByRole('button', { name: 'Test Request' }));
+
+    const subjectInput = await screen.findByRole('textbox', { name: /subject/i });
+    await user.type(subjectInput, 'invalid subject');
+
+    expect(await screen.findByText('Subject must not contain whitespace')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled();
+    expect(mutate).not.toHaveBeenCalled();
   });
 });

@@ -34,6 +34,33 @@ const credentialTypeOptions = [
   { value: 'CredsFile', label: 'Credentials File' },
 ];
 
+const allowedServerSchemes = new Set(['nats', 'tls', 'ws', 'wss']);
+const serverUrlValidationMessage = 'Server URL must use nats://, tls://, ws://, or wss://. Use nats:// for standard TCP NATS endpoints.';
+
+function normalizeServerUrl(value: string): string {
+  return value.split(',').map((s) => s.trim()).filter(Boolean).join(',');
+}
+
+function validateServerUrl(value: string): string | null {
+  const normalized = normalizeServerUrl(value);
+  if (normalized.length === 0) return 'Server URL is required';
+
+  const urls = normalized.split(',');
+  for (const rawUrl of urls) {
+    try {
+      const url = new URL(rawUrl);
+      const scheme = url.protocol.replace(':', '');
+      if (!allowedServerSchemes.has(scheme) || url.hostname.length === 0) {
+        return serverUrlValidationMessage;
+      }
+    } catch {
+      return serverUrlValidationMessage;
+    }
+  }
+
+  return null;
+}
+
 export function EnvironmentForm({ opened, onClose, environment }: EnvironmentFormProps) {
   const registerMutation = useRegisterEnvironment();
   const updateMutation = useUpdateEnvironment();
@@ -59,7 +86,7 @@ export function EnvironmentForm({ opened, onClose, environment }: EnvironmentFor
     },
     validate: {
       name: (value) => (value.trim().length === 0 ? 'Name is required' : null),
-      serverUrl: (value) => (!isEditing && value.trim().length === 0 ? 'Server URL is required' : null),
+      serverUrl: validateServerUrl,
       username: (value, values) => (values.credentialType === 'UserPassword' && value.trim().length === 0 ? 'Username is required' : null),
       password: (value, values) => (values.credentialType === 'UserPassword' && value.trim().length === 0 ? 'Password is required' : null),
       token: (value, values) => (values.credentialType === 'Token' && value.trim().length === 0 ? 'Token is required' : null),
@@ -120,12 +147,13 @@ export function EnvironmentForm({ opened, onClose, environment }: EnvironmentFor
 
   const handleSubmit = form.onSubmit(async (values) => {
     const credential = buildCredential(values);
+    const serverUrl = normalizeServerUrl(values.serverUrl);
     if (isEditing) {
       await updateMutation.mutateAsync({
         id: environment.id,
         name: values.name,
         description: values.description || undefined,
-        serverUrl: values.serverUrl,
+        serverUrl,
         credentialType: values.credentialType,
         credential,
         isProduction: values.isProduction,
@@ -137,7 +165,7 @@ export function EnvironmentForm({ opened, onClose, environment }: EnvironmentFor
       await registerMutation.mutateAsync({
         name: values.name,
         description: values.description || undefined,
-        serverUrl: values.serverUrl,
+        serverUrl,
         credentialType: values.credentialType,
         credential,
         isProduction: values.isProduction,
@@ -170,7 +198,8 @@ export function EnvironmentForm({ opened, onClose, environment }: EnvironmentFor
           <TextInput
             label="Server URL"
             placeholder="nats://localhost:4222"
-            required={!isEditing}
+            description="Use nats:// for Aspire TCP endpoints, keeping the same host and port."
+            required
             {...form.getInputProps('serverUrl')}
           />
           <Select
