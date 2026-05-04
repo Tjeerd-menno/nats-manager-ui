@@ -37,11 +37,15 @@ const credentialTypeOptions = [
 const allowedServerSchemes = new Set(['nats', 'tls', 'ws', 'wss']);
 const serverUrlValidationMessage = 'Server URL must use nats://, tls://, ws://, or wss://. Use nats:// for standard TCP NATS endpoints.';
 
-function validateServerUrl(value: string): string | null {
-  const trimmed = value.trim();
-  if (trimmed.length === 0) return 'Server URL is required';
+function normalizeServerUrl(value: string): string {
+  return value.split(',').map((s) => s.trim()).filter(Boolean).join(',');
+}
 
-  const urls = trimmed.split(',').map((segment) => segment.trim()).filter(Boolean);
+function validateServerUrl(value: string): string | null {
+  const normalized = normalizeServerUrl(value);
+  if (normalized.length === 0) return 'Server URL is required';
+
+  const urls = normalized.split(',');
   if (urls.length === 0) return serverUrlValidationMessage;
 
   for (const rawUrl of urls) {
@@ -145,7 +149,7 @@ export function EnvironmentForm({ opened, onClose, environment }: EnvironmentFor
 
   const handleSubmit = form.onSubmit(async (values) => {
     const credential = buildCredential(values);
-    const serverUrl = values.serverUrl.split(',').map((s) => s.trim()).filter(Boolean).join(',');
+    const serverUrl = normalizeServerUrl(values.serverUrl);
     if (isEditing) {
       await updateMutation.mutateAsync({
         id: environment.id,
