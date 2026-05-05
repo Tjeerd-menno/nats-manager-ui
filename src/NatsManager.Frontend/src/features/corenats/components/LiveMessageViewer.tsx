@@ -142,6 +142,21 @@ function MessageRow({ msg }: { msg: NatsLiveMessage }) {
   );
 }
 
+function getSubscriptionBadge(status: string): { color: string; label: string } {
+  switch (status) {
+    case 'connecting': return { color: 'blue', label: 'Subscribing' };
+    case 'connected': return { color: 'green', label: 'Connected' };
+    case 'reconnecting': return { color: 'yellow', label: 'Reconnecting' };
+    default: return { color: 'gray', label: 'Disconnected' };
+  }
+}
+
+function getSubscriptionAlertProps(status: string): { color: string; title: string; message: string } {
+  if (status === 'connected') return { color: 'green', title: 'Subscription active', message: 'Waiting for live messages…' };
+  if (status === 'connecting') return { color: 'blue', title: 'Creating subscription', message: 'Opening the live stream…' };
+  return { color: 'yellow', title: 'Subscription reconnecting', message: 'Attempting to restore the live stream…' };
+}
+
 interface LiveMessageViewerProps {
   environmentId: string;
 }
@@ -182,18 +197,8 @@ export function LiveMessageViewer({ environmentId }: LiveMessageViewerProps) {
     unsubscribe();
   };
 
-  const subscriptionBadge = (() => {
-    switch (subscriptionStatus) {
-      case 'connecting':
-        return { color: 'blue', label: 'Subscribing' };
-      case 'connected':
-        return { color: 'green', label: 'Connected' };
-      case 'reconnecting':
-        return { color: 'yellow', label: 'Reconnecting' };
-      default:
-        return { color: 'gray', label: 'Disconnected' };
-    }
-  })();
+  const subscriptionBadge = getSubscriptionBadge(subscriptionStatus);
+  const subscriptionAlert = getSubscriptionAlertProps(subscriptionStatus);
 
   return (
     <Stack>
@@ -210,12 +215,12 @@ export function LiveMessageViewer({ environmentId }: LiveMessageViewerProps) {
           style={{ flex: 1 }}
           aria-label="Subject pattern"
         />
-        {!activeSubject ? (
-          <Button onClick={handleSubscribe}>Subscribe</Button>
-        ) : (
+        {activeSubject ? (
           <Button color="red" variant="light" onClick={handleUnsubscribe}>
             Unsubscribe
           </Button>
+        ) : (
+          <Button onClick={handleSubscribe}>Subscribe</Button>
         )}
         <Badge color={subscriptionBadge.color} variant="light">
           {subscriptionBadge.label}
@@ -223,27 +228,14 @@ export function LiveMessageViewer({ environmentId }: LiveMessageViewerProps) {
       </Group>
 
       {activeSubject && (
-        <Alert
-          color={subscriptionStatus === 'connected' ? 'green' : subscriptionStatus === 'connecting' ? 'blue' : 'yellow'}
-          title={
-            subscriptionStatus === 'connected'
-              ? 'Subscription active'
-              : subscriptionStatus === 'connecting'
-                ? 'Creating subscription'
-                : 'Subscription reconnecting'
-          }
-        >
+        <Alert color={subscriptionAlert.color} title={subscriptionAlert.title}>
           <Group gap="xs">
             <Text size="sm">
               Listening on
             </Text>
             <Code>{activeSubject}</Code>
             <Text size="sm" c="dimmed">
-              {subscriptionStatus === 'connected'
-                ? 'Waiting for live messages…'
-                : subscriptionStatus === 'connecting'
-                  ? 'Opening the live stream…'
-                  : 'Attempting to restore the live stream…'}
+              {subscriptionAlert.message}
             </Text>
           </Group>
         </Alert>

@@ -48,3 +48,4 @@ Thumbs.db
 .playwright-cli
 .playwright-mcp
 e2e-results.txt
+*.lscache
