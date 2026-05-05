@@ -113,10 +113,12 @@ export function useDeleteKvKey(environmentId: string | null, bucketName: string 
         headers: { 'X-Confirm': 'true' },
       });
     },
-    onSuccess: () => {
+    onSuccess: (_data, key) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.kvKeys(environmentId, bucketName) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.kvBucket(environmentId, bucketName) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.kvBuckets(environmentId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.kvKey(environmentId, bucketName, key) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.kvKeyHistory(environmentId, bucketName, key) });
     },
   });
 }
