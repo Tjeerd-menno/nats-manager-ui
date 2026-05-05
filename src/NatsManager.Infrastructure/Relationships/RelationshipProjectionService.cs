@@ -127,10 +127,7 @@ public sealed partial class RelationshipProjectionService(
                 filteredEdges++;
         }
 
-        var truncatedEdges = Math.Max(0, includedEdges.Count - filters.MaxEdges);
-        includedEdges = [.. includedEdges.Take(filters.MaxEdges)];
-
-        // Resolve nodes from sources
+        // Resolve nodes from sources before MaxEdges truncation so dangling edges can be filtered first
         var resolvedNodes = await ResolveNodesAsync(includedNodeIds, focal, filters, ct);
         var focalNodeId = ResourceNode.BuildNodeId(focal.EnvironmentId, focal.ResourceType, focal.ResourceId);
 
@@ -150,6 +147,7 @@ public sealed partial class RelationshipProjectionService(
                 Metadata: new Dictionary<string, string>());
         }
 
+        // Filter out dangling edges BEFORE applying MaxEdges so truncation operates on valid edges only
         var danglingEdges = includedEdges.Count(edge =>
             !resolvedNodes.ContainsKey(edge.SourceNodeId) || !resolvedNodes.ContainsKey(edge.TargetNodeId));
         if (danglingEdges > 0)
@@ -158,6 +156,9 @@ public sealed partial class RelationshipProjectionService(
                 resolvedNodes.ContainsKey(edge.SourceNodeId) && resolvedNodes.ContainsKey(edge.TargetNodeId))];
             filteredEdges += danglingEdges;
         }
+
+        var truncatedEdges = Math.Max(0, includedEdges.Count - filters.MaxEdges);
+        includedEdges = [.. includedEdges.Take(filters.MaxEdges)];
 
         // Propagate neighbor warning states (for US2 incident traversal)
         PropagateWarningStates(resolvedNodes, includedEdges, focalNodeId);
