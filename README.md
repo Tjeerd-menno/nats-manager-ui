@@ -110,7 +110,7 @@ This launches:
 - The **frontend** Vite dev server
 - The **Aspire Dashboard** (logs, traces, metrics) — URL is printed to the console
 
-For local development, Aspire may assign the NATS host port dynamically. Use the NATS endpoint shown in the Aspire console output or dashboard rather than assuming `4222`.
+For local development, Aspire may assign the NATS host port dynamically. Use the NATS endpoint shown in the Aspire console output or dashboard rather than assuming `4222`. The Aspire-managed NATS resource also uses the `nats-username` and `nats-password` parameters, so use those same values when registering it as an environment in the app.
 ### Run components manually
 
 <details>
@@ -151,11 +151,11 @@ docker run -d --name nats-dev \
 
 ### First steps
 
-1. Before starting the app against an empty database, provide the required startup settings: `Encryption:Key`, `BootstrapAdmin:Username`, and `BootstrapAdmin:Password` (for example via Aspire parameters or environment variables).
+1. Before starting the app against an empty database, provide the required startup settings: `Encryption:Key`, `BootstrapAdmin:Username`, and `BootstrapAdmin:Password` (for example via Aspire parameters or environment variables). When running the full stack through Aspire, also set the `nats-username` and `nats-password` parameters for the local NATS resource.
 2. Start the stack via Aspire.
 3. Open the frontend URL shown in the Aspire Dashboard.
 4. Sign in using the bootstrap admin credentials you configured.
-5. Go to **Environments** and register a NATS server using the endpoint provided by Aspire for the NATS resource. If you started NATS with the standalone Docker command above, use `nats://localhost:4222` because that command explicitly maps port `4222`.
+5. Go to **Environments** and register a NATS server using the endpoint provided by Aspire for the NATS resource, together with the `nats-username` and `nats-password` values you configured. If you started NATS with the standalone Docker command above, use `nats://localhost:4222` because that command explicitly maps port `4222` and does not enable authentication by default.
 6. Test the connection — a green "Available" status indicates success.
 7. Explore JetStream, KV, Object Store, Services, and Core NATS for that environment.
 

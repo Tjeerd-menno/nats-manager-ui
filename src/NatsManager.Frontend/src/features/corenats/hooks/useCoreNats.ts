@@ -63,6 +63,8 @@ export function usePublishMessage(environmentId: string | null) {
 export interface UseLiveMessagesReturn {
   messages: NatsLiveMessage[];
   isConnected: boolean;
+  subscriptionStatus: 'idle' | 'connecting' | 'connected' | 'reconnecting';
+  activeSubject: string | null;
   isPaused: boolean;
   pendingCount: number;
   cap: number;
@@ -77,6 +79,8 @@ export interface UseLiveMessagesReturn {
 export function useLiveMessages(environmentId: string | null): UseLiveMessagesReturn {
   const [messages, setMessages] = useState<NatsLiveMessage[]>([]);
   const [isConnected, setIsConnected] = useState(false);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<'idle' | 'connecting' | 'connected' | 'reconnecting'>('idle');
+  const [activeSubject, setActiveSubject] = useState<string | null>(null);
   const [isPaused, setIsPaused] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
   const [cap, setCap] = useState(100);
@@ -100,6 +104,8 @@ export function useLiveMessages(environmentId: string | null): UseLiveMessagesRe
       eventSourceRef.current = null;
     }
     setIsConnected(false);
+    setSubscriptionStatus('idle');
+    setActiveSubject(null);
     setIsPaused(false);
     setPendingCount(0);
     pendingBufferRef.current = [];
@@ -109,11 +115,20 @@ export function useLiveMessages(environmentId: string | null): UseLiveMessagesRe
     unsubscribe();
     if (!environmentId) return;
 
+    setActiveSubject(subject);
+    setSubscriptionStatus('connecting');
+
     const es = new EventSource(toApiUrl(apiEndpoints.coreNatsStream(environmentId, subject)));
     eventSourceRef.current = es;
 
-    es.addEventListener('open', () => setIsConnected(true));
-    es.addEventListener('error', () => setIsConnected(false));
+    es.addEventListener('open', () => {
+      setIsConnected(true);
+      setSubscriptionStatus('connected');
+    });
+    es.addEventListener('error', () => {
+      setIsConnected(false);
+      setSubscriptionStatus('reconnecting');
+    });
 
     es.addEventListener('message', (event: MessageEvent) => {
       try {
@@ -162,6 +177,8 @@ export function useLiveMessages(environmentId: string | null): UseLiveMessagesRe
   return {
     messages,
     isConnected,
+    subscriptionStatus,
+    activeSubject,
     isPaused,
     pendingCount,
     cap,

@@ -10,6 +10,7 @@ import {
   Text,
   Alert,
   ActionIcon,
+  Code,
 } from '@mantine/core';
 import { IconPlayerPlay, IconPlayerPause, IconTrash, IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { PayloadViewer } from '../../../shared/PayloadViewer';
@@ -141,6 +142,21 @@ function MessageRow({ msg }: { msg: NatsLiveMessage }) {
   );
 }
 
+function getSubscriptionBadge(status: string): { color: string; label: string } {
+  switch (status) {
+    case 'connecting': return { color: 'blue', label: 'Subscribing' };
+    case 'connected': return { color: 'green', label: 'Connected' };
+    case 'reconnecting': return { color: 'yellow', label: 'Reconnecting' };
+    default: return { color: 'gray', label: 'Disconnected' };
+  }
+}
+
+function getSubscriptionAlertProps(status: string): { color: string; title: string; message: string } {
+  if (status === 'connected') return { color: 'green', title: 'Subscription active', message: 'Waiting for live messages…' };
+  if (status === 'connecting') return { color: 'blue', title: 'Creating subscription', message: 'Opening the live stream…' };
+  return { color: 'yellow', title: 'Subscription reconnecting', message: 'Attempting to restore the live stream…' };
+}
+
 interface LiveMessageViewerProps {
   environmentId: string;
 }
@@ -151,6 +167,8 @@ export function LiveMessageViewer({ environmentId }: LiveMessageViewerProps) {
   const {
     messages,
     isConnected,
+    subscriptionStatus,
+    activeSubject,
     isPaused,
     pendingCount,
     cap,
@@ -179,6 +197,9 @@ export function LiveMessageViewer({ environmentId }: LiveMessageViewerProps) {
     unsubscribe();
   };
 
+  const subscriptionBadge = getSubscriptionBadge(subscriptionStatus);
+  const subscriptionAlert = getSubscriptionAlertProps(subscriptionStatus);
+
   return (
     <Stack>
       <Group gap="sm">
@@ -190,23 +211,37 @@ export function LiveMessageViewer({ environmentId }: LiveMessageViewerProps) {
             setSubjectError(undefined);
           }}
           error={subjectError}
-          disabled={isConnected}
+          disabled={activeSubject !== null}
           style={{ flex: 1 }}
           aria-label="Subject pattern"
         />
-        {!isConnected ? (
-          <Button onClick={handleSubscribe}>Subscribe</Button>
-        ) : (
+        {activeSubject ? (
           <Button color="red" variant="light" onClick={handleUnsubscribe}>
             Unsubscribe
           </Button>
+        ) : (
+          <Button onClick={handleSubscribe}>Subscribe</Button>
         )}
-        <Badge color={isConnected ? 'green' : 'gray'} variant="light">
-          {isConnected ? 'Connected' : 'Disconnected'}
+        <Badge color={subscriptionBadge.color} variant="light">
+          {subscriptionBadge.label}
         </Badge>
       </Group>
 
-      {subjectInput.includes(' ') && !isConnected && (
+      {activeSubject && (
+        <Alert color={subscriptionAlert.color} title={subscriptionAlert.title}>
+          <Group gap="xs">
+            <Text size="sm">
+              Listening on
+            </Text>
+            <Code>{activeSubject}</Code>
+            <Text size="sm" c="dimmed">
+              {subscriptionAlert.message}
+            </Text>
+          </Group>
+        </Alert>
+      )}
+
+      {subjectInput.includes(' ') && !activeSubject && (
         <Alert color="orange" title="Invalid subject">
           Subject patterns must not contain spaces.
         </Alert>

@@ -99,6 +99,33 @@ public sealed class ObjectStoreRelationshipSource(IObjectStoreAdapter objectStor
                     DetailRoute: null,
                     Metadata: new Dictionary<string, string>()));
             }
+            else if (parts[1] == "objectstoreobject")
+            {
+                var objectParts = parts[2].Split('/', 2);
+                if (objectParts.Length != 2 || !bucketMap.ContainsKey(objectParts[0]))
+                    continue;
+
+                var obj = await objectStoreAdapter.GetObjectInfoAsync(environmentId, objectParts[0], objectParts[1], ct);
+                if (obj is null)
+                    continue;
+
+                nodes.Add(new ResourceNode(
+                    NodeId: nodeId,
+                    EnvironmentId: environmentId,
+                    ResourceType: ResourceType.ObjectStoreObject,
+                    ResourceId: parts[2],
+                    DisplayName: obj.Name,
+                    Status: ResourceHealthStatus.Healthy,
+                    Freshness: RelationshipFreshness.Live,
+                    IsFocal: false,
+                    DetailRoute: $"/objectstore/buckets/{Uri.EscapeDataString(objectParts[0])}/objects/{Uri.EscapeDataString(objectParts[1])}",
+                    Metadata: new Dictionary<string, string>
+                    {
+                        ["bucket"] = objectParts[0],
+                        ["size"] = obj.Size.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        ["chunks"] = obj.Chunks.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    }));
+            }
         }
 
         return nodes;

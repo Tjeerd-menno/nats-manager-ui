@@ -211,6 +211,8 @@ describe('useLiveMessages', () => {
     expect(MockEventSource.instances).toHaveLength(1);
     expect(MockEventSource.instances[0].url).toContain('/api/environments/env-1/core-nats/stream');
     expect(MockEventSource.instances[0].url).toContain('orders.%3E');
+    expect(result.current.activeSubject).toBe('orders.>');
+    expect(result.current.subscriptionStatus).toBe('connecting');
   });
 
   it('unsubscribe closes the EventSource and resets connection state', () => {
@@ -232,6 +234,43 @@ describe('useLiveMessages', () => {
 
     expect(es.closed).toBe(true);
     expect(result.current.isConnected).toBe(false);
+    expect(result.current.activeSubject).toBeNull();
+    expect(result.current.subscriptionStatus).toBe('idle');
+  });
+
+  it('open event marks the subscription as connected', () => {
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useLiveMessages('env-1'), { wrapper });
+
+    act(() => {
+      result.current.subscribe('orders.>');
+    });
+
+    const es = MockEventSource.instances[0];
+    act(() => {
+      es.emit('open');
+    });
+
+    expect(result.current.isConnected).toBe(true);
+    expect(result.current.subscriptionStatus).toBe('connected');
+  });
+
+  it('error event marks the subscription as reconnecting while keeping the subject', () => {
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useLiveMessages('env-1'), { wrapper });
+
+    act(() => {
+      result.current.subscribe('orders.>');
+    });
+
+    const es = MockEventSource.instances[0];
+    act(() => {
+      es.emit('error');
+    });
+
+    expect(result.current.isConnected).toBe(false);
+    expect(result.current.activeSubject).toBe('orders.>');
+    expect(result.current.subscriptionStatus).toBe('reconnecting');
   });
 
   it('unmount closes the EventSource', () => {
