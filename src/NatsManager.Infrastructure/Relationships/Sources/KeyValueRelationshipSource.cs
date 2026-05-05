@@ -128,6 +128,35 @@ public sealed class KeyValueRelationshipSource(IKvStoreAdapter kvStoreAdapter) :
                     DetailRoute: null,
                     Metadata: new Dictionary<string, string>()));
             }
+            else if (parts[1] == "kvkey")
+            {
+                var keyParts = parts[2].Split('/', 2);
+                if (keyParts.Length != 2 || !bucketMap.ContainsKey(keyParts[0]))
+                    continue;
+
+                var key = await kvStoreAdapter.GetKeyAsync(environmentId, keyParts[0], keyParts[1], ct);
+                if (key is null)
+                    continue;
+
+                nodes.Add(new ResourceNode(
+                    NodeId: nodeId,
+                    EnvironmentId: environmentId,
+                    ResourceType: ResourceType.KvKey,
+                    ResourceId: parts[2],
+                    DisplayName: key.Key,
+                    Status: key.Operation.Equals("DEL", StringComparison.OrdinalIgnoreCase)
+                        ? ResourceHealthStatus.Stale
+                        : ResourceHealthStatus.Healthy,
+                    Freshness: RelationshipFreshness.Live,
+                    IsFocal: false,
+                    DetailRoute: $"/kv/buckets/{Uri.EscapeDataString(keyParts[0])}/keys/{Uri.EscapeDataString(keyParts[1])}",
+                    Metadata: new Dictionary<string, string>
+                    {
+                        ["bucket"] = keyParts[0],
+                        ["revision"] = key.Revision.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        ["operation"] = key.Operation,
+                    }));
+            }
         }
 
         return nodes;

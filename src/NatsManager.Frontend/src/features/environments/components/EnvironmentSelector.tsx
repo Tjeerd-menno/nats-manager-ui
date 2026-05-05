@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Select, Group } from '@mantine/core';
 import { useEnvironments } from '../hooks/useEnvironments';
 import { ConnectionStatusBadge } from './ConnectionStatusBadge';
@@ -16,6 +17,13 @@ export function EnvironmentSelector({ selectedId, onSelect }: EnvironmentSelecto
     label: env.name,
     status: env.connectionStatus,
   }));
+  const onlyEnvironmentId = data?.data.items.length === 1 ? data.data.items[0].id : null;
+
+  useEffect(() => {
+    if (!selectedId && onlyEnvironmentId) {
+      onSelect(onlyEnvironmentId);
+    }
+  }, [onSelect, onlyEnvironmentId, selectedId]);
 
   return (
     <Select

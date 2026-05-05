@@ -150,6 +150,15 @@ public sealed partial class RelationshipProjectionService(
                 Metadata: new Dictionary<string, string>());
         }
 
+        var danglingEdges = includedEdges.Count(edge =>
+            !resolvedNodes.ContainsKey(edge.SourceNodeId) || !resolvedNodes.ContainsKey(edge.TargetNodeId));
+        if (danglingEdges > 0)
+        {
+            includedEdges = [.. includedEdges.Where(edge =>
+                resolvedNodes.ContainsKey(edge.SourceNodeId) && resolvedNodes.ContainsKey(edge.TargetNodeId))];
+            filteredEdges += danglingEdges;
+        }
+
         // Propagate neighbor warning states (for US2 incident traversal)
         PropagateWarningStates(resolvedNodes, includedEdges, focalNodeId);
 
