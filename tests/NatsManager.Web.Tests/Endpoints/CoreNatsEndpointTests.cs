@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using Shouldly;
 using NSubstitute;
@@ -213,10 +214,40 @@ public sealed class CoreNatsEndpointTests : IClassFixture<NatsManagerWebAppFacto
         response.Content.Headers.ContentType?.MediaType.ShouldBe("text/event-stream");
     }
 
+    [Fact]
+    public async Task StreamEndpoint_WhenNoMessagesAvailable_FlushesInitialEventStreamFrame()
+    {
+        var envId = Guid.NewGuid();
+        using var requestCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        _factory.CoreNatsAdapter.SubscribeAsync(envId, "test.>", Arg.Any<CancellationToken>())
+            .Returns(call => NeverMessages(call.ArgAt<CancellationToken>(2)));
+
+        using var response = await _client.GetAsync(
+            $"/api/environments/{envId}/core-nats/stream?subject=test.%3E",
+            HttpCompletionOption.ResponseHeadersRead,
+            requestCts.Token);
+        await using var stream = await response.Content.ReadAsStreamAsync(requestCts.Token);
+        var buffer = new byte[64];
+
+        var bytesRead = await stream.ReadAsync(buffer, requestCts.Token)
+            .AsTask()
+            .WaitAsync(TimeSpan.FromSeconds(1), requestCts.Token);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        Encoding.UTF8.GetString(buffer, 0, bytesRead).ShouldBe(": subscribed\n\n");
+    }
+
     private static async IAsyncEnumerable<NatsLiveMessage> EmptyMessages(
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken _ = default)
     {
         await Task.CompletedTask;
+        yield break;
+    }
+
+    private static async IAsyncEnumerable<NatsLiveMessage> NeverMessages(
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
         yield break;
     }
 

@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -118,7 +119,7 @@ public sealed partial class NatsClusterMonitoringHttpAdapter(
             ? MonitoringHttpResult<ClusterVarzResponse>.Success(rawResult.Value is null ? null : new ClusterVarzResponse(
                 ServerId: rawResult.Value.ServerId,
                 ServerName: rawResult.Value.ServerName,
-                ClusterName: rawResult.Value.Cluster,
+                ClusterName: ExtractClusterName(rawResult.Value.Cluster),
                 Version: rawResult.Value.Version,
                 Uptime: rawResult.Value.Uptime,
                 UptimeSeconds: NatsMonitoringUptimeParser.ParseSeconds(rawResult.Value.Uptime),
@@ -131,6 +132,22 @@ public sealed partial class NatsClusterMonitoringHttpAdapter(
                 OutBytes: rawResult.Value.OutBytes,
                 Mem: rawResult.Value.Mem))
             : MonitoringHttpResult<ClusterVarzResponse>.Failure(rawResult.FailureKind, rawResult.ErrorMessage ?? "Unknown error");
+    }
+
+    private static string? ExtractClusterName(JsonElement? cluster)
+    {
+        if (cluster is null)
+        {
+            return null;
+        }
+
+        return cluster.Value.ValueKind switch
+        {
+            JsonValueKind.String => cluster.Value.GetString(),
+            JsonValueKind.Object when cluster.Value.TryGetProperty("name", out var name)
+                && name.ValueKind == JsonValueKind.String => name.GetString(),
+            _ => null
+        };
     }
 
     public async Task<ClusterJszResponse?> GetJszAsync(string baseUrl, CancellationToken ct)
@@ -407,7 +424,7 @@ public sealed partial class NatsClusterMonitoringHttpAdapter(
     {
         [JsonPropertyName("server_id")] public string? ServerId { get; set; }
         [JsonPropertyName("server_name")] public string? ServerName { get; set; }
-        [JsonPropertyName("cluster")] public string? Cluster { get; set; }
+        [JsonPropertyName("cluster")] public JsonElement? Cluster { get; set; }
         [JsonPropertyName("version")] public string? Version { get; set; }
         [JsonPropertyName("uptime")] public string? Uptime { get; set; }
         [JsonPropertyName("connections")] public int Connections { get; set; }

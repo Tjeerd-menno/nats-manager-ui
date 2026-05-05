@@ -10,6 +10,7 @@ import {
   Text,
   Alert,
   ActionIcon,
+  Code,
 } from '@mantine/core';
 import { IconPlayerPlay, IconPlayerPause, IconTrash, IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { PayloadViewer } from '../../../shared/PayloadViewer';
@@ -151,6 +152,8 @@ export function LiveMessageViewer({ environmentId }: LiveMessageViewerProps) {
   const {
     messages,
     isConnected,
+    subscriptionStatus,
+    activeSubject,
     isPaused,
     pendingCount,
     cap,
@@ -179,6 +182,19 @@ export function LiveMessageViewer({ environmentId }: LiveMessageViewerProps) {
     unsubscribe();
   };
 
+  const subscriptionBadge = (() => {
+    switch (subscriptionStatus) {
+      case 'connecting':
+        return { color: 'blue', label: 'Subscribing' };
+      case 'connected':
+        return { color: 'green', label: 'Connected' };
+      case 'reconnecting':
+        return { color: 'yellow', label: 'Reconnecting' };
+      default:
+        return { color: 'gray', label: 'Disconnected' };
+    }
+  })();
+
   return (
     <Stack>
       <Group gap="sm">
@@ -190,23 +206,50 @@ export function LiveMessageViewer({ environmentId }: LiveMessageViewerProps) {
             setSubjectError(undefined);
           }}
           error={subjectError}
-          disabled={isConnected}
+          disabled={activeSubject !== null}
           style={{ flex: 1 }}
           aria-label="Subject pattern"
         />
-        {!isConnected ? (
+        {!activeSubject ? (
           <Button onClick={handleSubscribe}>Subscribe</Button>
         ) : (
           <Button color="red" variant="light" onClick={handleUnsubscribe}>
             Unsubscribe
           </Button>
         )}
-        <Badge color={isConnected ? 'green' : 'gray'} variant="light">
-          {isConnected ? 'Connected' : 'Disconnected'}
+        <Badge color={subscriptionBadge.color} variant="light">
+          {subscriptionBadge.label}
         </Badge>
       </Group>
 
-      {subjectInput.includes(' ') && !isConnected && (
+      {activeSubject && (
+        <Alert
+          color={subscriptionStatus === 'connected' ? 'green' : subscriptionStatus === 'connecting' ? 'blue' : 'yellow'}
+          title={
+            subscriptionStatus === 'connected'
+              ? 'Subscription active'
+              : subscriptionStatus === 'connecting'
+                ? 'Creating subscription'
+                : 'Subscription reconnecting'
+          }
+        >
+          <Group gap="xs">
+            <Text size="sm">
+              Listening on
+            </Text>
+            <Code>{activeSubject}</Code>
+            <Text size="sm" c="dimmed">
+              {subscriptionStatus === 'connected'
+                ? 'Waiting for live messages…'
+                : subscriptionStatus === 'connecting'
+                  ? 'Opening the live stream…'
+                  : 'Attempting to restore the live stream…'}
+            </Text>
+          </Group>
+        </Alert>
+      )}
+
+      {subjectInput.includes(' ') && !activeSubject && (
         <Alert color="orange" title="Invalid subject">
           Subject patterns must not contain spaces.
         </Alert>
