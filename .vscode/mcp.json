@@ -27,14 +27,11 @@
         "SONARQUBE_TOKEN",
         "-e",
         "SONARQUBE_ORG",
-        //"-e",
-        //"SONARQUBE_URL",
         "mcp/sonarqube"
       ],
       "env": {
         "SONARQUBE_TOKEN": "${input:sonarqubeToken}",
-        "SONARQUBE_ORG": "tjeerdmenno",
-        //"SONARQUBE_URL": "https://sonarqube.us"
+        "SONARQUBE_ORG": "tjeerdmenno"
       }
     }
   }
