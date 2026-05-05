@@ -230,7 +230,6 @@ public sealed class CoreNatsEndpointTests : IClassFixture<NatsManagerWebAppFacto
         var buffer = new byte[64];
 
         var bytesRead = await stream.ReadAsync(buffer, requestCts.Token)
-            .AsTask()
             .WaitAsync(TimeSpan.FromSeconds(1), requestCts.Token);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
