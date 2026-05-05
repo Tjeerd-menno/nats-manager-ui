@@ -17,7 +17,7 @@ export function EnvironmentSelector({ selectedId, onSelect }: EnvironmentSelecto
     label: env.name,
     status: env.connectionStatus,
   }));
-  const onlyEnvironmentId = data?.data.items.length === 1 ? data.data.items[0].id : null;
+  const onlyEnvironmentId = data?.data.items.length === 1 ? (data.data.items[0]?.id ?? null) : null;
 
   useEffect(() => {
     if (!selectedId && onlyEnvironmentId) {
