@@ -227,13 +227,35 @@ public sealed class CoreNatsEndpointTests : IClassFixture<NatsManagerWebAppFacto
             HttpCompletionOption.ResponseHeadersRead,
             requestCts.Token);
         await using var stream = await response.Content.ReadAsStreamAsync(requestCts.Token);
-        var buffer = new byte[64];
 
-        var bytesRead = await stream.ReadAsync(buffer, requestCts.Token)
+        var initialFrame = await ReadUntilDelimiterAsync(stream, "\n\n", requestCts.Token)
             .WaitAsync(TimeSpan.FromSeconds(1), requestCts.Token);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        Encoding.UTF8.GetString(buffer, 0, bytesRead).ShouldBe(": subscribed\n\n");
+        initialFrame.ShouldBe(": subscribed\n\n");
+    }
+
+    private static async Task<string> ReadUntilDelimiterAsync(
+        Stream stream,
+        string delimiter,
+        CancellationToken cancellationToken)
+    {
+        var buffer = new byte[64];
+        using var collected = new MemoryStream();
+
+        while (true)
+        {
+            var bytesRead = await stream.ReadAsync(buffer, cancellationToken);
+            bytesRead.ShouldBeGreaterThan(0);
+
+            await collected.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
+
+            var text = Encoding.UTF8.GetString(collected.ToArray());
+            if (text.EndsWith(delimiter, StringComparison.Ordinal))
+            {
+                return text;
+            }
+        }
     }
 
     private static async IAsyncEnumerable<NatsLiveMessage> EmptyMessages(
