@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NatsManager.Application.Modules.Environments.Ports;
@@ -52,7 +53,7 @@ public sealed class NatsClusterMonitoringHttpAdapterTests
     private static HttpResponseMessage JsonResponse(string content) =>
         new(HttpStatusCode.OK)
         {
-            Content = new StringContent(content)
+            Content = new StringContent(content, Encoding.UTF8, "application/json")
         };
 
     private sealed class FakeHttpClientFactory(HttpClient client) : IHttpClientFactory
