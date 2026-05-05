@@ -103,6 +103,8 @@ describe('EnvironmentSelector', () => {
 
     renderWithProviders(<EnvironmentSelector selectedId={null} onSelect={onSelect} />);
 
-    await waitFor(() => expect(onSelect).not.toHaveBeenCalled());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(onSelect).not.toHaveBeenCalled();
   });
 });
