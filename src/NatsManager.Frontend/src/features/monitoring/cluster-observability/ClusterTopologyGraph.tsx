@@ -6,10 +6,9 @@ import type { TopologyRelationship } from './types';
 
 interface ClusterTopologyGraphProps {
   relationships: TopologyRelationship[];
-  envId: string;
 }
 
-export function ClusterTopologyGraph({ relationships }: ClusterTopologyGraphProps) {
+export function ClusterTopologyGraph({ relationships }: Readonly<ClusterTopologyGraphProps>) {
   const { nodes, edges } = useMemo(() => {
     const serverIds = new Set<string>();
     relationships.forEach(r => {

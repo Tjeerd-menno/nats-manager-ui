@@ -54,9 +54,7 @@ export function usePublishMessage(environmentId: string | null) {
     mutationFn: async (request: PublishRequest) => {
       await apiClient.post(apiEndpoints.coreNatsPublish(environmentId), request);
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.coreNatsStatus(environmentId) });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.coreNatsStatus(environmentId) }),
   });
 }
 

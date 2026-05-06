@@ -53,7 +53,7 @@ export function validateObjectName(value: string, fieldName = 'Object name'): st
   const trimmed = value.trim();
   if (trimmed.length === 0) return `${fieldName} is required`;
   if (trimmed.length > 512) return `${fieldName} must be 512 characters or fewer`;
-  if (trimmed.includes('/') || trimmed.startsWith('~') || trimmed.includes('..') || Array.from(trimmed).some((char) => char.charCodeAt(0) < 32)) {
+  if (trimmed.includes('/') || trimmed.startsWith('~') || trimmed.includes('..') || Array.from(trimmed).some((char) => (char.codePointAt(0) ?? 0) < 32)) {
     return `${fieldName} contains invalid path characters`;
   }
   return null;
@@ -65,7 +65,7 @@ export function validatePassword(value: string): string | null {
   if (value.length > 256) return 'Password must be 256 characters or fewer';
   if (!/[A-Z]/.test(value)) return 'Password must contain at least one uppercase letter';
   if (!/[a-z]/.test(value)) return 'Password must contain at least one lowercase letter';
-  if (!/[0-9]/.test(value)) return 'Password must contain at least one digit';
-  if (!/[^A-Za-z0-9]/.test(value)) return 'Password must contain at least one non-alphanumeric character';
+  if (!/\d/.test(value)) return 'Password must contain at least one digit';
+  if (!/[^A-Za-z\d]/.test(value)) return 'Password must contain at least one non-alphanumeric character';
   return null;
 }

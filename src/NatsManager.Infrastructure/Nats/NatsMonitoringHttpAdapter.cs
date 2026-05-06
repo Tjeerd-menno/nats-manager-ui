@@ -10,6 +10,8 @@ public sealed partial class NatsMonitoringHttpAdapter(
     IHttpClientFactory httpClientFactory,
     ILogger<NatsMonitoringHttpAdapter> logger) : IMonitoringAdapter
 {
+    private const string UnknownError = "Unknown error";
+
     public async Task<MonitoringSnapshot> FetchSnapshotAsync(
         Domain.Modules.Environments.Environment environment,
         MonitoringSnapshot? previous,
@@ -20,12 +22,11 @@ public sealed partial class NatsMonitoringHttpAdapter(
         var client = httpClientFactory.CreateClient("NatsMonitoring");
 
         var varzResult = await client.GetJsonWithHandlingAsync<NatsVarzResponse>($"{baseUrl}/varz", ct);
-        if (!varzResult.IsSuccess)
+        var varzFailure = CreateVarzFailureSnapshot(environment.Id, varzResult);
+        if (varzFailure is not null)
         {
-            LogFetchFailed($"{baseUrl}/varz", varzResult.ErrorMessage ?? "Unknown error");
-            return varzResult.FailureKind == MonitoringFailureKind.Json
-                ? NatsMonitoringStateFactory.CreateSnapshot(environment.Id, MonitoringStatus.Degraded, MonitoringStatus.Unavailable)
-                : NatsMonitoringStateFactory.CreateSnapshot(environment.Id, MonitoringStatus.Unavailable, MonitoringStatus.Unavailable);
+            LogFetchFailed($"{baseUrl}/varz", varzResult.ErrorMessage ?? UnknownError);
+            return varzFailure;
         }
 
         var varz = varzResult.Value;
@@ -52,7 +53,7 @@ public sealed partial class NatsMonitoringHttpAdapter(
         var degraded = jszResult.FailureKind != MonitoringFailureKind.None;
         if (jszResult.FailureKind != MonitoringFailureKind.None)
         {
-            LogFetchFailed($"{baseUrl}/jsz", jszResult.ErrorMessage ?? "Unknown error");
+            LogFetchFailed($"{baseUrl}/jsz", jszResult.ErrorMessage ?? UnknownError);
         }
 
         var healthzResult = await client.GetJsonWithHandlingAsync<NatsHealthzResponse>(
@@ -68,18 +69,11 @@ public sealed partial class NatsMonitoringHttpAdapter(
                 return await response.ReadJsonOrFailureAsync<NatsHealthzResponse>(cancellationToken);
             });
 
-        var healthStatus = healthzResult.FailureKind switch
-        {
-            MonitoringFailureKind.None => string.Equals(healthzResult.Value?.Status, "ok", StringComparison.OrdinalIgnoreCase)
-                ? MonitoringStatus.Ok
-                : MonitoringStatus.Degraded,
-            MonitoringFailureKind.Timeout or MonitoringFailureKind.HttpRequest => MonitoringStatus.Unavailable,
-            _ => MonitoringStatus.Degraded
-        };
+        var healthStatus = GetHealthStatus(healthzResult);
 
         if (healthzResult.FailureKind != MonitoringFailureKind.None)
         {
-            LogFetchFailed($"{baseUrl}/healthz", healthzResult.ErrorMessage ?? "Unknown error");
+            LogFetchFailed($"{baseUrl}/healthz", healthzResult.ErrorMessage ?? UnknownError);
         }
 
         var latencyMs = (long)(DateTimeOffset.UtcNow - startTime).TotalMilliseconds;
@@ -98,6 +92,30 @@ public sealed partial class NatsMonitoringHttpAdapter(
             Status: degraded ? MonitoringStatus.Degraded : MonitoringStatus.Ok,
             HealthStatus: healthStatus);
     }
+
+    private static MonitoringSnapshot? CreateVarzFailureSnapshot(
+        Guid environmentId,
+        MonitoringHttpResult<NatsVarzResponse> varzResult)
+    {
+        if (varzResult.IsSuccess)
+        {
+            return null;
+        }
+
+        return varzResult.FailureKind == MonitoringFailureKind.Json
+            ? NatsMonitoringStateFactory.CreateSnapshot(environmentId, MonitoringStatus.Degraded, MonitoringStatus.Unavailable)
+            : NatsMonitoringStateFactory.CreateSnapshot(environmentId, MonitoringStatus.Unavailable, MonitoringStatus.Unavailable);
+    }
+
+    private static MonitoringStatus GetHealthStatus(MonitoringHttpResult<NatsHealthzResponse> healthzResult) =>
+        healthzResult.FailureKind switch
+        {
+            MonitoringFailureKind.None => string.Equals(healthzResult.Value?.Status, "ok", StringComparison.OrdinalIgnoreCase)
+                ? MonitoringStatus.Ok
+                : MonitoringStatus.Degraded,
+            MonitoringFailureKind.Timeout or MonitoringFailureKind.HttpRequest => MonitoringStatus.Unavailable,
+            _ => MonitoringStatus.Degraded
+        };
 
     private static ServerMetrics BuildServerMetrics(NatsVarzResponse varz, MonitoringSnapshot? previous, DateTimeOffset timestamp)
     {

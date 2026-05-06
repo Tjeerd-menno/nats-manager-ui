@@ -22,7 +22,7 @@ function mantineColorSchemePlugin(): Plugin {
 export default defineConfig({
   plugins: [react(), mantineColorSchemePlugin()],
   server: {
-    port: parseInt(process.env.PORT || '5173'),
+    port: Number.parseInt(process.env.PORT || '5173', 10),
     proxy: {
       '/api': {
         target: backendTarget,

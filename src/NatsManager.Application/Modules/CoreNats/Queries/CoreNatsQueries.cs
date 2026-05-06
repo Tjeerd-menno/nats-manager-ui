@@ -20,7 +20,7 @@ public sealed record GetSubjectsQuery(Guid EnvironmentId);
 
 public sealed class GetSubjectsQueryHandler(ICoreNatsAdapter adapter) : IUseCase<GetSubjectsQuery, ListSubjectsResult>
 {
-    public async Task ExecuteAsync(GetSubjectsQuery request, IOutputPort<ListSubjectsResult> outputPort, CancellationToken cancellationToken)
+    public async Task ExecuteAsync(GetSubjectsQuery request, IOutputPort<ListSubjectsResult> outputPort, CancellationToken cancellationToken = default)
     {
         var result = await adapter.ListSubjectsAsync(request.EnvironmentId, cancellationToken);
         outputPort.Success(result);
