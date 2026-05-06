@@ -258,33 +258,6 @@ public sealed partial class RelationshipProjectionService(
             return;
 
         nodes[focalNodeId] = focalNode with { IsFocal = true };
-        var focalHasIncidentStatus = IsIncidentStatus(focalNode.Status);
-
-        foreach (var edge in edges.Where(edge => edge.SourceNodeId == focalNodeId || edge.TargetNodeId == focalNodeId))
-        {
-            var neighborNodeId = edge.SourceNodeId == focalNodeId
-                ? edge.TargetNodeId
-                : edge.SourceNodeId;
-
-            if (!nodes.TryGetValue(neighborNodeId, out var neighborNode))
-                continue;
-
-            var propagatedStatus = IsIncidentStatus(edge.Status)
-                ? edge.Status
-                : focalHasIncidentStatus
-                    ? ResourceHealthStatus.Warning
-                    : ResourceHealthStatus.Healthy;
-
-            if (!IsIncidentStatus(propagatedStatus))
-                continue;
-
-            nodes[neighborNodeId] = neighborNode with
-            {
-                Status = GetSeverity(neighborNode.Status) >= GetSeverity(propagatedStatus)
-                    ? neighborNode.Status
-                    : propagatedStatus
-            };
-        }
     }
 
     private static bool IsIncidentStatus(ResourceHealthStatus status) =>
