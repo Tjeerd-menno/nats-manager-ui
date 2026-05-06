@@ -20,6 +20,7 @@ public sealed partial class MonitoringPoller(
 {
     private readonly ConcurrentDictionary<Guid, MonitoringSnapshot?> _lastSnapshots = new();
     private readonly ConcurrentDictionary<Guid, DateTimeOffset> _nextPollTimes = new();
+    private readonly ConcurrentDictionary<Guid, byte> _missingMonitoringUrlLogged = new();
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -51,26 +52,40 @@ public sealed partial class MonitoringPoller(
         using var scope = scopeFactory.CreateScope();
         var environmentRepository = scope.ServiceProvider.GetRequiredService<IEnvironmentRepository>();
         var environments = await environmentRepository.GetEnabledAsync(ct);
-        var monitorableEnvironments = environments
-            .Where(e =>
+
+        var monitorableEnvironments = new List<NatsEnvironment>();
+        foreach (var environment in environments)
+        {
+            if (environment.MonitoringUrl is null)
             {
-                if (e.MonitoringUrl is null)
+                if (_missingMonitoringUrlLogged.TryAdd(environment.Id, 0))
                 {
-                    LogMonitoringUrlNotConfigured(e.Name);
-                    return false;
+                    LogMonitoringUrlNotConfigured(environment.Name);
                 }
 
-                return true;
-            })
-            .ToArray();
+                continue;
+            }
+
+            _missingMonitoringUrlLogged.TryRemove(environment.Id, out _);
+            monitorableEnvironments.Add(environment);
+        }
 
         var configuredIds = monitorableEnvironments.Select(e => e.Id).ToHashSet();
+        var environmentIds = environments.Select(e => e.Id).ToHashSet();
         foreach (var trackedId in _nextPollTimes.Keys)
         {
             if (!configuredIds.Contains(trackedId))
             {
                 _nextPollTimes.TryRemove(trackedId, out _);
                 _lastSnapshots.TryRemove(trackedId, out _);
+            }
+        }
+
+        foreach (var trackedId in _missingMonitoringUrlLogged.Keys)
+        {
+            if (!environmentIds.Contains(trackedId))
+            {
+                _missingMonitoringUrlLogged.TryRemove(trackedId, out _);
             }
         }
 

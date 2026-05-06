@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NatsManager.Application.Modules.Environments.Ports;
@@ -66,6 +67,24 @@ public sealed class MonitoringPollerTests
             "ReceiveMonitoringSnapshot",
             Arg.Is<object?[]>(args => ReferenceEquals(args[0], snapshot)),
             Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task PollDueEnvironmentsAsync_WhenMonitoringUrlRemainsMissing_ShouldLogOnlyOncePerEnvironment()
+    {
+        var unmonitored = CreateEnvironment("unmonitored");
+        var repository = Substitute.For<IEnvironmentRepository>();
+        repository.GetEnabledAsync(Arg.Any<CancellationToken>()).Returns([unmonitored], [unmonitored]);
+        var adapter = Substitute.For<IMonitoringAdapter>();
+        var metricsStore = Substitute.For<IMonitoringMetricsStore>();
+        var logger = new TestLogger<MonitoringPoller>();
+        var poller = CreatePoller(repository, adapter, metricsStore, out _, logger: logger);
+
+        await poller.PollDueEnvironmentsAsync(CancellationToken.None);
+        await poller.PollDueEnvironmentsAsync(CancellationToken.None);
+
+        await adapter.DidNotReceive().FetchSnapshotAsync(unmonitored, Arg.Any<MonitoringSnapshot?>(), Arg.Any<CancellationToken>());
+        logger.Messages.Count(m => m == "Monitoring URL not configured for 'unmonitored'").ShouldBe(1);
     }
 
     [Fact]
@@ -169,7 +188,8 @@ public sealed class MonitoringPollerTests
         IMonitoringAdapter adapter,
         IMonitoringMetricsStore metricsStore,
         out IClientProxy clientProxy,
-        MonitoringOptions? monitoringOptions = null)
+        MonitoringOptions? monitoringOptions = null,
+        ILogger<MonitoringPoller>? logger = null)
     {
         var services = new ServiceCollection();
         services.AddSingleton(repository);
@@ -187,7 +207,7 @@ public sealed class MonitoringPollerTests
             metricsStore,
             hubContext,
             Options.Create(monitoringOptions ?? new MonitoringOptions()),
-            NullLogger<MonitoringPoller>.Instance);
+            logger ?? NullLogger<MonitoringPoller>.Instance);
     }
 
     private static Environment CreateEnvironment(
@@ -208,4 +228,32 @@ public sealed class MonitoringPollerTests
             null,
             MonitoringStatus.Ok,
             MonitoringStatus.Ok);
+
+    private sealed class TestLogger<T> : ILogger<T>
+    {
+        public List<string> Messages { get; } = [];
+
+        public IDisposable BeginScope<TState>(TState state) where TState : notnull => NullScope.Instance;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter)
+        {
+            Messages.Add(formatter(state, exception));
+        }
+
+        private sealed class NullScope : IDisposable
+        {
+            public static NullScope Instance { get; } = new();
+
+            public void Dispose()
+            {
+            }
+        }
+    }
 }
