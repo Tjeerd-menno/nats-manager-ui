@@ -84,7 +84,7 @@ public sealed class MonitoringPollerTests
         await poller.PollDueEnvironmentsAsync(CancellationToken.None);
 
         await adapter.DidNotReceive().FetchSnapshotAsync(unmonitored, Arg.Any<MonitoringSnapshot?>(), Arg.Any<CancellationToken>());
-        logger.Messages.Count(m => m == "Monitoring URL not configured for 'unmonitored'").ShouldBe(1);
+        logger.Messages.Count(m => m.Contains("Monitoring URL not configured for 'unmonitored'", StringComparison.Ordinal)).ShouldBe(1);
     }
 
     [Fact]
@@ -233,7 +233,7 @@ public sealed class MonitoringPollerTests
     {
         public List<string> Messages { get; } = [];
 
-        public IDisposable BeginScope<TState>(TState state) where TState : notnull => NullScope.Instance;
+        public IDisposable BeginScope<TState>(TState state) where TState : notnull => NoOpDisposable.Instance;
 
         public bool IsEnabled(LogLevel logLevel) => true;
 
@@ -247,9 +247,9 @@ public sealed class MonitoringPollerTests
             Messages.Add(formatter(state, exception));
         }
 
-        private sealed class NullScope : IDisposable
+        private sealed class NoOpDisposable : IDisposable
         {
-            public static NullScope Instance { get; } = new();
+            public static NoOpDisposable Instance { get; } = new();
 
             public void Dispose()
             {

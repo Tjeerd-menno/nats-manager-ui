@@ -20,7 +20,7 @@ public sealed partial class MonitoringPoller(
 {
     private readonly ConcurrentDictionary<Guid, MonitoringSnapshot?> _lastSnapshots = new();
     private readonly ConcurrentDictionary<Guid, DateTimeOffset> _nextPollTimes = new();
-    private readonly ConcurrentDictionary<Guid, byte> _missingMonitoringUrlLogged = new();
+    private readonly ConcurrentDictionary<Guid, bool> _missingMonitoringUrlLogged = new();
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -58,7 +58,7 @@ public sealed partial class MonitoringPoller(
         {
             if (environment.MonitoringUrl is null)
             {
-                if (_missingMonitoringUrlLogged.TryAdd(environment.Id, 0))
+                if (_missingMonitoringUrlLogged.TryAdd(environment.Id, true))
                 {
                     LogMonitoringUrlNotConfigured(environment.Name);
                 }
