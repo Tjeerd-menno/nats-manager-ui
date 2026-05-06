@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -35,7 +34,7 @@ public sealed class MonitoringPollerTests
         var poller = CreatePoller(repository, adapter, metricsStore, out _);
 
         await poller.PollDueEnvironmentsAsync(CancellationToken.None);
-        SetNextPollTime(poller, environment.Id, DateTimeOffset.UtcNow.AddSeconds(-1));
+        poller.SetNextPollTime(environment.Id, DateTimeOffset.UtcNow.AddSeconds(-1));
 
         await poller.PollDueEnvironmentsAsync(CancellationToken.None);
 
@@ -133,7 +132,8 @@ public sealed class MonitoringPollerTests
 
         await poller.PollDueEnvironmentsAsync(CancellationToken.None);
 
-        GetNextPollTime(poller, environment.Id)
+        poller.TryGetNextPollTime(environment.Id, out var nextPollTime).ShouldBeTrue();
+        nextPollTime
             .ShouldBeInRange(before.AddSeconds(8), DateTimeOffset.UtcNow.AddSeconds(12));
     }
 
@@ -159,7 +159,8 @@ public sealed class MonitoringPollerTests
 
         await poller.PollDueEnvironmentsAsync(CancellationToken.None);
 
-        GetNextPollTime(poller, environment.Id)
+        poller.TryGetNextPollTime(environment.Id, out var nextPollTime).ShouldBeTrue();
+        nextPollTime
             .ShouldBeInRange(before.AddSeconds(43), DateTimeOffset.UtcNow.AddSeconds(47));
     }
 
@@ -187,27 +188,6 @@ public sealed class MonitoringPollerTests
             hubContext,
             Options.Create(monitoringOptions ?? new MonitoringOptions()),
             NullLogger<MonitoringPoller>.Instance);
-    }
-
-    private static DateTimeOffset GetNextPollTime(MonitoringPoller poller, Guid environmentId)
-    {
-        var nextPollTimes = GetNextPollTimes(poller);
-        return nextPollTimes[environmentId];
-    }
-
-    private static void SetNextPollTime(MonitoringPoller poller, Guid environmentId, DateTimeOffset nextPollTime)
-    {
-        var nextPollTimes = GetNextPollTimes(poller);
-        nextPollTimes[environmentId] = nextPollTime;
-    }
-
-    private static ConcurrentDictionary<Guid, DateTimeOffset> GetNextPollTimes(MonitoringPoller poller)
-    {
-        var field = typeof(MonitoringPoller)
-            .GetField("_nextPollTimes", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-
-        field.ShouldNotBeNull();
-        return field.GetValue(poller).ShouldBeOfType<ConcurrentDictionary<Guid, DateTimeOffset>>();
     }
 
     private static Environment CreateEnvironment(

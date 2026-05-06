@@ -121,6 +121,12 @@ public sealed partial class MonitoringPoller(
         }
     }
 
+    internal bool TryGetNextPollTime(Guid environmentId, out DateTimeOffset nextPollTime) =>
+        _nextPollTimes.TryGetValue(environmentId, out nextPollTime);
+
+    internal void SetNextPollTime(Guid environmentId, DateTimeOffset nextPollTime) =>
+        _nextPollTimes[environmentId] = nextPollTime;
+
     [LoggerMessage(Level = LogLevel.Information, Message = "Monitoring poller started")]
     private partial void LogPollerStarted();
 

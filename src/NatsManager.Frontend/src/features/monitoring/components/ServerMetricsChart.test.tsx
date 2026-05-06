@@ -1,13 +1,29 @@
 import { screen } from '@testing-library/react';
-import type { ReactNode } from 'react';
+import { Children, isValidElement, type ReactNode } from 'react';
 import { renderWithProviders } from '../../../test-utils';
 import { ServerMetricsChart } from './ServerMetricsChart';
 import type { MonitoringSnapshot } from '../types';
 
+function getChartTestId(children: ReactNode): string {
+  const names = Children.toArray(children)
+    .map((child) => (isValidElement(child) ? child.props.name as string | undefined : undefined))
+    .filter((name): name is string => !!name);
+
+  if (names.includes('In bytes/s')) {
+    return 'byte-rates-chart';
+  }
+
+  if (names.includes('In msgs/s')) {
+    return 'message-rates-chart';
+  }
+
+  return 'connections-chart';
+}
+
 vi.mock('recharts', () => ({
   ResponsiveContainer: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   LineChart: ({ data, children }: { data: unknown; children: ReactNode }) => (
-    <div data-testid="line-chart" data-chart={JSON.stringify(data)}>
+    <div data-testid={getChartTestId(children)} data-chart={JSON.stringify(data)}>
       {children}
     </div>
   ),
@@ -60,8 +76,7 @@ describe('ServerMetricsChart', () => {
     expect(screen.getByText('In bytes/s')).toBeInTheDocument();
     expect(screen.getByText('Out bytes/s')).toBeInTheDocument();
 
-    expect(screen.getAllByTestId('line-chart')).toHaveLength(3);
-    const chartData = JSON.parse(screen.getAllByTestId('line-chart')[2].getAttribute('data-chart') ?? '[]') as Array<{
+    const chartData = JSON.parse(screen.getByTestId('byte-rates-chart').getAttribute('data-chart') ?? '[]') as Array<{
       time: string;
       connections: number;
       inMsgsPerSec: number;
