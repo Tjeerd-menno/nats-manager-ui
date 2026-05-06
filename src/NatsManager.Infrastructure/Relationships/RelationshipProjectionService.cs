@@ -162,6 +162,10 @@ public sealed partial class RelationshipProjectionService(
 
         // Propagate neighbor warning states (for US2 incident traversal)
         PropagateWarningStates(resolvedNodes, includedEdges, focalNodeId);
+        var postPropagationFilterResult = ApplyHealthStateFilterAfterPropagation(resolvedNodes, includedEdges, filters);
+        includedEdges = postPropagationFilterResult.Edges;
+        filteredNodes += postPropagationFilterResult.FilteredNodes;
+        filteredEdges += postPropagationFilterResult.FilteredEdges;
 
         var finalNodes = resolvedNodes.Values.ToList();
 
@@ -258,6 +262,59 @@ public sealed partial class RelationshipProjectionService(
             return;
 
         nodes[focalNodeId] = focalNode with { IsFocal = true };
+        var focalHasIncidentStatus = IsIncidentStatus(focalNode.Status);
+
+        foreach (var edge in edges.Where(edge => edge.SourceNodeId == focalNodeId || edge.TargetNodeId == focalNodeId))
+        {
+            var neighborNodeId = edge.SourceNodeId == focalNodeId
+                ? edge.TargetNodeId
+                : edge.SourceNodeId;
+
+            if (!nodes.TryGetValue(neighborNodeId, out var neighborNode))
+                continue;
+
+            var propagatedStatus = IsIncidentStatus(edge.Status)
+                ? edge.Status
+                : focalHasIncidentStatus
+                    ? ResourceHealthStatus.Warning
+                    : ResourceHealthStatus.Healthy;
+
+            if (!IsIncidentStatus(propagatedStatus))
+                continue;
+
+            nodes[neighborNodeId] = neighborNode with
+            {
+                Status = GetSeverity(neighborNode.Status) >= GetSeverity(propagatedStatus)
+                    ? neighborNode.Status
+                    : propagatedStatus
+            };
+        }
+    }
+
+    private static (List<RelationshipEdge> Edges, int FilteredNodes, int FilteredEdges) ApplyHealthStateFilterAfterPropagation(
+        Dictionary<string, ResourceNode> nodes,
+        List<RelationshipEdge> edges,
+        MapFilter filters)
+    {
+        if (filters.HealthStates is not { Count: > 0 })
+            return ([.. edges], 0, 0);
+
+        var filteredNodeIds = nodes.Values
+            .Where(node => !filters.HealthStates.Contains(node.Status))
+            .Select(node => node.NodeId)
+            .ToHashSet();
+
+        if (filteredNodeIds.Count == 0)
+            return ([.. edges], 0, 0);
+
+        foreach (var filteredNodeId in filteredNodeIds)
+            nodes.Remove(filteredNodeId);
+
+        var remainingEdges = edges
+            .Where(edge => !filteredNodeIds.Contains(edge.SourceNodeId) && !filteredNodeIds.Contains(edge.TargetNodeId))
+            .ToList();
+
+        return (remainingEdges, filteredNodeIds.Count, edges.Count - remainingEdges.Count);
     }
 
     private static bool IsIncidentStatus(ResourceHealthStatus status) =>

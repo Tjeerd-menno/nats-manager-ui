@@ -112,6 +112,73 @@ public sealed class RelationshipProjectionServiceTests
         map.Nodes.Single(node => node.NodeId == subjectNodeId).Status.ShouldBe(ResourceHealthStatus.Stale);
     }
 
+    [Fact]
+    public async Task ProjectAsync_WhenNeighborAlreadyHasStrongerIncidentStatus_ShouldNotDowngradeSeverity()
+    {
+        var environmentId = Guid.NewGuid();
+        var focal = new FocalResource(
+            environmentId,
+            ResourceType.Consumer,
+            "orders/billing",
+            "billing",
+            "/jetstream/streams/orders/consumers/billing");
+        var focalNodeId = ResourceNode.BuildNodeId(environmentId, ResourceType.Consumer, "orders/billing");
+        var streamNodeId = ResourceNode.BuildNodeId(environmentId, ResourceType.Stream, "orders");
+        var service = new RelationshipProjectionService(
+            [new FakeRelationshipSource(
+                [
+                    CreateEdge(environmentId, focalNodeId, streamNodeId, RelationshipType.BackedByStream),
+                ],
+                [
+                    CreateNode(environmentId, focalNodeId, ResourceType.Consumer, "orders/billing", "billing", ResourceHealthStatus.Warning),
+                    CreateNode(environmentId, streamNodeId, ResourceType.Stream, "orders", "orders", ResourceHealthStatus.Degraded),
+                ])],
+            NullLogger<RelationshipProjectionService>.Instance);
+
+        var map = await service.ProjectAsync(focal, MapFilter.Default, CancellationToken.None);
+
+        map.Nodes.Single(node => node.NodeId == streamNodeId).Status.ShouldBe(ResourceHealthStatus.Degraded);
+    }
+
+    [Fact]
+    public async Task ProjectAsync_WhenHealthFilterExcludesPropagatedNeighbor_ShouldRemoveFilteredNodeAndEdge()
+    {
+        var environmentId = Guid.NewGuid();
+        var focal = new FocalResource(
+            environmentId,
+            ResourceType.Stream,
+            "orders",
+            "orders",
+            "/jetstream/streams/orders");
+        var focalNodeId = ResourceNode.BuildNodeId(environmentId, ResourceType.Stream, "orders");
+        var subjectNodeId = ResourceNode.BuildNodeId(environmentId, ResourceType.Subject, "orders.created");
+        var service = new RelationshipProjectionService(
+            [new FakeRelationshipSource(
+                [
+                    CreateEdge(
+                        environmentId,
+                        focalNodeId,
+                        subjectNodeId,
+                        RelationshipType.UsesSubject,
+                        status: ResourceHealthStatus.Stale),
+                ],
+                [
+                    CreateNode(environmentId, focalNodeId, ResourceType.Stream, "orders", "orders"),
+                    CreateNode(environmentId, subjectNodeId, ResourceType.Subject, "orders.created", "orders.created"),
+                ])],
+            NullLogger<RelationshipProjectionService>.Instance);
+
+        var map = await service.ProjectAsync(
+            focal,
+            MapFilter.Default with { HealthStates = [ResourceHealthStatus.Healthy] },
+            CancellationToken.None);
+
+        map.Nodes.Select(node => node.NodeId).ShouldBe([focalNodeId]);
+        map.Edges.ShouldBeEmpty();
+        map.OmittedCounts.FilteredNodes.ShouldBe(1);
+        map.OmittedCounts.FilteredEdges.ShouldBe(1);
+    }
+
     private static RelationshipEdge CreateEdge(
         Guid environmentId,
         string sourceNodeId,
