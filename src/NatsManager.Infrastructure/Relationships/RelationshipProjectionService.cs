@@ -266,27 +266,19 @@ public sealed partial class RelationshipProjectionService(
 
         foreach (var edge in edges.Where(edge => edge.SourceNodeId == focalNodeId || edge.TargetNodeId == focalNodeId))
         {
-            var neighborNodeId = edge.SourceNodeId == focalNodeId
-                ? edge.TargetNodeId
-                : edge.SourceNodeId;
+            var neighborNodeId = GetNeighborNodeId(edge, focalNodeId);
 
             if (!nodes.TryGetValue(neighborNodeId, out var neighborNode))
                 continue;
 
-            var propagatedStatus = IsIncidentStatus(edge.Status)
-                ? edge.Status
-                : focalHasIncidentStatus
-                    ? ResourceHealthStatus.Warning
-                    : ResourceHealthStatus.Healthy;
+            var propagatedStatus = GetPropagatedStatus(edge, focalHasIncidentStatus);
 
             if (!IsIncidentStatus(propagatedStatus))
                 continue;
 
             nodes[neighborNodeId] = neighborNode with
             {
-                Status = GetSeverity(neighborNode.Status) >= GetSeverity(propagatedStatus)
-                    ? neighborNode.Status
-                    : propagatedStatus
+                Status = GetMoreSevereStatus(neighborNode.Status, propagatedStatus)
             };
         }
     }
@@ -322,6 +314,28 @@ public sealed partial class RelationshipProjectionService(
             or ResourceHealthStatus.Degraded
             or ResourceHealthStatus.Stale
             or ResourceHealthStatus.Unavailable;
+
+    private static string GetNeighborNodeId(RelationshipEdge edge, string focalNodeId) =>
+        edge.SourceNodeId == focalNodeId
+            ? edge.TargetNodeId
+            : edge.SourceNodeId;
+
+    private static ResourceHealthStatus GetPropagatedStatus(RelationshipEdge edge, bool focalHasIncidentStatus)
+    {
+        if (IsIncidentStatus(edge.Status))
+            return edge.Status;
+
+        return focalHasIncidentStatus
+            ? ResourceHealthStatus.Warning
+            : ResourceHealthStatus.Healthy;
+    }
+
+    private static ResourceHealthStatus GetMoreSevereStatus(
+        ResourceHealthStatus currentStatus,
+        ResourceHealthStatus propagatedStatus) =>
+        GetSeverity(currentStatus) >= GetSeverity(propagatedStatus)
+            ? currentStatus
+            : propagatedStatus;
 
     private static int GetSeverity(ResourceHealthStatus status) =>
         status switch
