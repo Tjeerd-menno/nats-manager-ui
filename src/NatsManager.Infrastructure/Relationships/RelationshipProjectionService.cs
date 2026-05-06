@@ -162,6 +162,10 @@ public sealed partial class RelationshipProjectionService(
 
         // Propagate neighbor warning states (for US2 incident traversal)
         PropagateWarningStates(resolvedNodes, includedEdges, focalNodeId);
+        var postPropagationFilterResult = ApplyHealthStateFilterAfterPropagation(resolvedNodes, includedEdges, filters);
+        includedEdges = postPropagationFilterResult.Edges;
+        filteredNodes += postPropagationFilterResult.FilteredNodes;
+        filteredEdges += postPropagationFilterResult.FilteredEdges;
 
         var finalNodes = resolvedNodes.Values.ToList();
 
@@ -254,12 +258,94 @@ public sealed partial class RelationshipProjectionService(
         IReadOnlyList<RelationshipEdge> edges,
         string focalNodeId)
     {
-        // Neighbor warning states are intentionally preserved on each ResourceNode and rendered inline
-        // by the frontend WarningOverlay. The focal node's owning-module status is not mutated here.
-        _ = nodes;
-        _ = edges;
-        _ = focalNodeId;
+        if (!nodes.TryGetValue(focalNodeId, out var focalNode))
+            return;
+
+        nodes[focalNodeId] = focalNode with { IsFocal = true };
+        var focalHasIncidentStatus = IsIncidentStatus(focalNode.Status);
+
+        foreach (var edge in edges.Where(edge => edge.SourceNodeId == focalNodeId || edge.TargetNodeId == focalNodeId))
+        {
+            var neighborNodeId = GetNeighborNodeId(edge, focalNodeId);
+
+            if (!nodes.TryGetValue(neighborNodeId, out var neighborNode))
+                continue;
+
+            var propagatedStatus = GetPropagatedStatus(edge, focalHasIncidentStatus);
+
+            if (!IsIncidentStatus(propagatedStatus))
+                continue;
+
+            nodes[neighborNodeId] = neighborNode with
+            {
+                Status = GetMoreSevereStatus(neighborNode.Status, propagatedStatus)
+            };
+        }
     }
+
+    private static (List<RelationshipEdge> Edges, int FilteredNodes, int FilteredEdges) ApplyHealthStateFilterAfterPropagation(
+        Dictionary<string, ResourceNode> nodes,
+        List<RelationshipEdge> edges,
+        MapFilter filters)
+    {
+        if (filters.HealthStates is not { Count: > 0 })
+            return ([.. edges], 0, 0);
+
+        var filteredNodeIds = nodes.Values
+            .Where(node => !filters.HealthStates.Contains(node.Status))
+            .Select(node => node.NodeId)
+            .ToHashSet();
+
+        if (filteredNodeIds.Count == 0)
+            return ([.. edges], 0, 0);
+
+        foreach (var filteredNodeId in filteredNodeIds)
+            nodes.Remove(filteredNodeId);
+
+        var remainingEdges = edges
+            .Where(edge => !filteredNodeIds.Contains(edge.SourceNodeId) && !filteredNodeIds.Contains(edge.TargetNodeId))
+            .ToList();
+
+        return (remainingEdges, filteredNodeIds.Count, edges.Count - remainingEdges.Count);
+    }
+
+    private static bool IsIncidentStatus(ResourceHealthStatus status) =>
+        status is ResourceHealthStatus.Warning
+            or ResourceHealthStatus.Degraded
+            or ResourceHealthStatus.Stale
+            or ResourceHealthStatus.Unavailable;
+
+    private static string GetNeighborNodeId(RelationshipEdge edge, string focalNodeId) =>
+        edge.SourceNodeId == focalNodeId
+            ? edge.TargetNodeId
+            : edge.SourceNodeId;
+
+    private static ResourceHealthStatus GetPropagatedStatus(RelationshipEdge edge, bool focalHasIncidentStatus)
+    {
+        if (IsIncidentStatus(edge.Status))
+            return edge.Status;
+
+        return focalHasIncidentStatus
+            ? ResourceHealthStatus.Warning
+            : ResourceHealthStatus.Healthy;
+    }
+
+    private static ResourceHealthStatus GetMoreSevereStatus(
+        ResourceHealthStatus currentStatus,
+        ResourceHealthStatus propagatedStatus) =>
+        GetSeverity(currentStatus) >= GetSeverity(propagatedStatus)
+            ? currentStatus
+            : propagatedStatus;
+
+    private static int GetSeverity(ResourceHealthStatus status) =>
+        status switch
+        {
+            ResourceHealthStatus.Warning => 1,
+            ResourceHealthStatus.Stale => 2,
+            ResourceHealthStatus.Degraded => 3,
+            ResourceHealthStatus.Unavailable => 4,
+            _ => 0
+        };
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Building relationship map for environment {EnvironmentId}, resource type {ResourceType}, depth {Depth}, max nodes {MaxNodes}, max edges {MaxEdges}.")]
     private partial void LogProjectionStarted(Guid environmentId, ResourceType resourceType, int depth, int maxNodes, int maxEdges);
