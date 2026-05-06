@@ -254,12 +254,54 @@ public sealed partial class RelationshipProjectionService(
         IReadOnlyList<RelationshipEdge> edges,
         string focalNodeId)
     {
-        // Neighbor warning states are intentionally preserved on each ResourceNode and rendered inline
-        // by the frontend WarningOverlay. The focal node's owning-module status is not mutated here.
-        _ = nodes;
-        _ = edges;
-        _ = focalNodeId;
+        if (!nodes.TryGetValue(focalNodeId, out var focalNode))
+            return;
+
+        nodes[focalNodeId] = focalNode with { IsFocal = true };
+        var focalHasIncidentStatus = IsIncidentStatus(focalNode.Status);
+
+        foreach (var edge in edges.Where(edge => edge.SourceNodeId == focalNodeId || edge.TargetNodeId == focalNodeId))
+        {
+            var neighborNodeId = edge.SourceNodeId == focalNodeId
+                ? edge.TargetNodeId
+                : edge.SourceNodeId;
+
+            if (!nodes.TryGetValue(neighborNodeId, out var neighborNode))
+                continue;
+
+            var propagatedStatus = IsIncidentStatus(edge.Status)
+                ? edge.Status
+                : focalHasIncidentStatus
+                    ? ResourceHealthStatus.Warning
+                    : ResourceHealthStatus.Healthy;
+
+            if (!IsIncidentStatus(propagatedStatus))
+                continue;
+
+            nodes[neighborNodeId] = neighborNode with
+            {
+                Status = GetSeverity(neighborNode.Status) >= GetSeverity(propagatedStatus)
+                    ? neighborNode.Status
+                    : propagatedStatus
+            };
+        }
     }
+
+    private static bool IsIncidentStatus(ResourceHealthStatus status) =>
+        status is ResourceHealthStatus.Warning
+            or ResourceHealthStatus.Degraded
+            or ResourceHealthStatus.Stale
+            or ResourceHealthStatus.Unavailable;
+
+    private static int GetSeverity(ResourceHealthStatus status) =>
+        status switch
+        {
+            ResourceHealthStatus.Warning => 1,
+            ResourceHealthStatus.Stale => 2,
+            ResourceHealthStatus.Degraded => 3,
+            ResourceHealthStatus.Unavailable => 4,
+            _ => 0
+        };
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Building relationship map for environment {EnvironmentId}, resource type {ResourceType}, depth {Depth}, max nodes {MaxNodes}, max edges {MaxEdges}.")]
     private partial void LogProjectionStarted(Guid environmentId, ResourceType resourceType, int depth, int maxNodes, int maxEdges);
