@@ -10,7 +10,7 @@ describe('WarningOverlay', () => {
     expect(screen.queryByLabelText('Resource status Healthy')).not.toBeInTheDocument();
   });
 
-  it('renders an accessible badge for warning resources', () => {
+  it('renders an accessible badge for degraded resources', () => {
     renderWithProviders(<WarningOverlay status="Degraded" />);
 
     expect(screen.getByLabelText('Resource status Degraded')).toBeInTheDocument();
