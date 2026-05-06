@@ -4,7 +4,16 @@ import { renderWithProviders } from '../../../test-utils';
 import { ServerMetricsChart } from './ServerMetricsChart';
 import type { MonitoringSnapshot } from '../types';
 
-function getChartTestId(children: ReactNode): string {
+type ServerChartDataPoint = {
+  time: string;
+  connections: number;
+  inMsgsPerSec: number;
+  outMsgsPerSec: number;
+  inBytesPerSec: number;
+  outBytesPerSec: number;
+};
+
+function getChartTestIdFromSeriesNames(children: ReactNode): string {
   const names = Children.toArray(children)
     .map((child) => (isValidElement(child) ? child.props.name as string | undefined : undefined))
     .filter((name): name is string => !!name);
@@ -23,7 +32,7 @@ function getChartTestId(children: ReactNode): string {
 vi.mock('recharts', () => ({
   ResponsiveContainer: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   LineChart: ({ data, children }: { data: unknown; children: ReactNode }) => (
-    <div data-testid={getChartTestId(children)} data-chart={JSON.stringify(data)}>
+    <div data-testid={getChartTestIdFromSeriesNames(children)} data-chart={JSON.stringify(data)}>
       {children}
     </div>
   ),
@@ -76,14 +85,7 @@ describe('ServerMetricsChart', () => {
     expect(screen.getByText('In bytes/s')).toBeInTheDocument();
     expect(screen.getByText('Out bytes/s')).toBeInTheDocument();
 
-    const chartData = JSON.parse(screen.getByTestId('byte-rates-chart').getAttribute('data-chart') ?? '[]') as Array<{
-      time: string;
-      connections: number;
-      inMsgsPerSec: number;
-      outMsgsPerSec: number;
-      inBytesPerSec: number;
-      outBytesPerSec: number;
-    }>;
+    const chartData = JSON.parse(screen.getByTestId('byte-rates-chart').getAttribute('data-chart') ?? '[]') as ServerChartDataPoint[];
 
     expect(chartData).toHaveLength(1);
     expect(chartData[0]).toEqual(expect.objectContaining({

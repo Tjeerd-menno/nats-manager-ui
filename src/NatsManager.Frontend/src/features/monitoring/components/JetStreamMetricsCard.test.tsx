@@ -4,6 +4,12 @@ import { renderWithProviders } from '../../../test-utils';
 import { JetStreamMetricsCard } from './JetStreamMetricsCard';
 import type { MonitoringSnapshot } from '../types';
 
+type JetStreamChartDataPoint = {
+  time: string;
+  totalMessages: number;
+  totalBytes: number;
+};
+
 vi.mock('recharts', () => ({
   ResponsiveContainer: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   AreaChart: ({ data, children }: { data: unknown; children: ReactNode }) => (
@@ -59,11 +65,7 @@ describe('JetStreamMetricsCard', () => {
     expect(screen.getByText('Total Messages')).toBeInTheDocument();
     expect(screen.getByText('Total Bytes')).toBeInTheDocument();
 
-    const chartData = JSON.parse(screen.getByTestId('jetstream-area-chart').getAttribute('data-chart') ?? '[]') as Array<{
-      time: string;
-      totalMessages: number;
-      totalBytes: number;
-    }>;
+    const chartData = JSON.parse(screen.getByTestId('jetstream-area-chart').getAttribute('data-chart') ?? '[]') as JetStreamChartDataPoint[];
 
     expect(chartData).toHaveLength(2);
     expect(chartData.map((point) => point.totalMessages)).toEqual([1000, 1500]);
