@@ -21,7 +21,7 @@ public sealed class MonitoringPollerTests
     {
         var environment = CreateEnvironment("monitored", "http://localhost:8222");
         var repository = Substitute.For<IEnvironmentRepository>();
-        repository.GetEnabledAsync(Arg.Any<CancellationToken>()).Returns([environment]);
+        repository.GetEnabledAsync(Arg.Any<CancellationToken>()).Returns([environment], [environment]);
         var adapter = Substitute.For<IMonitoringAdapter>();
         var firstSnapshot = CreateSnapshot(environment.Id);
         var secondSnapshot = CreateSnapshot(environment.Id);
@@ -100,7 +100,7 @@ public sealed class MonitoringPollerTests
     {
         var environment = CreateEnvironment("monitored", "http://localhost:8222", pollingIntervalSeconds: 30);
         var repository = Substitute.For<IEnvironmentRepository>();
-        repository.GetEnabledAsync(Arg.Any<CancellationToken>()).Returns([environment]);
+        repository.GetEnabledAsync(Arg.Any<CancellationToken>()).Returns([environment], [environment]);
         var adapter = Substitute.For<IMonitoringAdapter>();
         var snapshot = CreateSnapshot(environment.Id);
         adapter.FetchSnapshotAsync(environment, null, Arg.Any<CancellationToken>())
