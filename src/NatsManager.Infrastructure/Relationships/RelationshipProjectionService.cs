@@ -24,7 +24,7 @@ public sealed partial class RelationshipProjectionService(
         LogProjectionStarted(focal.EnvironmentId, focal.ResourceType, filters.Depth, filters.MaxNodes, filters.MaxEdges);
 
         var generatedAt = DateTimeOffset.UtcNow;
-        var expansion = await ExpandEdgesAsync(focal, filters, ct);
+        var expansion = await TraverseEdgesBfsAsync(focal, filters, ct);
 
         // Deduplicate edges
         var uniqueEdges = expansion.Edges
@@ -95,7 +95,7 @@ public sealed partial class RelationshipProjectionService(
         return relationshipMap;
     }
 
-    private async Task<(List<RelationshipEdge> Edges, int UnsafeCount)> ExpandEdgesAsync(
+    private async Task<(List<RelationshipEdge> Edges, int UnsafeCount)> TraverseEdgesBfsAsync(
         FocalResource focal,
         MapFilter filters,
         CancellationToken ct)

@@ -67,9 +67,9 @@ public static partial class RelationshipMapEndpoints
             request.MaxEdges);
 
         var filterResult = TryCreateFilter(request);
-        if (filterResult.Error is not null)
+        if (filterResult.ValidationError is not null)
         {
-            return filterResult.Error;
+            return filterResult.ValidationError;
         }
 
         var validator = new MapFilterValidator();
@@ -110,30 +110,30 @@ public static partial class RelationshipMapEndpoints
         return Results.Ok(result.Map);
     }
 
-    private static (MapFilter Filter, IResult? Error) TryCreateFilter(RelationshipMapRequest request)
+    private static (MapFilter Filter, IResult? ValidationError) TryCreateFilter(RelationshipMapRequest request)
     {
         var confidenceResult = TryParseConfidence(request.MinimumConfidence ?? request.MinConfidence);
-        if (confidenceResult.Error is not null)
+        if (confidenceResult.ValidationError is not null)
         {
-            return (default!, confidenceResult.Error);
+            return (default!, confidenceResult.ValidationError);
         }
 
         var relationshipTypesResult = TryParseEnumList<RelationshipType>(request.RelationshipTypes, "relationshipTypes");
-        if (relationshipTypesResult.Error is not null)
+        if (relationshipTypesResult.ValidationError is not null)
         {
-            return (default!, relationshipTypesResult.Error);
+            return (default!, relationshipTypesResult.ValidationError);
         }
 
         var resourceTypesResult = TryParseResourceTypeList(request.ResourceTypes);
-        if (resourceTypesResult.Error is not null)
+        if (resourceTypesResult.ValidationError is not null)
         {
-            return (default!, resourceTypesResult.Error);
+            return (default!, resourceTypesResult.ValidationError);
         }
 
         var healthStatesResult = TryParseEnumList<ResourceHealthStatus>(request.HealthStates, "healthStates");
-        if (healthStatesResult.Error is not null)
+        if (healthStatesResult.ValidationError is not null)
         {
-            return (default!, healthStatesResult.Error);
+            return (default!, healthStatesResult.ValidationError);
         }
 
         return (new MapFilter(
@@ -148,7 +148,7 @@ public static partial class RelationshipMapEndpoints
             MaxEdges: request.MaxEdges), null);
     }
 
-    private static (RelationshipConfidence? Value, IResult? Error) TryParseConfidence(string? confidence)
+    private static (RelationshipConfidence? Value, IResult? ValidationError) TryParseConfidence(string? confidence)
     {
         if (string.IsNullOrEmpty(confidence))
         {
@@ -163,7 +163,7 @@ public static partial class RelationshipMapEndpoints
         return (null, ApiProblemResults.ValidationProblem("minimumConfidence", $"Unknown confidence: '{confidence}'."));
     }
 
-    private static (IReadOnlyList<TEnum>? Values, IResult? Error) TryParseEnumList<TEnum>(string? value, string parameterName)
+    private static (IReadOnlyList<TEnum>? Values, IResult? ValidationError) TryParseEnumList<TEnum>(string? value, string parameterName)
         where TEnum : struct, Enum
     {
         if (string.IsNullOrEmpty(value))
@@ -185,7 +185,7 @@ public static partial class RelationshipMapEndpoints
         return (parsed, null);
     }
 
-    private static (IReadOnlyList<ResourceType>? Values, IResult? Error) TryParseResourceTypeList(string? value)
+    private static (IReadOnlyList<ResourceType>? Values, IResult? ValidationError) TryParseResourceTypeList(string? value)
     {
         if (string.IsNullOrEmpty(value))
         {
