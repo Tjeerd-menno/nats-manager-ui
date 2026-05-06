@@ -1,8 +1,8 @@
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../../test-utils';
 import { EnvironmentForm } from './EnvironmentForm';
-import { useRegisterEnvironment } from '../hooks/useEnvironments';
+import { useEnvironment, useRegisterEnvironment, useUpdateEnvironment } from '../hooks/useEnvironments';
 
 vi.mock('../hooks/useEnvironments', () => ({
   useRegisterEnvironment: vi.fn(() => ({ mutateAsync: vi.fn(), isPending: false })),
@@ -48,6 +48,65 @@ describe('EnvironmentForm', () => {
 
     expect(screen.getByLabelText('Monitoring URL')).toBeInTheDocument();
     expect(screen.getByLabelText('Polling Interval (seconds)')).toBeInTheDocument();
+  });
+
+  it('submits monitoring settings when editing an environment', async () => {
+    const user = userEvent.setup();
+    const update = vi.fn().mockResolvedValue(undefined);
+    vi.mocked(useUpdateEnvironment).mockReturnValue({
+      mutateAsync: update,
+      isPending: false,
+    } as unknown as ReturnType<typeof useUpdateEnvironment>);
+    vi.mocked(useEnvironment).mockReturnValue({
+      data: {
+        id: 'env-1',
+        name: 'Production',
+        description: 'Prod cluster',
+        serverUrl: 'nats://prod:4222',
+        credentialType: 'None',
+        isEnabled: true,
+        isProduction: true,
+        connectionStatus: 'Available',
+        lastSuccessfulContact: null,
+        createdAt: '2026-05-01T00:00:00Z',
+        updatedAt: '2026-05-01T00:00:00Z',
+        monitoringUrl: 'http://localhost:8222',
+        monitoringPollingIntervalSeconds: 30,
+      },
+    } as unknown as ReturnType<typeof useEnvironment>);
+
+    renderWithProviders(
+      <EnvironmentForm
+        {...defaultProps}
+        environment={{
+          id: 'env-1',
+          name: 'Production',
+          description: 'Prod cluster',
+          serverUrl: 'nats://prod:4222',
+          connectionStatus: 'Available',
+          isProduction: true,
+          isEnabled: true,
+          lastSuccessfulContact: null,
+        }}
+      />,
+    );
+
+    const monitoringUrlInput = await screen.findByDisplayValue('http://localhost:8222');
+    const pollingIntervalInput = screen.getByLabelText('Polling Interval (seconds)');
+
+    await user.clear(monitoringUrlInput);
+    await user.type(monitoringUrlInput, 'https://monitoring.example.com:8222');
+    await user.clear(pollingIntervalInput);
+    await user.type(pollingIntervalInput, '15');
+    await user.click(screen.getByRole('button', { name: 'Update' }));
+
+    await waitFor(() => {
+      expect(update).toHaveBeenCalledWith(expect.objectContaining({
+        id: 'env-1',
+        monitoringUrl: 'https://monitoring.example.com:8222',
+        monitoringPollingIntervalSeconds: 15,
+      }));
+    });
   });
 
   it('validates monitoring URL input', async () => {

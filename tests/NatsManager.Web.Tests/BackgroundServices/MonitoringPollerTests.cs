@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -16,6 +17,33 @@ namespace NatsManager.Web.Tests.BackgroundServices;
 
 public sealed class MonitoringPollerTests
 {
+    [Fact]
+    public async Task PollDueEnvironmentsAsync_WhenEnvironmentIsDueAgain_ShouldUsePreviousSnapshotForNextPoll()
+    {
+        var environment = CreateEnvironment("monitored", "http://localhost:8222");
+        var repository = Substitute.For<IEnvironmentRepository>();
+        repository.GetEnabledAsync(Arg.Any<CancellationToken>()).Returns([environment]);
+        var adapter = Substitute.For<IMonitoringAdapter>();
+        var firstSnapshot = CreateSnapshot(environment.Id);
+        var secondSnapshot = CreateSnapshot(environment.Id);
+        adapter.FetchSnapshotAsync(environment, null, Arg.Any<CancellationToken>())
+            .Returns(firstSnapshot);
+        adapter.FetchSnapshotAsync(environment, firstSnapshot, Arg.Any<CancellationToken>())
+            .Returns(secondSnapshot);
+        var metricsStore = Substitute.For<IMonitoringMetricsStore>();
+        metricsStore.GetHistory(environment.Id).Returns([firstSnapshot], [firstSnapshot, secondSnapshot]);
+        var poller = CreatePoller(repository, adapter, metricsStore, out _);
+
+        await poller.PollDueEnvironmentsAsync(CancellationToken.None);
+        SetNextPollTime(poller, environment.Id, DateTimeOffset.UtcNow.AddSeconds(-1));
+
+        await poller.PollDueEnvironmentsAsync(CancellationToken.None);
+
+        await adapter.Received(1).FetchSnapshotAsync(environment, null, Arg.Any<CancellationToken>());
+        await adapter.Received(1).FetchSnapshotAsync(environment, firstSnapshot, Arg.Any<CancellationToken>());
+        metricsStore.Received(2).AddSnapshot(Arg.Any<MonitoringSnapshot>());
+    }
+
     [Fact]
     public async Task PollDueEnvironmentsAsync_WhenMonitoringUrlIsMissing_ShouldSkipEnvironment()
     {
@@ -88,11 +116,59 @@ public sealed class MonitoringPollerTests
         await adapter.Received(1).FetchSnapshotAsync(environment, null, Arg.Any<CancellationToken>());
     }
 
+    [Fact]
+    public async Task PollDueEnvironmentsAsync_WhenEnvironmentIntervalIsConfigured_ShouldScheduleUsingOverride()
+    {
+        var environment = CreateEnvironment("monitored", "http://localhost:8222", pollingIntervalSeconds: 10);
+        var repository = Substitute.For<IEnvironmentRepository>();
+        repository.GetEnabledAsync(Arg.Any<CancellationToken>()).Returns([environment]);
+        var adapter = Substitute.For<IMonitoringAdapter>();
+        var snapshot = CreateSnapshot(environment.Id);
+        adapter.FetchSnapshotAsync(environment, null, Arg.Any<CancellationToken>())
+            .Returns(snapshot);
+        var metricsStore = Substitute.For<IMonitoringMetricsStore>();
+        metricsStore.GetHistory(environment.Id).Returns([snapshot]);
+        var poller = CreatePoller(repository, adapter, metricsStore, out _);
+        var before = DateTimeOffset.UtcNow;
+
+        await poller.PollDueEnvironmentsAsync(CancellationToken.None);
+
+        GetNextPollTime(poller, environment.Id)
+            .ShouldBeInRange(before.AddSeconds(8), DateTimeOffset.UtcNow.AddSeconds(12));
+    }
+
+    [Fact]
+    public async Task PollDueEnvironmentsAsync_WhenEnvironmentIntervalIsNotConfigured_ShouldUseDefaultInterval()
+    {
+        var environment = CreateEnvironment("monitored", "http://localhost:8222");
+        var repository = Substitute.For<IEnvironmentRepository>();
+        repository.GetEnabledAsync(Arg.Any<CancellationToken>()).Returns([environment]);
+        var adapter = Substitute.For<IMonitoringAdapter>();
+        var snapshot = CreateSnapshot(environment.Id);
+        adapter.FetchSnapshotAsync(environment, null, Arg.Any<CancellationToken>())
+            .Returns(snapshot);
+        var metricsStore = Substitute.For<IMonitoringMetricsStore>();
+        metricsStore.GetHistory(environment.Id).Returns([snapshot]);
+        var poller = CreatePoller(
+            repository,
+            adapter,
+            metricsStore,
+            out _,
+            new MonitoringOptions { DefaultPollingIntervalSeconds = 45 });
+        var before = DateTimeOffset.UtcNow;
+
+        await poller.PollDueEnvironmentsAsync(CancellationToken.None);
+
+        GetNextPollTime(poller, environment.Id)
+            .ShouldBeInRange(before.AddSeconds(43), DateTimeOffset.UtcNow.AddSeconds(47));
+    }
+
     private static MonitoringPoller CreatePoller(
         IEnvironmentRepository repository,
         IMonitoringAdapter adapter,
         IMonitoringMetricsStore metricsStore,
-        out IClientProxy clientProxy)
+        out IClientProxy clientProxy,
+        MonitoringOptions? monitoringOptions = null)
     {
         var services = new ServiceCollection();
         services.AddSingleton(repository);
@@ -109,8 +185,29 @@ public sealed class MonitoringPollerTests
             adapter,
             metricsStore,
             hubContext,
-            Options.Create(new MonitoringOptions()),
+            Options.Create(monitoringOptions ?? new MonitoringOptions()),
             NullLogger<MonitoringPoller>.Instance);
+    }
+
+    private static DateTimeOffset GetNextPollTime(MonitoringPoller poller, Guid environmentId)
+    {
+        var nextPollTimes = GetNextPollTimes(poller);
+        return nextPollTimes[environmentId];
+    }
+
+    private static void SetNextPollTime(MonitoringPoller poller, Guid environmentId, DateTimeOffset nextPollTime)
+    {
+        var nextPollTimes = GetNextPollTimes(poller);
+        nextPollTimes[environmentId] = nextPollTime;
+    }
+
+    private static ConcurrentDictionary<Guid, DateTimeOffset> GetNextPollTimes(MonitoringPoller poller)
+    {
+        var field = typeof(MonitoringPoller)
+            .GetField("_nextPollTimes", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+        field.ShouldNotBeNull();
+        return field.GetValue(poller).ShouldBeOfType<ConcurrentDictionary<Guid, DateTimeOffset>>();
     }
 
     private static Environment CreateEnvironment(

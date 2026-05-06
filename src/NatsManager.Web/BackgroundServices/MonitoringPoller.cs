@@ -52,7 +52,16 @@ public sealed partial class MonitoringPoller(
         var environmentRepository = scope.ServiceProvider.GetRequiredService<IEnvironmentRepository>();
         var environments = await environmentRepository.GetEnabledAsync(ct);
         var monitorableEnvironments = environments
-            .Where(e => e.MonitoringUrl is not null)
+            .Where(e =>
+            {
+                if (e.MonitoringUrl is null)
+                {
+                    LogMonitoringUrlNotConfigured(e.Name);
+                    return false;
+                }
+
+                return true;
+            })
             .ToArray();
 
         var configuredIds = monitorableEnvironments.Select(e => e.Id).ToHashSet();
@@ -126,4 +135,7 @@ public sealed partial class MonitoringPoller(
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Poll cycle failed for '{EnvName}': {Error}")]
     private partial void LogPollCycleFailed(string envName, string error);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Monitoring URL not configured for '{EnvName}'")]
+    private partial void LogMonitoringUrlNotConfigured(string envName);
 }
