@@ -42,9 +42,7 @@ export function useCreateUser() {
       const response = await apiClient.post(apiEndpoints.users(), data);
       return response.data as { id: string };
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.users() });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.users() }),
   });
 }
 
@@ -54,9 +52,7 @@ export function useDeactivateUser() {
     mutationFn: async (userId: string) => {
       await apiClient.delete(`${apiEndpoints.users()}/${userId}`);
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.users() });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.users() }),
   });
 }
 
@@ -66,9 +62,7 @@ export function useAssignRole() {
     mutationFn: async ({ userId, roleId, environmentId }: { userId: string; roleId: string; environmentId?: string }) => {
       await apiClient.post(apiEndpoints.userRoles(userId), { roleId, environmentId });
     },
-    onSuccess: (_data, variables) => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.userRoles(variables.userId) });
-    },
+    onSuccess: (_data, variables) => queryClient.invalidateQueries({ queryKey: queryKeys.userRoles(variables.userId) }),
   });
 }
 
@@ -78,8 +72,6 @@ export function useRevokeRole() {
     mutationFn: async ({ userId, assignmentId }: { userId: string; assignmentId: string }) => {
       await apiClient.delete(apiEndpoints.userRole(userId, assignmentId));
     },
-    onSuccess: (_data, variables) => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.userRoles(variables.userId) });
-    },
+    onSuccess: (_data, variables) => queryClient.invalidateQueries({ queryKey: queryKeys.userRoles(variables.userId) }),
   });
 }

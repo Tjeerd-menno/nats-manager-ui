@@ -55,9 +55,7 @@ export function useCreateStream(environmentId: string | null) {
     mutationFn: async (data: CreateStreamRequest) => {
       await apiClient.post(apiEndpoints.streamList(environmentId), data);
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.streamsRoot(environmentId) });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.streamsRoot(environmentId) }),
   });
 }
 
@@ -67,9 +65,7 @@ export function useUpdateStream(environmentId: string | null) {
     mutationFn: async ({ name, ...data }: UpdateStreamRequest & { name: string }) => {
       await apiClient.put(apiEndpoints.streamDetail(environmentId, name), data);
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.streamsRoot(environmentId) });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.streamsRoot(environmentId) }),
   });
 }
 
@@ -81,9 +77,7 @@ export function useDeleteStream(environmentId: string | null) {
         headers: { 'X-Confirm': 'true' },
       });
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.streamsRoot(environmentId) });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.streamsRoot(environmentId) }),
   });
 }
 
@@ -95,9 +89,7 @@ export function usePurgeStream(environmentId: string | null) {
         headers: { 'X-Confirm': 'true' },
       });
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.streamsRoot(environmentId) });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.streamsRoot(environmentId) }),
   });
 }
 
@@ -107,11 +99,11 @@ export function useCreateConsumer(environmentId: string | null, streamName: stri
     mutationFn: async (data: CreateConsumerRequest) => {
       await apiClient.post(apiEndpoints.consumerList(environmentId, streamName), data);
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.consumersRoot(environmentId, streamName) });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.streamDetail(environmentId, streamName) });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.streamsRoot(environmentId) });
-    },
+    onSuccess: () => Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.consumersRoot(environmentId, streamName) }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.streamDetail(environmentId, streamName) }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.streamsRoot(environmentId) }),
+    ]),
   });
 }
 
@@ -123,11 +115,11 @@ export function useDeleteConsumer(environmentId: string | null, streamName: stri
         headers: { 'X-Confirm': 'true' },
       });
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.consumersRoot(environmentId, streamName) });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.streamDetail(environmentId, streamName) });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.streamsRoot(environmentId) });
-    },
+    onSuccess: () => Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.consumersRoot(environmentId, streamName) }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.streamDetail(environmentId, streamName) }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.streamsRoot(environmentId) }),
+    ]),
   });
 }
 

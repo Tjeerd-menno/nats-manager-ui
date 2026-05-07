@@ -40,7 +40,6 @@ public static class ServiceEndpoints
 
     private static async Task<IResult> TestServiceRequest(
         Guid envId,
-        string name,
         TestServiceRequestBody body,
         ClaimsPrincipal user,
         IEnvironmentRepository environmentRepository,

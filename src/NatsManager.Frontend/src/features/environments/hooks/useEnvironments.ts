@@ -43,9 +43,7 @@ export function useRegisterEnvironment() {
       const response = await apiClient.post(apiEndpoints.environments(), data);
       return response.data as RegisterEnvironmentResult;
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.environments() });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.environments() }),
   });
 }
 
@@ -55,9 +53,7 @@ export function useUpdateEnvironment() {
     mutationFn: async ({ id, ...data }: UpdateEnvironmentRequest & { id: string }) => {
       await apiClient.put(apiEndpoints.environmentDetail(id), data);
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.environments() });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.environments() }),
   });
 }
 
@@ -67,9 +63,7 @@ export function useDeleteEnvironment() {
     mutationFn: async (id: string) => {
       await apiClient.delete(apiEndpoints.environmentDetail(id));
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.environments() });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.environments() }),
   });
 }
 
@@ -80,10 +74,10 @@ export function useTestConnection() {
       const response = await apiClient.post(apiEndpoints.environmentTest(id));
       return response.data as TestConnectionResult;
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.environments() });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.dashboardRoot() });
-    },
+    onSuccess: () => Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.environments() }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboardRoot() }),
+    ]),
   });
 }
 
@@ -93,8 +87,6 @@ export function useEnableDisableEnvironment() {
     mutationFn: async ({ id, enable }: { id: string; enable: boolean }) => {
       await apiClient.post(apiEndpoints.environmentEnable(id), { enable });
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.environments() });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.environments() }),
   });
 }

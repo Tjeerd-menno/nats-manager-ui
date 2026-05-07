@@ -2,7 +2,7 @@
 FROM node:lts-alpine AS frontend-build
 WORKDIR /app/frontend
 COPY src/NatsManager.Frontend/package*.json ./
-RUN npm ci
+RUN npm ci --ignore-scripts
 COPY src/NatsManager.Frontend/ ./
 RUN npm run build
 

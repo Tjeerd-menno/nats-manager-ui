@@ -23,7 +23,7 @@ export function ProtectedRoute({ children, requiredRoles }: ProtectedRouteProps)
     return <Navigate to="/login" replace />;
   }
 
-  if (requiredRoles && !requiredRoles.some(hasRole)) {
+  if (requiredRoles && !requiredRoles.some((role) => hasRole(role))) {
     return (
       <Center h="100vh">
         <Stack gap="xs" align="center">

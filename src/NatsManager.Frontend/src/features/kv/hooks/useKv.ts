@@ -68,9 +68,7 @@ export function useCreateKvBucket(environmentId: string | null) {
     mutationFn: async (data: CreateKvBucketRequest) => {
       await apiClient.post(apiEndpoints.kvBuckets(environmentId), data);
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.kvBuckets(environmentId) });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.kvBuckets(environmentId) }),
   });
 }
 
@@ -82,9 +80,7 @@ export function useDeleteKvBucket(environmentId: string | null) {
         headers: { 'X-Confirm': 'true' },
       });
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.kvBuckets(environmentId) });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.kvBuckets(environmentId) }),
   });
 }
 

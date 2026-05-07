@@ -24,138 +24,36 @@ public sealed partial class RelationshipProjectionService(
         LogProjectionStarted(focal.EnvironmentId, focal.ResourceType, filters.Depth, filters.MaxNodes, filters.MaxEdges);
 
         var generatedAt = DateTimeOffset.UtcNow;
-        var allEdges = new List<RelationshipEdge>();
-        var unsafeCount = 0;
-
-        // BFS: start with focal, expand per depth
-        var visitedNodeIds = new HashSet<string> { ResourceNode.BuildNodeId(focal.EnvironmentId, focal.ResourceType, focal.ResourceId) };
-        var currentFrontier = new List<FocalResource> { focal };
-
-        for (var depth = 0; depth < filters.Depth && currentFrontier.Count > 0; depth++)
-        {
-            var nextFrontier = new List<FocalResource>();
-
-            foreach (var frontierNode in currentFrontier)
-            {
-                var frontierNodeId = ResourceNode.BuildNodeId(frontierNode.EnvironmentId, frontierNode.ResourceType, frontierNode.ResourceId);
-                foreach (var source in _sources)
-                {
-                    IReadOnlyList<RelationshipEdge> edges;
-                    try
-                    {
-                        edges = await source.GetEdgesForAsync(frontierNode, filters, ct);
-                    }
-                    catch (Exception ex) when (ex is not OperationCanceledException)
-                    {
-                        LogSourceFailed(focal.EnvironmentId, source.SourceModule);
-                        continue;
-                    }
-
-                    LogSourceSucceeded(focal.EnvironmentId, source.SourceModule, edges.Count);
-
-                    foreach (var edge in edges)
-                    {
-                        // Enforce environment isolation: reject cross-environment edges
-                        if (edge.EnvironmentId != focal.EnvironmentId)
-                        {
-                            unsafeCount++;
-                            LogRelationshipOmitted(
-                                focal.EnvironmentId,
-                                source.SourceModule,
-                                "CrossEnvironment",
-                                edge.RelationshipType);
-                            continue;
-                        }
-
-                        // Apply filters
-                        if (!PassesFilters(edge, filters))
-                            continue;
-
-                        allEdges.Add(edge);
-
-                        // Discover new nodes for next BFS depth
-                        var neighborNodeId = edge.SourceNodeId == frontierNodeId
-                            ? edge.TargetNodeId
-                            : edge.SourceNodeId;
-
-                        if (visitedNodeIds.Add(neighborNodeId))
-                        {
-                            // Add to next frontier if we have more depth to explore
-                            if (depth + 1 < filters.Depth)
-                            {
-                                var parts = neighborNodeId.Split(':', 3);
-                                if (parts.Length == 3 && Enum.TryParse<ResourceType>(parts[1], ignoreCase: true, out var rt))
-                                    nextFrontier.Add(new FocalResource(focal.EnvironmentId, rt, parts[2], parts[2], null));
-                            }
-                        }
-                    }
-                }
-            }
-
-            currentFrontier = nextFrontier;
-        }
+        var expansion = await TraverseEdgesBfsAsync(focal, filters, ct);
 
         // Deduplicate edges
-        var uniqueEdges = allEdges
+        var uniqueEdges = expansion.Edges
             .GroupBy(e => e.EdgeId)
             .Select(g => g.First())
             .ToList();
 
         // Build node set from edges + focal
-        var nodeIds = new HashSet<string> { ResourceNode.BuildNodeId(focal.EnvironmentId, focal.ResourceType, focal.ResourceId) };
-        foreach (var edge in uniqueEdges)
-        {
-            nodeIds.Add(edge.SourceNodeId);
-            nodeIds.Add(edge.TargetNodeId);
-        }
+        var nodeIds = BuildNodeIds(focal, uniqueEdges);
 
         // Apply MaxNodes/MaxEdges bounds
         var filteredNodes = Math.Max(0, nodeIds.Count - filters.MaxNodes);
-        var includedNodeIds = nodeIds
-            .OrderBy(n => n == ResourceNode.BuildNodeId(focal.EnvironmentId, focal.ResourceType, focal.ResourceId) ? 0 : 1)
-            .Take(filters.MaxNodes)
-            .ToHashSet();
+        var focalNodeId = ResourceNode.BuildNodeId(focal.EnvironmentId, focal.ResourceType, focal.ResourceId);
+        var includedNodeIds = SelectIncludedNodeIds(nodeIds, focalNodeId, filters.MaxNodes);
 
-        var includedNodeSet = includedNodeIds;
-        var filteredEdges = 0;
-        var includedEdges = new List<RelationshipEdge>();
-        foreach (var edge in uniqueEdges)
-        {
-            if (includedNodeSet.Contains(edge.SourceNodeId) && includedNodeSet.Contains(edge.TargetNodeId))
-                includedEdges.Add(edge);
-            else
-                filteredEdges++;
-        }
+        var boundedEdges = FilterEdgesByIncludedNodes(uniqueEdges, includedNodeIds);
+        var filteredEdges = boundedEdges.FilteredEdges;
+        var includedEdges = boundedEdges.Edges;
 
         // Resolve nodes from sources before MaxEdges truncation so dangling edges can be filtered first
         var resolvedNodes = await ResolveNodesAsync(includedNodeIds, focal, filters, ct);
-        var focalNodeId = ResourceNode.BuildNodeId(focal.EnvironmentId, focal.ResourceType, focal.ResourceId);
 
         // Ensure focal node is always present
-        if (!resolvedNodes.ContainsKey(focalNodeId))
-        {
-            resolvedNodes[focalNodeId] = new ResourceNode(
-                NodeId: focalNodeId,
-                EnvironmentId: focal.EnvironmentId,
-                ResourceType: focal.ResourceType,
-                ResourceId: focal.ResourceId,
-                DisplayName: focal.DisplayName,
-                Status: ResourceHealthStatus.Unknown,
-                Freshness: RelationshipFreshness.Live,
-                IsFocal: true,
-                DetailRoute: focal.Route,
-                Metadata: new Dictionary<string, string>());
-        }
+        EnsureFocalNode(resolvedNodes, focal, focalNodeId);
 
         // Filter out dangling edges BEFORE applying MaxEdges so truncation operates on valid edges only
-        var danglingEdges = includedEdges.Count(edge =>
-            !resolvedNodes.ContainsKey(edge.SourceNodeId) || !resolvedNodes.ContainsKey(edge.TargetNodeId));
-        if (danglingEdges > 0)
-        {
-            includedEdges = [.. includedEdges.Where(edge =>
-                resolvedNodes.ContainsKey(edge.SourceNodeId) && resolvedNodes.ContainsKey(edge.TargetNodeId))];
-            filteredEdges += danglingEdges;
-        }
+        var danglingResult = RemoveDanglingEdges(includedEdges, resolvedNodes);
+        includedEdges = danglingResult.Edges;
+        filteredEdges += danglingResult.FilteredEdges;
 
         var truncatedEdges = Math.Max(0, includedEdges.Count - filters.MaxEdges);
         includedEdges = [.. includedEdges.Take(filters.MaxEdges)];
@@ -182,7 +80,7 @@ public sealed partial class RelationshipProjectionService(
                 FilteredEdges: filteredEdges + truncatedEdges,
                 CollapsedNodes: 0,
                 CollapsedEdges: 0,
-                UnsafeRelationships: unsafeCount));
+                UnsafeRelationships: expansion.UnsafeCount));
 
         LogProjectionCompleted(
             focal.EnvironmentId,
@@ -195,6 +93,221 @@ public sealed partial class RelationshipProjectionService(
             relationshipMap.OmittedCounts.UnsafeRelationships);
 
         return relationshipMap;
+    }
+
+    private async Task<(List<RelationshipEdge> Edges, int UnsafeCount)> TraverseEdgesBfsAsync(
+        FocalResource focal,
+        MapFilter filters,
+        CancellationToken ct)
+    {
+        var allEdges = new List<RelationshipEdge>();
+        var unsafeCount = 0;
+        var visitedNodeIds = new HashSet<string> { ResourceNode.BuildNodeId(focal.EnvironmentId, focal.ResourceType, focal.ResourceId) };
+        var currentFrontier = new List<FocalResource> { focal };
+
+        for (var depth = 0; depth < filters.Depth && currentFrontier.Count > 0; depth++)
+        {
+            var result = await ExpandFrontierAsync(focal, filters, currentFrontier, visitedNodeIds, depth, ct);
+            allEdges.AddRange(result.Edges);
+            unsafeCount += result.UnsafeCount;
+            currentFrontier = result.NextFrontier;
+        }
+
+        return (allEdges, unsafeCount);
+    }
+
+    private async Task<(List<RelationshipEdge> Edges, List<FocalResource> NextFrontier, int UnsafeCount)> ExpandFrontierAsync(
+        FocalResource focal,
+        MapFilter filters,
+        IReadOnlyList<FocalResource> currentFrontier,
+        HashSet<string> visitedNodeIds,
+        int depth,
+        CancellationToken ct)
+    {
+        var edges = new List<RelationshipEdge>();
+        var nextFrontier = new List<FocalResource>();
+        var unsafeCount = 0;
+
+        foreach (var frontierNode in currentFrontier)
+        {
+            var result = await ExpandNodeAsync(focal, filters, frontierNode, visitedNodeIds, depth, ct);
+            edges.AddRange(result.Edges);
+            nextFrontier.AddRange(result.NextFrontier);
+            unsafeCount += result.UnsafeCount;
+        }
+
+        return (edges, nextFrontier, unsafeCount);
+    }
+
+    private async Task<(List<RelationshipEdge> Edges, List<FocalResource> NextFrontier, int UnsafeCount)> ExpandNodeAsync(
+        FocalResource focal,
+        MapFilter filters,
+        FocalResource frontierNode,
+        HashSet<string> visitedNodeIds,
+        int depth,
+        CancellationToken ct)
+    {
+        var edges = new List<RelationshipEdge>();
+        var nextFrontier = new List<FocalResource>();
+        var unsafeCount = 0;
+        var frontierNodeId = ResourceNode.BuildNodeId(frontierNode.EnvironmentId, frontierNode.ResourceType, frontierNode.ResourceId);
+
+        foreach (var source in _sources)
+        {
+            var sourceResult = await GetFilteredSourceEdgesAsync(source, focal, filters, frontierNode, ct);
+            edges.AddRange(sourceResult.Edges);
+            unsafeCount += sourceResult.UnsafeCount;
+            AddNextFrontier(focal, filters, sourceResult.Edges, visitedNodeIds, nextFrontier, depth, frontierNodeId);
+        }
+
+        return (edges, nextFrontier, unsafeCount);
+    }
+
+    private async Task<(List<RelationshipEdge> Edges, int UnsafeCount)> GetFilteredSourceEdgesAsync(
+        IRelationshipSource source,
+        FocalResource focal,
+        MapFilter filters,
+        FocalResource frontierNode,
+        CancellationToken ct)
+    {
+        IReadOnlyList<RelationshipEdge> sourceEdges;
+        try
+        {
+            sourceEdges = await source.GetEdgesForAsync(frontierNode, filters, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            LogSourceFailed(focal.EnvironmentId, source.SourceModule);
+            return ([], 0);
+        }
+
+        LogSourceSucceeded(focal.EnvironmentId, source.SourceModule, sourceEdges.Count);
+
+        var edges = new List<RelationshipEdge>();
+        var unsafeCount = 0;
+        foreach (var edge in sourceEdges)
+        {
+            if (edge.EnvironmentId != focal.EnvironmentId)
+            {
+                unsafeCount++;
+                LogRelationshipOmitted(focal.EnvironmentId, source.SourceModule, "CrossEnvironment", edge.RelationshipType);
+                continue;
+            }
+
+            if (PassesFilters(edge, filters))
+            {
+                edges.Add(edge);
+            }
+        }
+
+        return (edges, unsafeCount);
+    }
+
+    private static void AddNextFrontier(
+        FocalResource focal,
+        MapFilter filters,
+        IEnumerable<RelationshipEdge> edges,
+        HashSet<string> visitedNodeIds,
+        List<FocalResource> nextFrontier,
+        int depth,
+        string frontierNodeId)
+    {
+        if (depth + 1 >= filters.Depth)
+        {
+            return;
+        }
+
+        foreach (var edge in edges)
+        {
+            var neighborNodeId = GetNeighborNodeId(edge, frontierNodeId);
+            if (visitedNodeIds.Add(neighborNodeId) && TryCreateFocalResource(focal.EnvironmentId, neighborNodeId, out var resource))
+            {
+                nextFrontier.Add(resource);
+            }
+        }
+    }
+
+    private static bool TryCreateFocalResource(Guid environmentId, string nodeId, out FocalResource resource)
+    {
+        var parts = nodeId.Split(':', 3);
+        if (parts.Length == 3 && Enum.TryParse<ResourceType>(parts[1], ignoreCase: true, out var resourceType))
+        {
+            resource = new FocalResource(environmentId, resourceType, parts[2], parts[2], null);
+            return true;
+        }
+
+        resource = default!;
+        return false;
+    }
+
+    private static HashSet<string> BuildNodeIds(FocalResource focal, IEnumerable<RelationshipEdge> edges)
+    {
+        var nodeIds = new HashSet<string> { ResourceNode.BuildNodeId(focal.EnvironmentId, focal.ResourceType, focal.ResourceId) };
+        foreach (var edge in edges)
+        {
+            nodeIds.Add(edge.SourceNodeId);
+            nodeIds.Add(edge.TargetNodeId);
+        }
+
+        return nodeIds;
+    }
+
+    private static HashSet<string> SelectIncludedNodeIds(HashSet<string> nodeIds, string focalNodeId, int maxNodes) =>
+        nodeIds
+            .OrderBy(nodeId => nodeId == focalNodeId ? 0 : 1)
+            .Take(maxNodes)
+            .ToHashSet();
+
+    private static (List<RelationshipEdge> Edges, int FilteredEdges) FilterEdgesByIncludedNodes(
+        IEnumerable<RelationshipEdge> edges,
+        HashSet<string> includedNodeIds)
+    {
+        var includedEdges = new List<RelationshipEdge>();
+        var filteredEdges = 0;
+
+        foreach (var edge in edges)
+        {
+            if (includedNodeIds.Contains(edge.SourceNodeId) && includedNodeIds.Contains(edge.TargetNodeId))
+                includedEdges.Add(edge);
+            else
+                filteredEdges++;
+        }
+
+        return (includedEdges, filteredEdges);
+    }
+
+    private static void EnsureFocalNode(
+        Dictionary<string, ResourceNode> resolvedNodes,
+        FocalResource focal,
+        string focalNodeId)
+    {
+        if (resolvedNodes.ContainsKey(focalNodeId))
+        {
+            return;
+        }
+
+        resolvedNodes[focalNodeId] = new ResourceNode(
+            NodeId: focalNodeId,
+            EnvironmentId: focal.EnvironmentId,
+            ResourceType: focal.ResourceType,
+            ResourceId: focal.ResourceId,
+            DisplayName: focal.DisplayName,
+            Status: ResourceHealthStatus.Unknown,
+            Freshness: RelationshipFreshness.Live,
+            IsFocal: true,
+            DetailRoute: focal.Route,
+            Metadata: new Dictionary<string, string>());
+    }
+
+    private static (List<RelationshipEdge> Edges, int FilteredEdges) RemoveDanglingEdges(
+        List<RelationshipEdge> includedEdges,
+        Dictionary<string, ResourceNode> resolvedNodes)
+    {
+        var remainingEdges = includedEdges
+            .Where(edge => resolvedNodes.ContainsKey(edge.SourceNodeId) && resolvedNodes.ContainsKey(edge.TargetNodeId))
+            .ToList();
+
+        return (remainingEdges, includedEdges.Count - remainingEdges.Count);
     }
 
     private static bool PassesFilters(RelationshipEdge edge, MapFilter filters)
