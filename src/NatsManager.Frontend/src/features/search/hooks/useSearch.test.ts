@@ -33,7 +33,7 @@ function createQueryClient() {
 
 describe('useSearch', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
   it('does not request results until the query has at least two characters', () => {
@@ -65,7 +65,7 @@ describe('useSearch', () => {
 
 describe('bookmark and preference hooks', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
   it('loads bookmarks from the bookmarks endpoint', async () => {

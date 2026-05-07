@@ -36,6 +36,7 @@ const mockUseDeleteBookmark = vi.mocked(useDeleteBookmark);
 describe('GlobalSearch', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    navigate.mockReset();
   });
 
   it('renders search input', () => {
@@ -85,6 +86,7 @@ describe('GlobalSearch', () => {
 describe('BookmarkList', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    navigate.mockReset();
   });
 
   it('shows a loader while bookmarks are loading', () => {
