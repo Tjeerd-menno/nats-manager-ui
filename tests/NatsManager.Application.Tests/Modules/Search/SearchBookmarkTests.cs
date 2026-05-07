@@ -221,6 +221,18 @@ public sealed class SearchQueryTests
     }
 
     [Fact]
+    public async Task Handle_WhenTrimmedQueryIsTooShort_ShouldReturnEmptyWithoutLoadingBookmarks()
+    {
+        var outputPort = new TestOutputPort<IReadOnlyList<SearchResult>>();
+
+        await _handler.ExecuteAsync(new SearchQuery(Guid.NewGuid(), " a "), outputPort, CancellationToken.None);
+
+        outputPort.IsSuccess.ShouldBeTrue();
+        (outputPort.Value ?? []).ShouldBeEmpty();
+        await _repository.DidNotReceive().GetByUserAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task Handle_ShouldFilterBookmarksByQueryAndEnvironment()
     {
         var userId = Guid.NewGuid();
@@ -239,6 +251,32 @@ public sealed class SearchQueryTests
         var result = outputPort.Value.ShouldHaveSingleItem();
         result.DisplayName.ShouldBe("Orders");
         result.EnvironmentId.ShouldBe(matchingEnvironmentId);
+    }
+
+    [Fact]
+    public async Task Handle_ShouldFilterByResourceTypeAndLimitResultsToTwenty()
+    {
+        var userId = Guid.NewGuid();
+        var bookmarks = Enumerable.Range(1, 25)
+            .Select(index => Bookmark.Create(
+                userId,
+                Guid.NewGuid(),
+                ResourceType.Stream,
+                $"orders-{index}",
+                $"Orders {index}"))
+            .Append(Bookmark.Create(userId, Guid.NewGuid(), ResourceType.Service, "orders-service", "Orders Service"))
+            .ToList();
+
+        _repository.GetByUserAsync(userId, Arg.Any<CancellationToken>()).Returns(bookmarks);
+
+        var outputPort = new TestOutputPort<IReadOnlyList<SearchResult>>();
+        await _handler.ExecuteAsync(new SearchQuery(userId, "orders", null, ResourceType.Stream), outputPort, CancellationToken.None);
+
+        outputPort.IsSuccess.ShouldBeTrue();
+        var results = outputPort.Value ?? throw new InvalidOperationException("Expected search results.");
+        results.Count.ShouldBe(20);
+        results.All(result => result.ResourceType == ResourceType.Stream).ShouldBeTrue();
+        results.Select(result => result.ResourceId).ShouldNotContain("orders-service");
     }
 }
 
