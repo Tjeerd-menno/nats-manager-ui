@@ -256,8 +256,10 @@ public sealed class SearchQueryTests
     [Fact]
     public async Task Handle_ShouldFilterByResourceTypeAndLimitResultsToTwenty()
     {
+        const int totalMatchingBookmarks = 25;
+        const int expectedResultLimit = 20;
         var userId = Guid.NewGuid();
-        var bookmarks = Enumerable.Range(1, 25)
+        var bookmarks = Enumerable.Range(1, totalMatchingBookmarks)
             .Select(index => Bookmark.Create(
                 userId,
                 Guid.NewGuid(),
@@ -274,7 +276,7 @@ public sealed class SearchQueryTests
 
         outputPort.IsSuccess.ShouldBeTrue();
         var results = outputPort.Value ?? throw new InvalidOperationException("Expected search results.");
-        results.Count.ShouldBe(20);
+        results.Count.ShouldBe(expectedResultLimit);
         results.All(result => result.ResourceType == ResourceType.Stream).ShouldBeTrue();
         results.Select(result => result.ResourceId).ShouldNotContain("orders-service");
     }
