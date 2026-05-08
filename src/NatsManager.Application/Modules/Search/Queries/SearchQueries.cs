@@ -19,7 +19,7 @@ public sealed class SearchQueryHandler(IBookmarkRepository repository) : IUseCas
     public async Task ExecuteAsync(
         SearchQuery request,
         IOutputPort<IReadOnlyList<SearchResult>> outputPort,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
         var term = request.Query.Trim();
         if (term.Length < 2)

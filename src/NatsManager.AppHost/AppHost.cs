@@ -4,10 +4,14 @@ var bootstrapAdminUsername = builder.AddParameter("bootstrap-admin-username")
     .WithDescription("Bootstrap admin username used only when the user store is empty.");
 var bootstrapAdminPassword = builder.AddParameter("bootstrap-admin-password", secret: true)
     .WithDescription("Bootstrap admin password used only for first-run initialization.");
+var natsUsername = builder.AddParameter("nats-username")
+    .WithDescription("Username for the Aspire-managed local NATS server.");
+var natsPassword = builder.AddParameter("nats-password", secret: true)
+    .WithDescription("Password for the Aspire-managed local NATS server.");
 var encryptionKey = builder.AddParameter("backend-encryption-key", secret: true)
     .WithDescription("Base64-encoded 32-byte encryption key for stored credentials.");
 
-var nats = builder.AddNats("nats")
+var nats = builder.AddNats("nats", userName: natsUsername, password: natsPassword)
     .WithArgs("-js", "-m", "8222")
     .WithEndpoint(targetPort: 8222, name: "monitoring", scheme: "http")
     .WithLifetime(ContainerLifetime.Persistent);

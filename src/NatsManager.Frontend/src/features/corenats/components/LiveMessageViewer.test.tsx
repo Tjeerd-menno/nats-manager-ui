@@ -14,6 +14,8 @@ const mockSetCap = vi.fn();
 const defaultState = {
   messages: [] as NatsLiveMessage[],
   isConnected: false,
+  subscriptionStatus: 'idle' as const,
+  activeSubject: null as string | null,
   isPaused: false,
   pendingCount: 0,
   cap: 100,
@@ -64,9 +66,29 @@ it('subscribe button triggers subscribe with subject', async () => {
 });
 
 it('shows unsubscribe button when connected', () => {
-  mockUseLiveMessages.mockReturnValue({ ...defaultState, isConnected: true });
+  mockUseLiveMessages.mockReturnValue({
+    ...defaultState,
+    isConnected: true,
+    subscriptionStatus: 'connected',
+    activeSubject: 'orders.>',
+  });
   renderWithProviders(<LiveMessageViewer environmentId="env-1" />);
   expect(screen.getByRole('button', { name: /unsubscribe/i })).toBeInTheDocument();
+});
+
+it('shows active subscription feedback before messages arrive', () => {
+  mockUseLiveMessages.mockReturnValue({
+    ...defaultState,
+    subscriptionStatus: 'connecting',
+    activeSubject: 'orders.>',
+  });
+
+  renderWithProviders(<LiveMessageViewer environmentId="env-1" />);
+
+  expect(screen.getByText(/creating subscription/i)).toBeInTheDocument();
+  expect(screen.getByText(/listening on/i)).toBeInTheDocument();
+  expect(screen.getByText('orders.>')).toBeInTheDocument();
+  expect(screen.getByText(/opening the live stream/i)).toBeInTheDocument();
 });
 
 it('message appears in table', () => {

@@ -116,6 +116,10 @@ public static class CoreNatsEndpoints
 
         return Results.Stream(async stream =>
         {
+            var initialFrame = System.Text.Encoding.UTF8.GetBytes(": subscribed\n\n");
+            await stream.WriteAsync(initialFrame, cancellationToken);
+            await stream.FlushAsync(cancellationToken);
+
             await foreach (var msg in adapter.SubscribeAsync(envId, subject, cancellationToken))
             {
                 var json = JsonSerializer.Serialize(msg, CamelCaseOptions);

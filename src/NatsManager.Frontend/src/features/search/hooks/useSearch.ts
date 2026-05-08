@@ -32,9 +32,7 @@ export function useCreateBookmark() {
       const res = await apiClient.post<BookmarkDto>('/bookmarks', data);
       return res.data;
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['bookmarks'] });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['bookmarks'] }),
   });
 }
 
@@ -44,9 +42,7 @@ export function useDeleteBookmark() {
     mutationFn: async (id: string) => {
       await apiClient.delete(`/bookmarks/${id}`);
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['bookmarks'] });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['bookmarks'] }),
   });
 }
 
@@ -66,8 +62,6 @@ export function useSetPreference() {
     mutationFn: async ({ key, value }: { key: string; value: string }) => {
       await apiClient.put(`/preferences/${key}`, { value });
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['preferences'] });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['preferences'] }),
   });
 }

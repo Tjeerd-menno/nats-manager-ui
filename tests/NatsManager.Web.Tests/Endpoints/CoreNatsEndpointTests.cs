@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using Shouldly;
 using NSubstitute;
@@ -213,10 +214,61 @@ public sealed class CoreNatsEndpointTests : IClassFixture<NatsManagerWebAppFacto
         response.Content.Headers.ContentType?.MediaType.ShouldBe("text/event-stream");
     }
 
+    [Fact]
+    public async Task StreamEndpoint_WhenNoMessagesAvailable_FlushesInitialEventStreamFrame()
+    {
+        var envId = Guid.NewGuid();
+        using var requestCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        _factory.CoreNatsAdapter.SubscribeAsync(envId, "test.>", Arg.Any<CancellationToken>())
+            .Returns(call => NeverMessages(call.ArgAt<CancellationToken>(2)));
+
+        using var response = await _client.GetAsync(
+            $"/api/environments/{envId}/core-nats/stream?subject=test.%3E",
+            HttpCompletionOption.ResponseHeadersRead,
+            requestCts.Token);
+        await using var stream = await response.Content.ReadAsStreamAsync(requestCts.Token);
+
+        var initialFrame = await ReadUntilDelimiterAsync(stream, "\n\n", requestCts.Token)
+            .WaitAsync(TimeSpan.FromSeconds(1), requestCts.Token);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        initialFrame.ShouldBe(": subscribed\n\n");
+    }
+
+    private static async Task<string> ReadUntilDelimiterAsync(
+        Stream stream,
+        string delimiter,
+        CancellationToken cancellationToken)
+    {
+        var buffer = new byte[64];
+        using var collected = new MemoryStream();
+
+        while (true)
+        {
+            var bytesRead = await stream.ReadAsync(buffer, cancellationToken);
+            bytesRead.ShouldBeGreaterThan(0);
+
+            await collected.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
+
+            var text = Encoding.UTF8.GetString(collected.ToArray());
+            if (text.EndsWith(delimiter, StringComparison.Ordinal))
+            {
+                return text;
+            }
+        }
+    }
+
     private static async IAsyncEnumerable<NatsLiveMessage> EmptyMessages(
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken _ = default)
     {
         await Task.CompletedTask;
+        yield break;
+    }
+
+    private static async IAsyncEnumerable<NatsLiveMessage> NeverMessages(
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
         yield break;
     }
 

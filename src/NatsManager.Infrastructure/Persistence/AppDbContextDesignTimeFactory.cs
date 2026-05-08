@@ -28,7 +28,7 @@ internal sealed class AppDbContextDesignTimeFactory : IDesignTimeDbContextFactor
 {
     private const string DefaultSqliteConnectionString = "Data Source=natsmanager.db";
     private const string DefaultPostgresConnectionString =
-        "Host=localhost;Port=5432;Database=natsmanager;Username=postgres;Password=postgres";
+        "Host=localhost;Port=5432;Database=natsmanager;Username=postgres";
 
     public AppDbContext CreateDbContext(string[] args)
     {

@@ -101,8 +101,8 @@ export function RelationshipEvidencePanel({
             {selectedEdge.freshness}
           </Badge>
           <Divider label={`Evidence (${selectedEdge.evidence.length})`} labelPosition="left" mt="xs" />
-          {selectedEdge.evidence.map((ev, i) => (
-            <Stack key={i} gap={2}>
+          {selectedEdge.evidence.map((ev) => (
+            <Stack key={`${ev.sourceModule}-${ev.evidenceType}-${ev.observedAt}-${JSON.stringify(ev.safeFields)}`} gap={2}>
               <Group gap="xs">
                 <Badge size="xs" color={ev.observedAt ? 'blue' : 'gray'}>
                   {ev.sourceModule}

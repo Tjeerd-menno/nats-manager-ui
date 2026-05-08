@@ -55,9 +55,7 @@ export function useCreateObjectBucket(environmentId: string | null) {
     mutationFn: async (data: CreateObjectBucketRequest) => {
       await apiClient.post(apiEndpoints.objectBuckets(environmentId), data);
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.objectBuckets(environmentId) });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.objectBuckets(environmentId) }),
   });
 }
 
@@ -69,9 +67,7 @@ export function useDeleteObjectBucket(environmentId: string | null) {
         headers: { 'X-Confirm': 'true' },
       });
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.objectBuckets(environmentId) });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.objectBuckets(environmentId) }),
   });
 }
 
@@ -86,9 +82,7 @@ export function useUploadObject(environmentId: string | null, bucketName: string
         { headers: { 'Content-Type': file.type || 'application/octet-stream' } }
       );
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.objects(environmentId, bucketName) });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.objects(environmentId, bucketName) }),
   });
 }
 
@@ -100,8 +94,6 @@ export function useDeleteObject(environmentId: string | null, bucketName: string
         headers: { 'X-Confirm': 'true' },
       });
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.objects(environmentId, bucketName) });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.objects(environmentId, bucketName) }),
   });
 }
