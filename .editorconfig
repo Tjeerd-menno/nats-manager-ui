@@ -41,6 +41,7 @@ dotnet_diagnostic.IDE0046.severity = suggestion
 [**/Migrations/**/*.cs]
 # Generated migration code — suppress all style diagnostics
 generated_code = true
+dotnet_diagnostic.CA1861.severity = none
 
 # Documentation
 dotnet_diagnostic.EnableGenerateDocumentationFile.severity = none

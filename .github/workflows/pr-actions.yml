@@ -45,7 +45,7 @@ jobs:
 
       - name: Install frontend dependencies
         working-directory: src/NatsManager.Frontend
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Build frontend
         working-directory: src/NatsManager.Frontend

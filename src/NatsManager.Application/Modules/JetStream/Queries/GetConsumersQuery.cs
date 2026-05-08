@@ -29,7 +29,7 @@ public sealed class GetConsumersQueryValidator : AbstractValidator<GetConsumersQ
 public sealed class GetConsumersQueryHandler(
     IJetStreamAdapter jetStreamAdapter) : IUseCase<GetConsumersQuery, PaginatedResult<ConsumerInfo>>
 {
-    public async Task ExecuteAsync(GetConsumersQuery request, IOutputPort<PaginatedResult<ConsumerInfo>> outputPort, CancellationToken cancellationToken)
+    public async Task ExecuteAsync(GetConsumersQuery request, IOutputPort<PaginatedResult<ConsumerInfo>> outputPort, CancellationToken cancellationToken = default)
     {
         var consumers = await jetStreamAdapter.ListConsumersAsync(request.EnvironmentId, request.StreamName, cancellationToken);
 

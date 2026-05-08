@@ -20,6 +20,7 @@ public sealed partial class MonitoringPoller(
 {
     private readonly ConcurrentDictionary<Guid, MonitoringSnapshot?> _lastSnapshots = new();
     private readonly ConcurrentDictionary<Guid, DateTimeOffset> _nextPollTimes = new();
+    private readonly ConcurrentDictionary<Guid, bool> _missingMonitoringUrlLogged = new();
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -51,17 +52,40 @@ public sealed partial class MonitoringPoller(
         using var scope = scopeFactory.CreateScope();
         var environmentRepository = scope.ServiceProvider.GetRequiredService<IEnvironmentRepository>();
         var environments = await environmentRepository.GetEnabledAsync(ct);
-        var monitorableEnvironments = environments
-            .Where(e => e.MonitoringUrl is not null)
-            .ToArray();
+
+        var monitorableEnvironments = new List<NatsEnvironment>();
+        foreach (var environment in environments)
+        {
+            if (environment.MonitoringUrl is null)
+            {
+                if (_missingMonitoringUrlLogged.TryAdd(environment.Id, true))
+                {
+                    LogMonitoringUrlNotConfigured(environment.Name);
+                }
+
+                continue;
+            }
+
+            _missingMonitoringUrlLogged.TryRemove(environment.Id, out _);
+            monitorableEnvironments.Add(environment);
+        }
 
         var configuredIds = monitorableEnvironments.Select(e => e.Id).ToHashSet();
+        var environmentIds = environments.Select(e => e.Id).ToHashSet();
         foreach (var trackedId in _nextPollTimes.Keys)
         {
             if (!configuredIds.Contains(trackedId))
             {
                 _nextPollTimes.TryRemove(trackedId, out _);
                 _lastSnapshots.TryRemove(trackedId, out _);
+            }
+        }
+
+        foreach (var trackedId in _missingMonitoringUrlLogged.Keys)
+        {
+            if (!environmentIds.Contains(trackedId))
+            {
+                _missingMonitoringUrlLogged.TryRemove(trackedId, out _);
             }
         }
 
@@ -112,6 +136,12 @@ public sealed partial class MonitoringPoller(
         }
     }
 
+    internal bool TryGetNextPollTime(Guid environmentId, out DateTimeOffset nextPollTime) =>
+        _nextPollTimes.TryGetValue(environmentId, out nextPollTime);
+
+    internal void SetNextPollTime(Guid environmentId, DateTimeOffset nextPollTime) =>
+        _nextPollTimes[environmentId] = nextPollTime;
+
     [LoggerMessage(Level = LogLevel.Information, Message = "Monitoring poller started")]
     private partial void LogPollerStarted();
 
@@ -126,4 +156,7 @@ public sealed partial class MonitoringPoller(
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Poll cycle failed for '{EnvName}': {Error}")]
     private partial void LogPollCycleFailed(string envName, string error);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Monitoring URL not configured for '{EnvName}'")]
+    private partial void LogMonitoringUrlNotConfigured(string envName);
 }

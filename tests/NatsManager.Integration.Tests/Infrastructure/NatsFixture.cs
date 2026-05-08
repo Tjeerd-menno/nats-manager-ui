@@ -16,12 +16,16 @@ public sealed class NatsFixture : IAsyncLifetime
 {
     private const string UsernameParameter = "Parameters__bootstrap-admin-username";
     private const string PasswordParameter = "Parameters__bootstrap-admin-password";
+    private const string NatsUsernameParameter = "Parameters__nats-username";
+    private const string NatsPasswordParameter = "Parameters__nats-password";
     private const string EncryptionKeyParameter = "Parameters__backend-encryption-key";
     private const string TestOnlyEncryptionKey = "JFar2auhLPoLfMvwy62dhRltrwY3EEPmFJ1svc17pn0=";
 
     private DistributedApplication _app = default!;
     private string? _originalUsernameParameter;
     private string? _originalPasswordParameter;
+    private string? _originalNatsUsernameParameter;
+    private string? _originalNatsPasswordParameter;
     private string? _originalEncryptionKeyParameter;
 
     public string NatsUrl { get; private set; } = string.Empty;
@@ -30,10 +34,14 @@ public sealed class NatsFixture : IAsyncLifetime
     {
         _originalUsernameParameter = Environment.GetEnvironmentVariable(UsernameParameter);
         _originalPasswordParameter = Environment.GetEnvironmentVariable(PasswordParameter);
+        _originalNatsUsernameParameter = Environment.GetEnvironmentVariable(NatsUsernameParameter);
+        _originalNatsPasswordParameter = Environment.GetEnvironmentVariable(NatsPasswordParameter);
         _originalEncryptionKeyParameter = Environment.GetEnvironmentVariable(EncryptionKeyParameter);
 
         Environment.SetEnvironmentVariable(UsernameParameter, "admin");
         Environment.SetEnvironmentVariable(PasswordParameter, "Admin123!");
+        Environment.SetEnvironmentVariable(NatsUsernameParameter, "nats");
+        Environment.SetEnvironmentVariable(NatsPasswordParameter, "Nats123!");
         Environment.SetEnvironmentVariable(EncryptionKeyParameter, TestOnlyEncryptionKey);
 
         var appHost = await DistributedApplicationTestingBuilder
@@ -61,6 +69,8 @@ public sealed class NatsFixture : IAsyncLifetime
 
         Environment.SetEnvironmentVariable(UsernameParameter, _originalUsernameParameter);
         Environment.SetEnvironmentVariable(PasswordParameter, _originalPasswordParameter);
+        Environment.SetEnvironmentVariable(NatsUsernameParameter, _originalNatsUsernameParameter);
+        Environment.SetEnvironmentVariable(NatsPasswordParameter, _originalNatsPasswordParameter);
         Environment.SetEnvironmentVariable(EncryptionKeyParameter, _originalEncryptionKeyParameter);
 
         GC.SuppressFinalize(this);

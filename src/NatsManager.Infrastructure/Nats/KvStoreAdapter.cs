@@ -20,13 +20,12 @@ public sealed partial class KvStoreAdapter(
 
         await foreach (var status in context.GetStatusesAsync(cancellationToken))
         {
-            // Skip Object Store buckets that leak through the KV API
-            if (status.Bucket.StartsWith("OBJ_", StringComparison.Ordinal))
+            if (!TryGetExternalBucketName(status.Bucket, status.Info.Config.Subjects, out var bucketName))
                 continue;
 
             try
             {
-                buckets.Add(MapBucketInfo(status));
+                buckets.Add(MapBucketInfo(status, bucketName));
             }
             catch (Exception ex)
             {
@@ -44,7 +43,7 @@ public sealed partial class KvStoreAdapter(
             var context = await GetKvContextAsync(environmentId, cancellationToken);
             var store = await context.GetStoreAsync(bucketName, cancellationToken: cancellationToken);
             var status = await store.GetStatusAsync(cancellationToken);
-            return MapBucketInfo(status);
+            return MapBucketInfo(status, bucketName);
         }
         catch (Exception)
         {
@@ -175,13 +174,21 @@ public sealed partial class KvStoreAdapter(
         return new NatsKVContext(jsContext);
     }
 
-    private static KvBucketInfo MapBucketInfo(NatsKVStatus status)
+    internal static bool TryGetExternalBucketName(string statusBucket, IEnumerable<string>? subjects, out string bucketName)
     {
-        var bucketName = status.Bucket;
-        // The NATS SDK may return the internal stream name (KV_<bucket>) instead of the bucket name
-        if (bucketName.StartsWith("KV_", StringComparison.Ordinal))
-            bucketName = bucketName[3..];
+        bucketName = string.Empty;
 
+        if (string.IsNullOrWhiteSpace(statusBucket)
+            || subjects is null
+            || !subjects.Any(subject => subject.StartsWith("$KV.", StringComparison.Ordinal)))
+            return false;
+
+        bucketName = statusBucket.StartsWith("KV_", StringComparison.Ordinal) ? statusBucket[3..] : statusBucket;
+        return !string.IsNullOrWhiteSpace(bucketName);
+    }
+
+    private static KvBucketInfo MapBucketInfo(NatsKVStatus status, string bucketName)
+    {
         var config = status.Info.Config;
         var state = status.Info.State;
         return new KvBucketInfo(

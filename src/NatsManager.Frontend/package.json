@@ -18,14 +18,14 @@
     "@mantine/modals": "9.1.1",
     "@mantine/notifications": "9.1.1",
     "@microsoft/signalr": "^10.0.0",
-    "@tabler/icons-react": "3.41.1",
+    "@tabler/icons-react": "3.43.0",
     "@tanstack/react-query": "5.100.9",
     "@tanstack/react-virtual": "3.13.24",
     "@xyflow/react": "12.10.2",
     "axios": "1.16.0",
-    "react": "19.2.5",
-    "react-dom": "19.2.5",
-    "react-router-dom": "7.14.2",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "react-router-dom": "7.15.0",
     "recharts": "3.8.1"
   },
   "devDependencies": {
@@ -43,14 +43,14 @@
     "eslint-plugin-react-refresh": "0.5.2",
     "globals": "17.6.0",
     "jsdom": "29.1.1",
-    "msw": "2.14.2",
-    "postcss": "8.5.13",
+    "msw": "2.14.3",
+    "postcss": "8.5.14",
     "postcss-preset-mantine": "1.18.0",
     "postcss-simple-vars": "7.0.1",
     "prettier": "3.8.3",
     "typescript": "6.0.3",
-    "typescript-eslint": "8.59.1",
-    "vite": "8.0.10",
+    "typescript-eslint": "8.59.2",
+    "vite": "8.0.11",
     "vitest": "4.1.5"
   }
 }

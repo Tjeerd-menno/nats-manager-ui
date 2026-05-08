@@ -55,21 +55,9 @@ public sealed partial class DatabaseInitializer(
         var usernameMissing = string.IsNullOrWhiteSpace(bootstrapAdmin.Username);
         var passwordMissing = string.IsNullOrWhiteSpace(bootstrapAdmin.Password);
 
-        if (usernameMissing && passwordMissing)
+        if (!ValidateBootstrapAdminConfiguration(hasUsers, usernameMissing, passwordMissing))
         {
-            if (hasUsers)
-            {
-                return;
-            }
-
-            throw new InvalidOperationException(
-                "BootstrapAdmin:Username and BootstrapAdmin:Password must be configured when initializing an empty database.");
-        }
-
-        if (usernameMissing || passwordMissing)
-        {
-            throw new InvalidOperationException(
-                "BootstrapAdmin:Username and BootstrapAdmin:Password must both be configured when bootstrap admin synchronization is enabled.");
+            return;
         }
 
         var bootstrapUsername = bootstrapAdmin.Username!;
@@ -134,6 +122,31 @@ public sealed partial class DatabaseInitializer(
 
         await context.SaveChangesAsync(cancellationToken);
         LogBootstrapAdminSynchronized(admin.Username, "updated");
+    }
+
+    private static bool ValidateBootstrapAdminConfiguration(
+        bool hasUsers,
+        bool usernameMissing,
+        bool passwordMissing)
+    {
+        if (usernameMissing && passwordMissing)
+        {
+            if (hasUsers)
+            {
+                return false;
+            }
+
+            throw new InvalidOperationException(
+                "BootstrapAdmin:Username and BootstrapAdmin:Password must be configured when initializing an empty database.");
+        }
+
+        if (usernameMissing || passwordMissing)
+        {
+            throw new InvalidOperationException(
+                "BootstrapAdmin:Username and BootstrapAdmin:Password must both be configured when bootstrap admin synchronization is enabled.");
+        }
+
+        return true;
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Seeded {Count} predefined roles")]

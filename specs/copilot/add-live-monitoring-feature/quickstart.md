@@ -1,7 +1,7 @@
 # Quickstart: Live Environment Monitoring
 
 **Branch**: `copilot/add-live-monitoring-feature`  
-**Date**: 2026-04-25
+**Date**: 2026-05-06
 
 ---
 
@@ -61,9 +61,9 @@ This applies the `AddEnvironmentMonitoring` migration, which adds `MonitoringUrl
 
 ---
 
-## 4. Set Monitoring URL on an Environment
+## 4. Set Monitoring Settings on an Environment
 
-Via the UI as an Administrator: navigate to **Environments → [your environment] → Edit**, then fill in the **Monitoring URL** field (e.g., `http://localhost:8222`).
+Via the UI as an Administrator: navigate to **Environments → [your environment] → Edit**, then fill in the **Monitoring URL** field (e.g., `http://localhost:8222`) and, optionally, **Polling Interval (seconds)** to override the global default.
 
 Or via the REST API (requires an authenticated session — use Swagger UI at `http://localhost:5000/swagger` for interactive testing with cookie auth, or include the session cookie and `X-XSRF-TOKEN` header):
 
@@ -89,11 +89,11 @@ curl -X PUT http://localhost:5000/api/environments/{envId} \
 
 ---
 
-## 5. Install Frontend Dependency
+## 5. Restore Frontend Dependencies
 
 ```bash
 cd src/NatsManager.Frontend
-npm install @microsoft/signalr
+npm ci
 ```
 
 ---
@@ -115,8 +115,8 @@ dotnet run
 2. Select an environment that has a monitoring URL configured.
 3. Navigate to **Monitoring** in the left sidebar.
 4. The Monitoring page connects to the SignalR hub and begins displaying live graphs:
-   - **Server Metrics** — connections, message rate (in/out per second), byte rate
-   - **JetStream** — stream count, consumer count, total messages and total bytes trends
+    - **Server Metrics** — connections, message rate (in/out per second), byte rate
+    - **JetStream** — stream count, consumer count, total messages and total bytes trends
 5. A green **Connected** badge in the top-right of the Monitoring page confirms the real-time connection.
 
 ---

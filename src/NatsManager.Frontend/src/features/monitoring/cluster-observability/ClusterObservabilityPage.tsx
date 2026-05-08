@@ -83,7 +83,7 @@ export default function ClusterObservabilityPage() {
         </Tabs.Panel>
 
         <Tabs.Panel value="topology" pt="md">
-          <ClusterTopologyGraph relationships={data.topology} envId={envId} />
+          <ClusterTopologyGraph relationships={data.topology} />
         </Tabs.Panel>
       </Tabs>
     </Stack>

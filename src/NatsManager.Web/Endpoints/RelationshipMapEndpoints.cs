@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using NatsManager.Application.Modules.Relationships.Models;
 using NatsManager.Application.Modules.Relationships.Queries;
 using NatsManager.Infrastructure.Relationships;
@@ -40,28 +41,14 @@ public static partial class RelationshipMapEndpoints
     /// GET /api/environments/{environmentId}/relationships/map?resourceType=Stream&amp;resourceId=my-stream&amp;depth=1&amp;maxNodes=100&amp;maxEdges=500
     /// </summary>
     private static async Task<IResult> GetRelationshipMap(
-        Guid environmentId,
-        string? resourceType,
-        string? resourceId,
-        string? type,
-        string? id,
-        int depth = 1,
-        int maxNodes = 100,
-        int maxEdges = 500,
-        string? minimumConfidence = null,
-        string? minConfidence = null,
-        string? relationshipTypes = null,
-        string? resourceTypes = null,
-        string? healthStates = null,
-        bool includeInferred = true,
-        bool includeStale = true,
-        HttpContext httpContext = default!,
-        ILogger<RelationshipMapEndpointLogCategory> logger = default!,
-        GetRelationshipMapQueryHandler handler = default!,
+        [AsParameters] RelationshipMapRequest request,
+        HttpContext httpContext,
+        ILogger<RelationshipMapEndpointLogCategory> logger,
+        GetRelationshipMapQueryHandler handler,
         CancellationToken ct = default)
     {
-        var focalType = resourceType ?? type;
-        var focalId = resourceId ?? id;
+        var focalType = request.ResourceType ?? request.Type;
+        var focalId = request.ResourceId ?? request.Id;
         if (string.IsNullOrWhiteSpace(focalType))
             return ApiProblemResults.ValidationProblem("resourceType", "resourceType is required.");
         if (string.IsNullOrWhiteSpace(focalId))
@@ -72,96 +59,40 @@ public static partial class RelationshipMapEndpoints
 
         LogMapRequestReceived(
             logger,
-            environmentId,
+            request.EnvironmentId,
             httpContext.TraceIdentifier,
             parsedResourceType,
-            depth,
-            maxNodes,
-            maxEdges);
+            request.Depth,
+            request.MaxNodes,
+            request.MaxEdges);
 
-        // Parse optional confidence filter
-        RelationshipConfidence? confidenceFilter = null;
-        var confidence = minimumConfidence ?? minConfidence;
-        if (!string.IsNullOrEmpty(confidence))
+        var filterResult = TryCreateFilter(request);
+        if (filterResult.ValidationError is not null)
         {
-            if (!Enum.TryParse<RelationshipConfidence>(confidence, ignoreCase: true, out var parsed))
-                return ApiProblemResults.ValidationProblem("minimumConfidence", $"Unknown confidence: '{confidence}'.");
-            confidenceFilter = parsed;
+            return filterResult.ValidationError;
         }
-
-        // Parse optional relationship type filter
-        IReadOnlyList<RelationshipType>? relTypeFilter = null;
-        if (!string.IsNullOrEmpty(relationshipTypes))
-        {
-            var parsed = new List<RelationshipType>();
-            foreach (var part in relationshipTypes.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-            {
-                if (!Enum.TryParse<RelationshipType>(part, ignoreCase: true, out var rel))
-                    return ApiProblemResults.ValidationProblem("relationshipTypes", $"Unknown relationship type: '{part}'.");
-                parsed.Add(rel);
-            }
-            relTypeFilter = parsed;
-        }
-
-        // Parse optional resource type filter
-        IReadOnlyList<ResourceType>? resTypeFilter = null;
-        if (!string.IsNullOrEmpty(resourceTypes))
-        {
-            var parsed = new List<ResourceType>();
-            foreach (var part in resourceTypes.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-            {
-                if (!TryParseResourceType(part, out var res))
-                    return ApiProblemResults.ValidationProblem("resourceTypes", $"Unknown resource type: '{part}'.");
-                parsed.Add(res);
-            }
-            resTypeFilter = parsed;
-        }
-
-        IReadOnlyList<ResourceHealthStatus>? healthStateFilter = null;
-        if (!string.IsNullOrEmpty(healthStates))
-        {
-            var parsed = new List<ResourceHealthStatus>();
-            foreach (var part in healthStates.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-            {
-                if (!Enum.TryParse<ResourceHealthStatus>(part, ignoreCase: true, out var health))
-                    return ApiProblemResults.ValidationProblem("healthStates", $"Unknown health state: '{part}'.");
-                parsed.Add(health);
-            }
-            healthStateFilter = parsed;
-        }
-
-        var filter = new MapFilter(
-            Depth: depth,
-            ResourceTypes: resTypeFilter,
-            RelationshipTypes: relTypeFilter,
-            HealthStates: healthStateFilter,
-            MinimumConfidence: confidenceFilter ?? RelationshipConfidence.Low,
-            IncludeInferred: includeInferred,
-            IncludeStale: includeStale,
-            MaxNodes: maxNodes,
-            MaxEdges: maxEdges);
 
         var validator = new MapFilterValidator();
-        var validation = await validator.ValidateAsync(filter, ct);
+        var validation = await validator.ValidateAsync(filterResult.Filter, ct);
         if (!validation.IsValid)
         {
             LogMapRequestRejected(
                 logger,
-                environmentId,
+                request.EnvironmentId,
                 httpContext.TraceIdentifier,
                 parsedResourceType,
                 "InvalidFilter");
             return ApiProblemResults.ValidationProblem(validation.Errors);
         }
 
-        var query = new GetRelationshipMapQuery(environmentId, parsedResourceType, focalId, filter);
+        var query = new GetRelationshipMapQuery(request.EnvironmentId, parsedResourceType, focalId, filterResult.Filter);
         var result = await handler.HandleAsync(query, ct);
 
         if (result.IsNotFound)
         {
             LogMapRequestRejected(
                 logger,
-                environmentId,
+                request.EnvironmentId,
                 httpContext.TraceIdentifier,
                 parsedResourceType,
                 "FocalNotFound");
@@ -170,13 +101,109 @@ public static partial class RelationshipMapEndpoints
 
         LogMapRequestCompleted(
             logger,
-            environmentId,
+            request.EnvironmentId,
             httpContext.TraceIdentifier,
             parsedResourceType,
             result.Map?.Nodes.Count ?? 0,
             result.Map?.Edges.Count ?? 0,
             result.Map?.OmittedCounts.UnsafeRelationships ?? 0);
         return Results.Ok(result.Map);
+    }
+
+    private static (MapFilter Filter, IResult? ValidationError) TryCreateFilter(RelationshipMapRequest request)
+    {
+        var confidenceResult = TryParseConfidence(request.MinimumConfidence ?? request.MinConfidence);
+        if (confidenceResult.ValidationError is not null)
+        {
+            return (default!, confidenceResult.ValidationError);
+        }
+
+        var relationshipTypesResult = TryParseEnumList<RelationshipType>(request.RelationshipTypes, "relationshipTypes");
+        if (relationshipTypesResult.ValidationError is not null)
+        {
+            return (default!, relationshipTypesResult.ValidationError);
+        }
+
+        var resourceTypesResult = TryParseResourceTypeList(request.ResourceTypes);
+        if (resourceTypesResult.ValidationError is not null)
+        {
+            return (default!, resourceTypesResult.ValidationError);
+        }
+
+        var healthStatesResult = TryParseEnumList<ResourceHealthStatus>(request.HealthStates, "healthStates");
+        if (healthStatesResult.ValidationError is not null)
+        {
+            return (default!, healthStatesResult.ValidationError);
+        }
+
+        return (new MapFilter(
+            Depth: request.Depth,
+            ResourceTypes: resourceTypesResult.Values,
+            RelationshipTypes: relationshipTypesResult.Values,
+            HealthStates: healthStatesResult.Values,
+            MinimumConfidence: confidenceResult.Value ?? RelationshipConfidence.Low,
+            IncludeInferred: request.IncludeInferred,
+            IncludeStale: request.IncludeStale,
+            MaxNodes: request.MaxNodes,
+            MaxEdges: request.MaxEdges), null);
+    }
+
+    private static (RelationshipConfidence? Value, IResult? ValidationError) TryParseConfidence(string? confidence)
+    {
+        if (string.IsNullOrEmpty(confidence))
+        {
+            return (null, null);
+        }
+
+        if (Enum.TryParse<RelationshipConfidence>(confidence, ignoreCase: true, out var parsed))
+        {
+            return (parsed, null);
+        }
+
+        return (null, ApiProblemResults.ValidationProblem("minimumConfidence", $"Unknown confidence: '{confidence}'."));
+    }
+
+    private static (IReadOnlyList<TEnum>? Values, IResult? ValidationError) TryParseEnumList<TEnum>(string? value, string parameterName)
+        where TEnum : struct, Enum
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return (null, null);
+        }
+
+        var parsed = new List<TEnum>();
+        foreach (var part in value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (!Enum.TryParse<TEnum>(part, ignoreCase: true, out var item))
+            {
+                return (null, ApiProblemResults.ValidationProblem(parameterName, $"Unknown {parameterName}: '{part}'."));
+            }
+
+            parsed.Add(item);
+        }
+
+        return (parsed, null);
+    }
+
+    private static (IReadOnlyList<ResourceType>? Values, IResult? ValidationError) TryParseResourceTypeList(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return (null, null);
+        }
+
+        var parsed = new List<ResourceType>();
+        foreach (var part in value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (!TryParseResourceType(part, out var resourceType))
+            {
+                return (null, ApiProblemResults.ValidationProblem("resourceTypes", $"Unknown resource type: '{part}'."));
+            }
+
+            parsed.Add(resourceType);
+        }
+
+        return (parsed, null);
     }
 
     private static async Task<IResult> GetRelationshipNode(
@@ -223,4 +250,23 @@ public static partial class RelationshipMapEndpoints
         result.RejectionReason?.ToString() ?? "Unknown";
 
     private sealed class RelationshipMapEndpointLogCategory;
+}
+
+public sealed record RelationshipMapRequest
+{
+    [FromRoute] public Guid EnvironmentId { get; init; }
+    [FromQuery] public string? ResourceType { get; init; }
+    [FromQuery] public string? ResourceId { get; init; }
+    [FromQuery] public string? Type { get; init; }
+    [FromQuery] public string? Id { get; init; }
+    [FromQuery] public int Depth { get; init; } = 1;
+    [FromQuery] public int MaxNodes { get; init; } = 100;
+    [FromQuery] public int MaxEdges { get; init; } = 500;
+    [FromQuery] public string? MinimumConfidence { get; init; }
+    [FromQuery] public string? MinConfidence { get; init; }
+    [FromQuery] public string? RelationshipTypes { get; init; }
+    [FromQuery] public string? ResourceTypes { get; init; }
+    [FromQuery] public string? HealthStates { get; init; }
+    [FromQuery] public bool IncludeInferred { get; init; } = true;
+    [FromQuery] public bool IncludeStale { get; init; } = true;
 }

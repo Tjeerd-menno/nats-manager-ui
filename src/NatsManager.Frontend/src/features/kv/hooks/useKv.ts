@@ -68,9 +68,7 @@ export function useCreateKvBucket(environmentId: string | null) {
     mutationFn: async (data: CreateKvBucketRequest) => {
       await apiClient.post(apiEndpoints.kvBuckets(environmentId), data);
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.kvBuckets(environmentId) });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.kvBuckets(environmentId) }),
   });
 }
 
@@ -82,9 +80,7 @@ export function useDeleteKvBucket(environmentId: string | null) {
         headers: { 'X-Confirm': 'true' },
       });
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.kvBuckets(environmentId) });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.kvBuckets(environmentId) }),
   });
 }
 
@@ -96,9 +92,11 @@ export function usePutKvKey(environmentId: string | null, bucketName: string | u
       return response.data as { revision: number };
     },
     onSuccess: (_data, variables) => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.kvKeys(environmentId, bucketName) });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.kvKey(environmentId, bucketName, variables.key) });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.kvKeyHistory(environmentId, bucketName, variables.key) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.kvKeys(environmentId, bucketName) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.kvBucket(environmentId, bucketName) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.kvBuckets(environmentId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.kvKey(environmentId, bucketName, variables.key) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.kvKeyHistory(environmentId, bucketName, variables.key) });
     },
   });
 }
@@ -111,9 +109,12 @@ export function useDeleteKvKey(environmentId: string | null, bucketName: string 
         headers: { 'X-Confirm': 'true' },
       });
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.kvKeys(environmentId, bucketName) });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.kvKey(environmentId, bucketName) });
+    onSuccess: (_data, key) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.kvKeys(environmentId, bucketName) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.kvBucket(environmentId, bucketName) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.kvBuckets(environmentId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.kvKey(environmentId, bucketName, key) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.kvKeyHistory(environmentId, bucketName, key) });
     },
   });
 }
