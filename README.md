@@ -244,7 +244,19 @@ cd src/NatsManager.Frontend && npm run lint
 ### Production container
 
 ```bash
-podman build --network host -t nats-admin:dev -f src/NatsManager.Web/Dockerfile .
+# Docker
+docker build -t nats-admin:dev -f src/NatsManager.Web/Dockerfile .
+docker run -d --name nats-admin \
+  -p 8080:8080 \
+  -v nats-admin-data:/data \
+  -e ConnectionStrings__DefaultConnection="Data Source=/data/natsmanager.db" \
+  -e Encryption__Key="<base64-encoded-32-byte-key>" \
+  -e BootstrapAdmin__Username="admin" \
+  -e BootstrapAdmin__Password="<replace-with-a-strong-password>" \
+  nats-admin:dev
+
+# Podman
+podman build -t nats-admin:dev -f src/NatsManager.Web/Dockerfile .
 podman run -d --name nats-admin \
   -p 8080:8080 \
   -v nats-admin-data:/data \
@@ -254,6 +266,8 @@ podman run -d --name nats-admin \
   -e BootstrapAdmin__Password="<replace-with-a-strong-password>" \
   nats-admin:dev
 ```
+
+If image build fails due to local proxy/network constraints, you can retry on Linux with `--network host`.
 
 Generate `Encryption__Key` from 32 random bytes, for example with
 `openssl rand -base64 32`, and keep the same value for the lifetime of the
