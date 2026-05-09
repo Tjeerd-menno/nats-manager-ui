@@ -10,10 +10,14 @@ import { useDashboard } from './hooks/useDashboard';
 import { useEnvironmentContext } from '../environments/EnvironmentContext';
 import { LoadingState } from '../../shared/LoadingState';
 import { EmptyState } from '../../shared/EmptyState';
+import { useDashboardHealth, useDashboardJetStream } from '../../read-model/projections';
+import type { DashboardSummary } from './types';
 
 export default function DashboardPage() {
   const { selectedEnvironmentId } = useEnvironmentContext();
   const { data, isLoading, error } = useDashboard(selectedEnvironmentId);
+  const readModelHealth = useDashboardHealth(selectedEnvironmentId);
+  const readModelJetStream = useDashboardJetStream(selectedEnvironmentId);
 
   if (!selectedEnvironmentId) {
     return (
@@ -42,6 +46,17 @@ export default function DashboardPage() {
     );
   }
 
+  const connectionStatus = getConnectionStatus(readModelHealth.connectionStatus, readModelHealth.lastUpdatedUtc, data.environment.connectionStatus);
+  const jetStream = readModelJetStream.isEnabled === null
+    ? data.jetStream
+    : {
+        ...data.jetStream,
+        streamCount: readModelJetStream.streamCount,
+        consumerCount: readModelJetStream.consumerCount,
+        totalMessages: readModelJetStream.totalMessages,
+        totalBytes: readModelJetStream.totalBytes,
+      };
+
   return (
     <Stack>
       <Title order={2}>Dashboard</Title>
@@ -50,12 +65,12 @@ export default function DashboardPage() {
         <Card shadow="sm" padding="lg" radius="md" withBorder>
           <Group justify="space-between" mb="xs">
             <Text size="sm" c="dimmed" fw={500}>Connection Status</Text>
-            <ThemeIcon variant="light" color={data.environment.connectionStatus === 'Available' ? 'green' : 'red'} size="md" radius="md">
+            <ThemeIcon variant="light" color={connectionStatus === 'Available' ? 'green' : 'red'} size="md" radius="md">
               <IconPlugConnected size={16} />
             </ThemeIcon>
           </Group>
-          <Badge color={data.environment.connectionStatus === 'Available' ? 'green' : 'red'} size="lg" variant="light">
-            {data.environment.connectionStatus}
+          <Badge color={connectionStatus === 'Available' ? 'green' : 'red'} size="lg" variant="light">
+            {connectionStatus}
           </Badge>
         </Card>
 
@@ -66,11 +81,11 @@ export default function DashboardPage() {
               <IconBolt size={16} />
             </ThemeIcon>
           </Group>
-          <Text size="xl" fw={700}>{data.jetStream.streamCount}</Text>
+          <Text size="xl" fw={700}>{jetStream.streamCount}</Text>
           <Group gap="xs" mt="xs">
-            <Text size="sm" c="dimmed">{data.jetStream.consumerCount} consumers</Text>
-            {data.jetStream.unhealthyConsumers > 0 && (
-              <Badge color="red" size="sm" variant="light">{data.jetStream.unhealthyConsumers} unhealthy</Badge>
+            <Text size="sm" c="dimmed">{jetStream.consumerCount} consumers</Text>
+            {jetStream.unhealthyConsumers > 0 && (
+              <Badge color="red" size="sm" variant="light">{jetStream.unhealthyConsumers} unhealthy</Badge>
             )}
           </Group>
         </Card>
@@ -93,8 +108,8 @@ export default function DashboardPage() {
               <IconMail size={16} />
             </ThemeIcon>
           </Group>
-          <Text size="xl" fw={700}>{data.jetStream.totalMessages.toLocaleString()}</Text>
-          <Text size="sm" c="dimmed" mt="xs">{(data.jetStream.totalBytes / 1024 / 1024).toFixed(1)} MB</Text>
+          <Text size="xl" fw={700}>{jetStream.totalMessages.toLocaleString()}</Text>
+          <Text size="sm" c="dimmed" mt="xs">{(jetStream.totalBytes / 1024 / 1024).toFixed(1)} MB</Text>
         </Card>
       </SimpleGrid>
 
@@ -115,4 +130,15 @@ export default function DashboardPage() {
       )}
     </Stack>
   );
+}
+
+function getConnectionStatus(
+  connectionStatus: ReturnType<typeof useDashboardHealth>['connectionStatus'],
+  lastUpdatedUtc: string | null,
+  fallbackStatus: DashboardSummary['environment']['connectionStatus'],
+) {
+  if (connectionStatus === 'Connected') return 'Available';
+  if (connectionStatus === 'Reconnecting') return 'Degraded';
+  if (connectionStatus === 'Disconnected' && lastUpdatedUtc) return 'Unavailable';
+  return fallbackStatus;
 }

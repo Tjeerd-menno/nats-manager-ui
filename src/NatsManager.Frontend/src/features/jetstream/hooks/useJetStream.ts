@@ -4,13 +4,16 @@ import { apiEndpoints } from '../../../api/endpoints';
 import { queryKeys } from '../../../api/queryKeys';
 import type { PaginatedResult, PaginatedQueryParams } from '../../../api/types';
 import type { StreamListItem, StreamDetail, ConsumerInfo, CreateStreamRequest, UpdateStreamRequest, CreateConsumerRequest, StreamMessageItem } from '../types';
+import { syncConsumer, syncConsumers, syncStreamDetail, syncStreams } from '../../../read-model/sync/jetstream-query-sync';
 
 export function useStreams(environmentId: string | null, params?: PaginatedQueryParams) {
   return useQuery({
     queryKey: queryKeys.streams(environmentId, params),
     queryFn: async () => {
       const response = await apiClient.get(apiEndpoints.streamList(environmentId), { params });
-      return response.data as PaginatedResult<StreamListItem>;
+      const data = response.data as PaginatedResult<StreamListItem>;
+      if (environmentId) syncStreams(environmentId, data.items);
+      return data;
     },
     enabled: !!environmentId,
   });
@@ -21,7 +24,9 @@ export function useStream(environmentId: string | null, streamName: string | und
     queryKey: queryKeys.streamDetail(environmentId, streamName),
     queryFn: async () => {
       const response = await apiClient.get(apiEndpoints.streamDetail(environmentId, streamName));
-      return response.data as StreamDetail;
+      const data = response.data as StreamDetail;
+      if (environmentId) syncStreamDetail(environmentId, data);
+      return data;
     },
     enabled: !!environmentId && !!streamName,
   });
@@ -32,7 +37,9 @@ export function useConsumers(environmentId: string | null, streamName: string | 
     queryKey: queryKeys.consumers(environmentId, streamName, params),
     queryFn: async () => {
       const response = await apiClient.get(apiEndpoints.consumerList(environmentId, streamName), { params });
-      return response.data as PaginatedResult<ConsumerInfo>;
+      const data = response.data as PaginatedResult<ConsumerInfo>;
+      if (environmentId && streamName) syncConsumers(environmentId, streamName, data.items);
+      return data;
     },
     enabled: !!environmentId && !!streamName,
   });
@@ -43,7 +50,9 @@ export function useConsumer(environmentId: string | null, streamName: string | u
     queryKey: queryKeys.consumerDetail(environmentId, streamName, consumerName),
     queryFn: async () => {
       const response = await apiClient.get(apiEndpoints.consumerDetail(environmentId, streamName, consumerName));
-      return response.data as ConsumerInfo;
+      const data = response.data as ConsumerInfo;
+      if (environmentId && streamName) syncConsumer(environmentId, streamName, data);
+      return data;
     },
     enabled: !!environmentId && !!streamName && !!consumerName,
   });
