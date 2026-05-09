@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { apiClient } from '../../../api/client';
 import type { RelationshipMap, ResourceType, MapFilter, ResourceNode } from '../types';
+import { syncRelationshipMap } from '../../../read-model/sync/relationship-map-sync';
 
 interface UseResourceRelationshipMapOptions {
   environmentId: string | null;
@@ -72,6 +73,7 @@ export function useResourceRelationshipMap({
       const response = await apiClient.get<RelationshipMap>(
         `/environments/${environmentId}/relationships/map?${params.toString()}`
       );
+      syncRelationshipMap(response.data);
       return response.data;
     },
     enabled,

@@ -1,18 +1,40 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../../../api/client';
 import type { SearchResult, BookmarkDto, UserPreferenceDto, CreateBookmarkRequest } from '../types';
+import { useGlobalResourceSearch } from '../../../read-model/hooks';
+import { syncSearchResults } from '../../../read-model/sync/resource-query-sync';
 
 export function useSearch(query: string, resourceType?: string) {
-  return useQuery({
+  const localSearch = useGlobalResourceSearch({
+    query,
+    resourceType: resourceType ?? null,
+    sortBy: 'relevance',
+  });
+  const serverSearch = useQuery({
     queryKey: ['search', query, resourceType],
     queryFn: async () => {
       const params: Record<string, string> = { q: query };
       if (resourceType) params.type = resourceType;
       const res = await apiClient.get<SearchResult[]>('/search', { params });
+      syncSearchResults(res.data);
       return res.data;
     },
     enabled: query.length >= 2,
   });
+
+  const localResults: SearchResult[] = localSearch.data.map(result => ({
+    resourceType: result.resourceType,
+    resourceId: result.resourceId,
+    displayName: result.displayName,
+    environmentId: result.environmentId,
+    description: result.description ?? undefined,
+  }));
+
+  return {
+    ...serverSearch,
+    data: serverSearch.data ?? (localResults.length > 0 ? localResults : undefined),
+    isFetching: serverSearch.isFetching || localSearch.isLoading,
+  };
 }
 
 export function useBookmarks() {

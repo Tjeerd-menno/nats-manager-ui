@@ -98,7 +98,7 @@ export function ClusterOverviewCard({ observation }: ClusterOverviewCardProps) {
             <Text size="xs" c="dimmed">Connections</Text>
             <Group gap="xs" align="baseline">
               <Text size="xl" fw={700}>
-                {observation.connectionCount?.toLocaleString() ?? '—'}
+                {observation.connectionCount?.toLocaleString('en-US') ?? '—'}
               </Text>
               <IconPlugConnected size={14} stroke={1.5} />
             </Group>

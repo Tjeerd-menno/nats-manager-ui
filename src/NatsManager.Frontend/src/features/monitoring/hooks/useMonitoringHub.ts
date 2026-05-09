@@ -1,10 +1,16 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as signalR from '@microsoft/signalr';
 import axios from 'axios';
 import { apiClient } from '../../../api/client';
 import type { MonitoringSnapshot, MonitoringHistoryResult, MonitoringConnectionStatus } from '../types';
-
-const MAX_SNAPSHOTS = 120;
+import { useMonitoringEnvironmentState, useRecentMonitoringSnapshots } from '../../../read-model/hooks';
+import {
+  toMonitoringSnapshot,
+  writeMonitoringHistory,
+  writeMonitoringSnapshot,
+  writeMonitoringState,
+} from '../../../read-model/sync/monitoring-hub-sync';
+import type { ReadModelConnectionStatus } from '../../../read-model/types/common';
 
 interface UseMonitoringHubResult {
   snapshots: MonitoringSnapshot[];
@@ -15,11 +21,12 @@ interface UseMonitoringHubResult {
 }
 
 export function useMonitoringHub(environmentId: string | null): UseMonitoringHubResult {
-  const [snapshots, setSnapshots] = useState<MonitoringSnapshot[]>([]);
-  const [connectionStatus, setConnectionStatus] = useState<MonitoringConnectionStatus>('connecting');
-  const [isNotConfigured, setIsNotConfigured] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const connectionRef = useRef<signalR.HubConnection | null>(null);
+  const snapshotsQuery = useRecentMonitoringSnapshots(environmentId, 120);
+  const stateQuery = useMonitoringEnvironmentState(environmentId);
+  const [localConnectionStatus, setLocalConnectionStatus] = useState<MonitoringConnectionStatus>('connecting');
+  const [localIsNotConfigured, setLocalIsNotConfigured] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!environmentId) return;
@@ -27,9 +34,10 @@ export function useMonitoringHub(environmentId: string | null): UseMonitoringHub
     let cancelled = false;
 
     const start = async () => {
-      setConnectionStatus('connecting');
-      setIsNotConfigured(false);
-      setError(null);
+      setLocalConnectionStatus('connecting');
+      setLocalIsNotConfigured(false);
+      setLocalError(null);
+      writeMonitoringState(environmentId, 'Connecting', null, false);
 
       // Fetch initial history
       try {
@@ -37,25 +45,24 @@ export function useMonitoringHub(environmentId: string | null): UseMonitoringHub
           `/environments/${environmentId}/monitoring/metrics/history`
         );
         if (!cancelled) {
-          // History comes oldest→newest; we display newest-first in state (prepended)
-          setSnapshots([...response.data.snapshots].reverse());
+          writeMonitoringHistory(environmentId, response.data.snapshots);
         }
       } catch (err) {
         if (axios.isAxiosError(err) && err.response?.status === 400) {
           if (!cancelled) {
-            setSnapshots([]);
-            setIsNotConfigured(true);
-            setConnectionStatus('disconnected');
-            setError('Monitoring is not configured for this environment.');
+            setLocalIsNotConfigured(true);
+            setLocalConnectionStatus('disconnected');
+            setLocalError('Monitoring is not configured for this environment.');
+            writeMonitoringState(environmentId, 'Disconnected', 'Monitoring is not configured for this environment.', true);
           }
           return;
         }
 
         if (axios.isAxiosError(err) && err.response?.status === 404) {
           if (!cancelled) {
-            setSnapshots([]);
-            setConnectionStatus('disconnected');
-            setError('Environment not found.');
+            setLocalConnectionStatus('disconnected');
+            setLocalError('Environment not found.');
+            writeMonitoringState(environmentId, 'Disconnected', 'Environment not found.', false);
           }
           return;
         }
@@ -72,25 +79,32 @@ export function useMonitoringHub(environmentId: string | null): UseMonitoringHub
       connectionRef.current = connection;
 
       connection.onreconnecting(() => {
-        if (!cancelled) setConnectionStatus('reconnecting');
+        if (!cancelled) {
+          setLocalConnectionStatus('reconnecting');
+          writeMonitoringState(environmentId, 'Reconnecting', null, false);
+        }
       });
 
       connection.onreconnected(() => {
         if (!cancelled) {
-          setConnectionStatus('connected');
+          setLocalConnectionStatus('connected');
+          writeMonitoringState(environmentId, 'Connected', null, false);
           void connection.invoke('SubscribeToEnvironment', environmentId);
         }
       });
 
       connection.onclose(() => {
-        if (!cancelled) setConnectionStatus('disconnected');
+        if (!cancelled) {
+          setLocalConnectionStatus('disconnected');
+          writeMonitoringState(environmentId, 'Disconnected', 'Connection lost. Attempting to reconnect…', false);
+        }
       });
 
       connection.on('ReceiveMonitoringSnapshot', (snapshot: MonitoringSnapshot) => {
         if (!cancelled) {
-          setSnapshots(prev => [snapshot, ...prev].slice(0, MAX_SNAPSHOTS));
-          setIsNotConfigured(false);
-          setError(null);
+          writeMonitoringSnapshot(snapshot, 'Connected');
+          setLocalIsNotConfigured(false);
+          setLocalError(null);
         }
       });
 
@@ -100,12 +114,15 @@ export function useMonitoringHub(environmentId: string | null): UseMonitoringHub
           await connection.stop();
           return;
         }
-        setConnectionStatus('connected');
+        setLocalConnectionStatus('connected');
+        writeMonitoringState(environmentId, 'Connected', null, false);
         await connection.invoke('SubscribeToEnvironment', environmentId);
       } catch (err) {
         if (!cancelled) {
-          setConnectionStatus('disconnected');
-          setError(err instanceof Error ? err.message : 'Failed to connect');
+          const message = err instanceof Error ? err.message : 'Failed to connect';
+          setLocalConnectionStatus('disconnected');
+          setLocalError(message);
+          writeMonitoringState(environmentId, 'Disconnected', message, false);
         }
       }
     };
@@ -125,11 +142,28 @@ export function useMonitoringHub(environmentId: string | null): UseMonitoringHub
     };
   }, [environmentId]);
 
+  const snapshots = useMemo(
+    () => snapshotsQuery.data.map(toMonitoringSnapshot),
+    [snapshotsQuery.data],
+  );
+  const state = stateQuery.data;
+  const connectionStatus = toMonitoringConnectionStatus(state?.connectionStatus) ?? localConnectionStatus;
+
   return {
     snapshots,
     latestSnapshot: snapshots[0] ?? null,
     connectionStatus,
-    isNotConfigured,
-    error,
+    isNotConfigured: state?.isNotConfigured ?? localIsNotConfigured,
+    error: state?.errorMessage ?? localError,
   };
+}
+
+function toMonitoringConnectionStatus(status: ReadModelConnectionStatus | undefined): MonitoringConnectionStatus | null {
+  switch (status) {
+    case 'Connected': return 'connected';
+    case 'Connecting': return 'connecting';
+    case 'Disconnected': return 'disconnected';
+    case 'Reconnecting': return 'reconnecting';
+    default: return null;
+  }
 }

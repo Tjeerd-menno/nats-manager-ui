@@ -11,14 +11,17 @@ import type {
   UpdateEnvironmentRequest,
   TestConnectionResult,
 } from '../types';
+import { syncEnvironmentStatus, syncEnvironmentStatuses } from '../../../read-model/sync/environment-status-sync';
 
 export function useEnvironments(params?: PaginatedQueryParams) {
   return useQuery({
     queryKey: queryKeys.environmentList(params),
     queryFn: async (): Promise<{ data: PaginatedResult<EnvironmentListItem>; freshness: DataFreshness }> => {
       const response = await apiClient.get(apiEndpoints.environments(), { params });
+      const data = response.data as PaginatedResult<EnvironmentListItem>;
+      syncEnvironmentStatuses(data.items);
       return {
-        data: response.data as PaginatedResult<EnvironmentListItem>,
+        data,
         freshness: extractDataFreshness(response.headers as Record<string, string>),
       };
     },
@@ -30,7 +33,9 @@ export function useEnvironment(id: string | undefined) {
     queryKey: queryKeys.environmentDetail(id),
     queryFn: async (): Promise<EnvironmentDetail> => {
       const response = await apiClient.get(apiEndpoints.environmentDetail(id));
-      return response.data as EnvironmentDetail;
+      const data = response.data as EnvironmentDetail;
+      syncEnvironmentStatus(data);
+      return data;
     },
     enabled: !!id,
   });
