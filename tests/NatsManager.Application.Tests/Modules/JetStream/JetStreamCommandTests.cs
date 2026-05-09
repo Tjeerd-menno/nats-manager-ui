@@ -204,6 +204,92 @@ public sealed class CreateConsumerCommandValidatorTests
     }
 }
 
+public sealed class UpdateStreamCommandTests
+{
+    private readonly IJetStreamWriteAdapter _writeAdapter = Substitute.For<IJetStreamWriteAdapter>();
+    private readonly IAuditTrail _auditTrail = Substitute.For<IAuditTrail>();
+    private readonly UpdateStreamCommandHandler _handler;
+
+    public UpdateStreamCommandTests()
+    {
+        _handler = new UpdateStreamCommandHandler(_writeAdapter, _auditTrail);
+    }
+
+    [Fact]
+    public async Task Handle_ShouldDelegateToWriteAdapter()
+    {
+        var command = new UpdateStreamCommand
+        {
+            EnvironmentId = Guid.NewGuid(),
+            Name = "test-stream",
+            Subjects = ["test.>"]
+        };
+
+        var outputPort = new TestOutputPort<Unit>();
+        await _handler.ExecuteAsync(command, outputPort, CancellationToken.None);
+
+        outputPort.IsSuccess.ShouldBeTrue();
+        await _writeAdapter.Received(1).UpdateStreamAsync(command, Arg.Any<CancellationToken>());
+    }
+}
+
+public sealed class UpdateStreamCommandValidatorTests
+{
+    private readonly UpdateStreamCommandValidator _validator = new();
+
+    [Fact]
+    public void Validate_WithValidCommand_ShouldPass()
+    {
+        var command = new UpdateStreamCommand
+        {
+            EnvironmentId = Guid.NewGuid(),
+            Name = "test-stream",
+            Subjects = ["test.>"]
+        };
+
+        _validator.Validate(command).IsValid.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void Validate_WithEmptyName_ShouldFail()
+    {
+        var command = new UpdateStreamCommand
+        {
+            EnvironmentId = Guid.NewGuid(),
+            Name = "",
+            Subjects = ["test.>"]
+        };
+
+        _validator.Validate(command).IsValid.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void Validate_WithEmptySubjects_ShouldFail()
+    {
+        var command = new UpdateStreamCommand
+        {
+            EnvironmentId = Guid.NewGuid(),
+            Name = "test",
+            Subjects = []
+        };
+
+        _validator.Validate(command).IsValid.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void Validate_WithEmptyEnvironmentId_ShouldFail()
+    {
+        var command = new UpdateStreamCommand
+        {
+            EnvironmentId = Guid.Empty,
+            Name = "test",
+            Subjects = ["test.>"]
+        };
+
+        _validator.Validate(command).IsValid.ShouldBeFalse();
+    }
+}
+
 public sealed class DeleteConsumerCommandTests
 {
     private readonly IJetStreamWriteAdapter _writeAdapter = Substitute.For<IJetStreamWriteAdapter>();

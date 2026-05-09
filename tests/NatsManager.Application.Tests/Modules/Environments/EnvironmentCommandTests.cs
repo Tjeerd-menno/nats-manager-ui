@@ -461,4 +461,16 @@ public sealed class EnableDisableEnvironmentCommandTests
         existing.IsEnabled.ShouldBeFalse();
         await _connectionFactory.Received(1).RemoveConnectionAsync(envId, Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task Handle_WhenEnvironmentNotFound_ShouldBeNotFound()
+    {
+        var command = new EnableDisableEnvironmentCommand { Id = Guid.NewGuid(), Enable = true };
+        _repository.GetByIdAsync(command.Id, Arg.Any<CancellationToken>()).Returns((Environment?)null);
+
+        var outputPort = new TestOutputPort<Unit>();
+        await _handler.ExecuteAsync(command, outputPort, CancellationToken.None);
+
+        outputPort.IsNotFound.ShouldBeTrue();
+    }
 }
