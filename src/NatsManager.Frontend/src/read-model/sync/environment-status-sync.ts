@@ -10,7 +10,7 @@ export function syncEnvironmentStatus(environment: EnvironmentSource, observedAt
     environmentId: environment.id,
     displayName: environment.name,
     connectionStatus: environment.connectionStatus,
-    freshness: calculateFreshness(environment.lastSuccessfulContact ?? observedAtUtc),
+    freshness: calculateFreshness(environment.lastSuccessfulContact),
     lastSuccessfulInteractionUtc: environment.lastSuccessfulContact,
     lastCheckedAtUtc: observedAtUtc,
     lastErrorMessage: environment.connectionStatus === 'Unavailable' ? 'Environment unavailable' : null,
@@ -26,7 +26,7 @@ export function syncEnvironmentStatus(environment: EnvironmentSource, observedAt
     name: environment.name,
     displayName: environment.name,
     description: environment.description || null,
-    status: environment.connectionStatus === 'Available' ? 'Ok' : environment.connectionStatus === 'Degraded' ? 'Degraded' : environment.connectionStatus === 'Unavailable' ? 'Unavailable' : 'Unknown',
+    status: toEnvironmentHealthStatus(environment.connectionStatus),
     freshness: record.freshness,
     detailRoute: `/environments/${environment.id}`,
     searchableText: [environment.name, environment.description, environment.connectionStatus].filter(Boolean).join(' ').toLowerCase(),
@@ -46,4 +46,11 @@ export function writeSelectedEnvironment(environmentId: string | null, selectedA
     draft.environmentId = environmentId;
     draft.selectedAtUtc = environmentId ? selectedAtUtc : null;
   });
+}
+
+function toEnvironmentHealthStatus(connectionStatus: EnvironmentSource['connectionStatus']) {
+  if (connectionStatus === 'Available') return 'Ok';
+  if (connectionStatus === 'Degraded') return 'Degraded';
+  if (connectionStatus === 'Unavailable') return 'Unavailable';
+  return 'Unknown';
 }

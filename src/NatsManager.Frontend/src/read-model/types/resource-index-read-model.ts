@@ -11,6 +11,7 @@ export type ResourceIndexType =
   | 'KvKey'
   | 'ObjectBucket'
   | 'Object'
+  | 'ObjectItem'
   | 'ObjectStoreObject'
   | 'Service'
   | 'Endpoint'

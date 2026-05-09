@@ -11,6 +11,7 @@ import { useEnvironmentContext } from '../environments/EnvironmentContext';
 import { LoadingState } from '../../shared/LoadingState';
 import { EmptyState } from '../../shared/EmptyState';
 import { useDashboardHealth, useDashboardJetStream } from '../../read-model/projections';
+import type { DashboardSummary } from './types';
 
 export default function DashboardPage() {
   const { selectedEnvironmentId } = useEnvironmentContext();
@@ -45,13 +46,7 @@ export default function DashboardPage() {
     );
   }
 
-  const connectionStatus = readModelHealth.connectionStatus === 'Connected'
-    ? 'Available'
-    : readModelHealth.connectionStatus === 'Reconnecting'
-      ? 'Degraded'
-      : readModelHealth.connectionStatus === 'Disconnected' && readModelHealth.lastUpdatedUtc
-        ? 'Unavailable'
-        : data.environment.connectionStatus;
+  const connectionStatus = getConnectionStatus(readModelHealth.connectionStatus, readModelHealth.lastUpdatedUtc, data.environment.connectionStatus);
   const jetStream = readModelJetStream.isEnabled === null
     ? data.jetStream
     : {
@@ -135,4 +130,15 @@ export default function DashboardPage() {
       )}
     </Stack>
   );
+}
+
+function getConnectionStatus(
+  connectionStatus: ReturnType<typeof useDashboardHealth>['connectionStatus'],
+  lastUpdatedUtc: string | null,
+  fallbackStatus: DashboardSummary['environment']['connectionStatus'],
+) {
+  if (connectionStatus === 'Connected') return 'Available';
+  if (connectionStatus === 'Reconnecting') return 'Degraded';
+  if (connectionStatus === 'Disconnected' && lastUpdatedUtc) return 'Unavailable';
+  return fallbackStatus;
 }

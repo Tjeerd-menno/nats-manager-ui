@@ -9,9 +9,9 @@ export function useLatestMonitoringSnapshot(environmentId: string | null) {
 
   const latestSnapshot = useMemo(
     () =>
-      data
+      [...data]
         .filter(snapshot => snapshot.environmentId === scopedEnvironmentId)
-        .toSorted((left, right) => Date.parse(right.observedAtUtc) - Date.parse(left.observedAtUtc))[0] ?? null,
+        .sort((left, right) => Date.parse(right.observedAtUtc) - Date.parse(left.observedAtUtc))[0] ?? null,
     [data, scopedEnvironmentId],
   );
 

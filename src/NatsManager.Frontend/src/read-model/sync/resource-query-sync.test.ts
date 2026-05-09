@@ -23,4 +23,18 @@ describe('resource index sync', () => {
     expect(record?.searchableText).toContain('order events');
     expect(record?.resourceType).toBe('Stream');
   });
+
+  it('normalizes object-store search result types to keep existing navigation behavior', () => {
+    syncSearchResults([
+      {
+        resourceType: 'ObjectStoreObject',
+        resourceId: 'orders-bucket/incoming/orders/1.json',
+        displayName: 'orders/1.json',
+        environmentId: 'env-1',
+      },
+    ], '2026-01-01T00:00:00.000Z');
+
+    const record = resourceIndexCollection.get('env-1:ObjectItem:orders-bucket/incoming/orders/1.json');
+    expect(record?.resourceType).toBe('ObjectItem');
+  });
 });

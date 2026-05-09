@@ -8,6 +8,10 @@ export function useGlobalResourceSearch(options: GlobalResourceSearchOptions) {
   const normalizedQuery = options.query.trim().toLowerCase();
 
   const results = useMemo(() => {
+    if (normalizedQuery.length < 2) {
+      return [];
+    }
+
     const filtered = data.filter(resource => {
       if (options.environmentId && resource.environmentId !== options.environmentId) return false;
       if (options.resourceType && resource.resourceType !== options.resourceType) return false;
@@ -17,7 +21,7 @@ export function useGlobalResourceSearch(options: GlobalResourceSearchOptions) {
       return true;
     });
 
-    return filtered.toSorted((left, right) => {
+    return [...filtered].sort((left, right) => {
       if (options.sortBy === 'resourceType') return left.resourceType.localeCompare(right.resourceType) || left.displayName.localeCompare(right.displayName);
       if (options.sortBy === 'name') return left.displayName.localeCompare(right.displayName);
       return relevance(right.searchableText, normalizedQuery) - relevance(left.searchableText, normalizedQuery)

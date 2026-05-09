@@ -2,9 +2,13 @@ import { relationshipEdgesCollection, relationshipEvidenceCollection, relationsh
 import type { RelationshipMap, RelationshipEvidence, ResourceHealthStatus } from '../../features/relationships/types';
 import type { HealthStatus } from '../types/common';
 import { makeEnvironmentScopedId, upsertRecord } from '../utils/collection-utils';
+import { normalizeResourceIndexType } from './resource-query-sync';
 
 export function syncRelationshipMap(map: RelationshipMap) {
   for (const node of map.nodes) {
+    const resourceType = normalizeResourceIndexType(node.resourceType);
+    const resourceIndexId = makeEnvironmentScopedId(node.environmentId, resourceType, node.resourceId);
+
     upsertRecord(relationshipNodesCollection, node.nodeId, {
       id: node.nodeId,
       environmentId: node.environmentId,
@@ -18,16 +22,16 @@ export function syncRelationshipMap(map: RelationshipMap) {
       metadata: node.metadata,
     });
 
-    upsertRecord(resourceIndexCollection, makeEnvironmentScopedId(node.environmentId, node.resourceType, node.resourceId), {
-      id: makeEnvironmentScopedId(node.environmentId, node.resourceType, node.resourceId),
+    upsertRecord(resourceIndexCollection, resourceIndexId, {
+      id: resourceIndexId,
       environmentId: node.environmentId,
-      resourceType: node.resourceType === 'ObjectStoreObject' ? 'ObjectStoreObject' : node.resourceType,
+      resourceType,
       resourceId: node.resourceId,
       name: node.displayName,
       displayName: node.displayName,
       description: null,
       status: toHealthStatus(node.status),
-      freshness: node.freshness === 'Live' ? 'Live' : node.freshness === 'Stale' ? 'Stale' : 'Unknown',
+      freshness: toRelationshipFreshness(node.freshness),
       detailRoute: node.detailRoute,
       searchableText: [node.displayName, node.resourceType, node.resourceId].join(' ').toLowerCase(),
       lastObservedAtUtc: map.generatedAt,
@@ -51,6 +55,7 @@ export function syncRelationshipMap(map: RelationshipMap) {
       lastObservedAtUtc: map.generatedAt,
     });
 
+    deleteEdgeEvidence(edge.edgeId);
     edge.evidence.forEach((evidence, index) => {
       upsertRecord(relationshipEvidenceCollection, `${edge.edgeId}:${index}`, toEvidenceRecord(edge.environmentId, edge.edgeId, evidence, index));
     });
@@ -73,4 +78,20 @@ function toHealthStatus(status: ResourceHealthStatus): HealthStatus {
   if (status === 'Warning' || status === 'Degraded' || status === 'Stale') return 'Degraded';
   if (status === 'Unavailable') return 'Unavailable';
   return 'Unknown';
+}
+
+function toRelationshipFreshness(freshness: RelationshipMap['nodes'][number]['freshness']) {
+  if (freshness === 'Live') return 'Live';
+  if (freshness === 'Stale') return 'Stale';
+  return 'Unknown';
+}
+
+function deleteEdgeEvidence(edgeId: string) {
+  const evidenceIds = relationshipEvidenceCollection.toArray
+    .filter(record => record.edgeId === edgeId)
+    .map(record => record.id);
+
+  if (evidenceIds.length > 0) {
+    relationshipEvidenceCollection.delete(evidenceIds);
+  }
 }

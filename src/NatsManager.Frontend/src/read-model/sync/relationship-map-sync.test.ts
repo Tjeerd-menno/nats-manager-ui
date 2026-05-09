@@ -16,6 +16,34 @@ describe('relationship map read-model sync', () => {
     expect(relationshipEdgesCollection.get('edge-1')?.sourceNodeId).toBe('consumer-worker');
     expect(relationshipEvidenceCollection.get('edge-1:0')?.summary).toBe('consumer reads stream');
   });
+
+  it('removes stale evidence records when an edge is resynced with fewer evidence items', () => {
+    const map = createMap();
+    syncRelationshipMap({
+      ...map,
+      edges: [
+        {
+          ...map.edges[0],
+          evidence: [
+            ...map.edges[0].evidence,
+            {
+              sourceModule: 'Search',
+              evidenceType: 'SearchResult',
+              observedAt: '2026-01-01T00:00:01.000Z',
+              freshness: 'Live',
+              summary: 'search corroborates stream usage',
+              safeFields: {},
+            },
+          ],
+        },
+      ],
+    });
+
+    syncRelationshipMap(map);
+
+    expect(relationshipEvidenceCollection.get('edge-1:0')?.summary).toBe('consumer reads stream');
+    expect(relationshipEvidenceCollection.get('edge-1:1')).toBeUndefined();
+  });
 });
 
 function createMap(): RelationshipMap {
