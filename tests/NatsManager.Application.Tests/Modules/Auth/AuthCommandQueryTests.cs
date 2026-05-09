@@ -349,6 +349,166 @@ public sealed class RevokeRoleCommandTests
         outputPort.IsSuccess.ShouldBeTrue();
         await _userRepo.Received(1).RemoveRoleAssignmentAsync(assignmentId, Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task Handle_WhenAssignmentNotFound_ShouldBeNotFound()
+    {
+        var userId = Guid.NewGuid();
+        var nonExistentAssignmentId = Guid.NewGuid();
+        _userRepo.GetUserRoleAssignmentsAsync(userId, Arg.Any<CancellationToken>()).Returns([]);
+
+        var outputPort = new TestOutputPort<Unit>();
+        await _handler.ExecuteAsync(new RevokeRoleCommand { UserId = userId, AssignmentId = nonExistentAssignmentId }, outputPort, CancellationToken.None);
+
+        outputPort.IsNotFound.ShouldBeTrue();
+        await _userRepo.DidNotReceive().RemoveRoleAssignmentAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+    }
+}
+
+public sealed class CreateUserCommandValidatorTests
+{
+    private readonly CreateUserCommandValidator _validator = new();
+
+    [Fact]
+    public void Validate_WithValidCommand_ShouldPass()
+    {
+        var command = new CreateUserCommand
+        {
+            Username = "newuser",
+            DisplayName = "New User",
+            Password = "SecurePass@123"
+        };
+
+        _validator.Validate(command).IsValid.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void Validate_WithEmptyUsername_ShouldFail()
+    {
+        var command = new CreateUserCommand { Username = "", DisplayName = "User", Password = "SecurePass@123" };
+
+        var result = _validator.Validate(command);
+
+        result.IsValid.ShouldBeFalse();
+        result.Errors.ShouldContain(e => e.PropertyName == nameof(CreateUserCommand.Username));
+    }
+
+    [Fact]
+    public void Validate_WithUsernameTooLong_ShouldFail()
+    {
+        var command = new CreateUserCommand
+        {
+            Username = new string('u', 101),
+            DisplayName = "User",
+            Password = "SecurePass@123"
+        };
+
+        var result = _validator.Validate(command);
+
+        result.IsValid.ShouldBeFalse();
+        result.Errors.ShouldContain(e => e.PropertyName == nameof(CreateUserCommand.Username));
+    }
+
+    [Fact]
+    public void Validate_WithPasswordShorterThan12Chars_ShouldFail()
+    {
+        var command = new CreateUserCommand { Username = "user", DisplayName = "User", Password = "Short@1A" };
+
+        var result = _validator.Validate(command);
+
+        result.IsValid.ShouldBeFalse();
+        result.Errors.ShouldContain(e => e.PropertyName == nameof(CreateUserCommand.Password));
+    }
+
+    [Fact]
+    public void Validate_WithPasswordMissingUppercase_ShouldFail()
+    {
+        var command = new CreateUserCommand { Username = "user", DisplayName = "User", Password = "nouppercase@123" };
+
+        var result = _validator.Validate(command);
+
+        result.IsValid.ShouldBeFalse();
+        result.Errors.ShouldContain(e => e.PropertyName == nameof(CreateUserCommand.Password));
+    }
+
+    [Fact]
+    public void Validate_WithPasswordMissingLowercase_ShouldFail()
+    {
+        var command = new CreateUserCommand { Username = "user", DisplayName = "User", Password = "NOLOWERCASE@123" };
+
+        var result = _validator.Validate(command);
+
+        result.IsValid.ShouldBeFalse();
+        result.Errors.ShouldContain(e => e.PropertyName == nameof(CreateUserCommand.Password));
+    }
+
+    [Fact]
+    public void Validate_WithPasswordMissingDigit_ShouldFail()
+    {
+        var command = new CreateUserCommand { Username = "user", DisplayName = "User", Password = "NoDigitHere@@Abc" };
+
+        var result = _validator.Validate(command);
+
+        result.IsValid.ShouldBeFalse();
+        result.Errors.ShouldContain(e => e.PropertyName == nameof(CreateUserCommand.Password));
+    }
+
+    [Fact]
+    public void Validate_WithPasswordMissingSpecialChar_ShouldFail()
+    {
+        var command = new CreateUserCommand { Username = "user", DisplayName = "User", Password = "NoSpecialChar1Abc" };
+
+        var result = _validator.Validate(command);
+
+        result.IsValid.ShouldBeFalse();
+        result.Errors.ShouldContain(e => e.PropertyName == nameof(CreateUserCommand.Password));
+    }
+}
+
+public sealed class LoginCommandValidatorTests
+{
+    private readonly LoginCommandValidator _validator = new();
+
+    [Fact]
+    public void Validate_WithValidCredentials_ShouldPass()
+    {
+        var command = new LoginCommand("admin", "password123");
+
+        _validator.Validate(command).IsValid.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void Validate_WithEmptyUsername_ShouldFail()
+    {
+        var command = new LoginCommand("", "password");
+
+        var result = _validator.Validate(command);
+
+        result.IsValid.ShouldBeFalse();
+        result.Errors.ShouldContain(e => e.PropertyName == nameof(LoginCommand.Username));
+    }
+
+    [Fact]
+    public void Validate_WithEmptyPassword_ShouldFail()
+    {
+        var command = new LoginCommand("admin", "");
+
+        var result = _validator.Validate(command);
+
+        result.IsValid.ShouldBeFalse();
+        result.Errors.ShouldContain(e => e.PropertyName == nameof(LoginCommand.Password));
+    }
+
+    [Fact]
+    public void Validate_WithUsernameTooLong_ShouldFail()
+    {
+        var command = new LoginCommand(new string('u', 101), "password");
+
+        var result = _validator.Validate(command);
+
+        result.IsValid.ShouldBeFalse();
+        result.Errors.ShouldContain(e => e.PropertyName == nameof(LoginCommand.Username));
+    }
 }
 
 public sealed class GetUsersQueryTests
