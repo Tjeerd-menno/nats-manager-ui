@@ -3,12 +3,14 @@ import { useLiveQuery } from '@tanstack/react-db';
 import { resourceIndexCollection } from '../collections';
 import type { GlobalResourceSearchOptions } from '../types/resource-index-read-model';
 
+const MIN_QUERY_LENGTH = 2;
+
 export function useGlobalResourceSearch(options: GlobalResourceSearchOptions) {
   const { data = [], ...query } = useLiveQuery((q) => q.from({ resource: resourceIndexCollection }), []);
   const normalizedQuery = options.query.trim().toLowerCase();
 
   const results = useMemo(() => {
-    if (normalizedQuery.length < 2) {
+    if (normalizedQuery.length < MIN_QUERY_LENGTH) {
       return [];
     }
 

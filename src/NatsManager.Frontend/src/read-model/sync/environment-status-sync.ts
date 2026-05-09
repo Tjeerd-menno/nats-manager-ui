@@ -6,11 +6,14 @@ import { calculateFreshness, makeEnvironmentScopedId, upsertRecord } from '../ut
 type EnvironmentSource = EnvironmentListItem | EnvironmentDetail;
 
 export function syncEnvironmentStatus(environment: EnvironmentSource, observedAtUtc = new Date().toISOString()) {
+  const freshness = environment.lastSuccessfulContact
+    ? calculateFreshness(environment.lastSuccessfulContact)
+    : 'Unknown';
   const record: EnvironmentStatusRecord = {
     environmentId: environment.id,
     displayName: environment.name,
     connectionStatus: environment.connectionStatus,
-    freshness: calculateFreshness(environment.lastSuccessfulContact),
+    freshness,
     lastSuccessfulInteractionUtc: environment.lastSuccessfulContact,
     lastCheckedAtUtc: observedAtUtc,
     lastErrorMessage: environment.connectionStatus === 'Unavailable' ? 'Environment unavailable' : null,
