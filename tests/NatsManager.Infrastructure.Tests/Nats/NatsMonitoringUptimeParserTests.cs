@@ -21,16 +21,16 @@ public sealed class NatsMonitoringUptimeParserTests
     }
 
     [Theory]
-    [InlineData("n/a")]
-    [InlineData("15")]
-    [InlineData("1hbad")]
-    [InlineData("1w2d")]
-    public void ParseSeconds_WithMalformedOrUnsupportedSegments_ShouldReturnParsedPrefix(string uptime)
+    [InlineData("n/a", 0)]
+    [InlineData("15", 0)]
+    [InlineData("1hbad", 3600)]
+    [InlineData("1w2d", 172800)]
+    public void ParseSeconds_WithMalformedOrUnsupportedSegments_ShouldReturnParsedSegments(string uptime, long expected)
     {
         // Arrange, Act
         var result = NatsMonitoringUptimeParser.ParseSeconds(uptime);
 
         // Assert
-        result.ShouldBe(uptime.StartsWith("1h", StringComparison.Ordinal) ? 3600 : 0);
+        result.ShouldBe(expected);
     }
 }
