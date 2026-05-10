@@ -13,12 +13,12 @@ const mockUseClusterServers = vi.mocked(useClusterServers);
 
 describe('ClusterServerList', () => {
   beforeEach(() => {
-    vi.setSystemTime(new Date('2026-01-02T03:05:00Z'));
+    vi.spyOn(Date, 'now').mockReturnValue(new Date('2026-01-02T03:05:00Z').getTime());
     mockUseClusterServers.mockReset();
   });
 
   afterEach(() => {
-    vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it('renders server metrics and relationship map actions', () => {
