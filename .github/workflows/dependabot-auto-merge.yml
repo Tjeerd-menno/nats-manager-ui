@@ -40,7 +40,7 @@ jobs:
         if: steps.policy.outputs.eligible == 'true'
         run: |
           set -euo pipefail
-          api_output="$(gh api "repos/${{ github.repository }}/branches/${{ github.event.pull_request.base.ref }}" 2>&1)" || {
+          api_output="$(gh api --header "Authorization: token $GH_TOKEN" "repos/${{ github.repository }}/branches/${{ github.event.pull_request.base.ref }}" 2>&1)" || {
             echo "Failed to read branch metadata for '${{ github.event.pull_request.base.ref }}': $api_output" >&2
             exit 1
           }
@@ -55,7 +55,7 @@ jobs:
         if: steps.policy.outputs.eligible == 'true'
         run: |
           set -euo pipefail
-          protection_output="$(gh api "repos/${{ github.repository }}/branches/${{ github.event.pull_request.base.ref }}/protection" 2>&1)" || {
+          protection_output="$(gh api --header "Authorization: token $GH_TOKEN" "repos/${{ github.repository }}/branches/${{ github.event.pull_request.base.ref }}/protection" 2>&1)" || {
             echo "Failed to read protection rules for '${{ github.event.pull_request.base.ref }}': $protection_output" >&2
             exit 1
           }
