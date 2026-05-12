@@ -2,25 +2,81 @@ name: Dependabot Auto-merge
 
 on:
   pull_request:
+    # opened/synchronize/reopened: new commit or reopened Dependabot PRs
+    # labeled/unlabeled: explicit automerge label policy changes
+    # ready_for_review: draft-to-ready transitions
+    types: [opened, synchronize, reopened, labeled, unlabeled, ready_for_review]
 
 permissions:
+  checks: read
   contents: write
   pull-requests: write
+  statuses: read
 
 jobs:
   auto-merge:
     runs-on: ubuntu-latest
-    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    # Defense in depth: this job also runs on opened/synchronize/reopened events, so keep
+    # an explicit draft guard even though ready_for_review only fires for non-draft PRs.
+    if: github.event.pull_request.user.login == 'dependabot[bot]' && github.event.pull_request.draft == false
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Fetch Dependabot metadata
         id: metadata
         uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3
 
-      - name: Enable auto-merge for minor and patch updates
+      - name: Evaluate auto-merge policy
+        id: policy
         if: |
-          steps.metadata.outputs.update-type == 'version-update:semver-minor' ||
-          steps.metadata.outputs.update-type == 'version-update:semver-patch'
+          (steps.metadata.outputs.update-type == 'version-update:semver-minor' ||
+           steps.metadata.outputs.update-type == 'version-update:semver-patch') &&
+          # Approved ecosystems are documented in .github/workflow-security-baseline.md
+          contains(fromJson('["github-actions","nuget","npm"]'), steps.metadata.outputs.package-ecosystem) &&
+          contains(github.event.pull_request.labels.*.name, 'automerge:dependabot')
+        run: echo "eligible=true" >> "$GITHUB_OUTPUT"
+
+      - name: Verify base branch protection
+        if: steps.policy.outputs.eligible == 'true'
+        run: |
+          set -euo pipefail
+          api_output="$(gh api --header "Authorization: token $GH_TOKEN" "repos/${{ github.repository }}/branches/${{ github.event.pull_request.base.ref }}" 2>&1)" || {
+            echo "Failed to read branch metadata for '${{ github.event.pull_request.base.ref }}': $api_output" >&2
+            exit 1
+          }
+          protected="$(printf '%s' "$api_output" | jq -r '.protected // false')"
+          if [ "$protected" != "true" ]; then
+            echo "Base branch '${{ github.event.pull_request.base.ref }}' is not protected. Auto-merge is blocked."
+            exit 1
+          fi
+          echo "Base branch protection is enabled."
+
+      - name: Verify required checks are configured
+        if: steps.policy.outputs.eligible == 'true'
+        run: |
+          set -euo pipefail
+          protection_output="$(gh api --header "Authorization: token $GH_TOKEN" "repos/${{ github.repository }}/branches/${{ github.event.pull_request.base.ref }}/protection" 2>&1)" || {
+            echo "Failed to read protection rules for '${{ github.event.pull_request.base.ref }}': $protection_output" >&2
+            exit 1
+          }
+
+          required_checks_count="$(printf '%s' "$protection_output" | jq '[.required_status_checks.contexts // [], .required_status_checks.checks // []] | flatten | length')"
+          if [ "${required_checks_count}" -eq 0 ]; then
+            echo "No required checks configured on '${{ github.event.pull_request.base.ref }}'. Auto-merge is blocked."
+            exit 1
+          fi
+          echo "Required checks configured: ${required_checks_count}"
+
+      - name: Verify required checks are successful
+        if: steps.policy.outputs.eligible == 'true'
+        # This intentionally fails fast when required checks are pending or failed.
+        # A later synchronize/labeled event will re-evaluate once checks complete.
+        run: gh pr checks --required "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+
+      - name: Enable auto-merge for minor and patch updates
+        if: steps.policy.outputs.eligible == 'true'
         run: gh pr merge --auto --squash "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
