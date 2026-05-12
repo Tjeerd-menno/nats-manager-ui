@@ -47,7 +47,7 @@ Generated lock artifacts are excluded from manual edits and must be changed thro
 - Non-generated workflows use SHA-pinned actions.
 - Checkout steps in non-push workflows explicitly set `persist-credentials: false`.
 - Privileged Copilot assignment requires `COPILOT_ASSIGN_TOKEN` and no fallback.
-- Dependabot auto-merge is constrained to approved ecosystems, explicit label, branch protection, and successful required checks.
+- Dependabot auto-merge is constrained to approved ecosystems (`github-actions`, `nuget`, `npm`), explicit label, branch protection, and successful required checks.
 - `workflow-security-policy.yml` enforces:
   - SHA pinning for actions in non-generated workflows
   - `persist-credentials: false` for checkout usage

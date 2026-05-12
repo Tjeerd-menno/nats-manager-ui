@@ -102,7 +102,7 @@ jobs:
               if re.search(r"^\s*pull_request_target\s*:", text, re.MULTILINE):
                   failures.append(f"{path}: pull_request_target is forbidden")
 
-              if re.search(r"secrets\.[A-Z0-9_]+\s*\|\|\s*secrets\.GITHUB_TOKEN", text):
+              if re.search(r"secrets\.[A-Za-z0-9_]+\s*\|\|\s*secrets\.GITHUB_TOKEN", text):
                   failures.append(f"{path}: token fallback pattern is forbidden")
 
               for idx, line in enumerate(lines, start=1):

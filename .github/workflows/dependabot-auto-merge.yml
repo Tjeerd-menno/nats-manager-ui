@@ -2,6 +2,9 @@ name: Dependabot Auto-merge
 
 on:
   pull_request:
+    # opened/synchronize/reopened: new commit or reopened Dependabot PRs
+    # labeled/unlabeled: explicit automerge label policy changes
+    # ready_for_review: draft-to-ready transitions
     types: [opened, synchronize, reopened, labeled, unlabeled, ready_for_review]
 
 permissions:
@@ -24,6 +27,7 @@ jobs:
         if: |
           (steps.metadata.outputs.update-type == 'version-update:semver-minor' ||
            steps.metadata.outputs.update-type == 'version-update:semver-patch') &&
+          # Approved ecosystems are documented in .github/workflow-security-baseline.md
           contains(fromJson('["github-actions","nuget","npm"]'), steps.metadata.outputs.package-ecosystem) &&
           contains(github.event.pull_request.labels.*.name, 'automerge:dependabot')
         run: echo "eligible=true" >> "$GITHUB_OUTPUT"
@@ -63,6 +67,7 @@ jobs:
 
       - name: Verify required checks are successful
         if: steps.policy.outputs.eligible == 'true'
+        # This fails when required checks are pending or failed, which blocks auto-merge.
         run: gh pr checks --required "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
