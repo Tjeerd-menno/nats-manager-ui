@@ -45,6 +45,7 @@ jobs:
           import sys
 
           WORKFLOW_DIR = Path(".github/workflows")
+          ZERO_COMMIT = "0" * 40
           workflow_files = sorted(WORKFLOW_DIR.glob("*.yml"))
           non_generated = [p for p in workflow_files if not p.name.endswith(".lock.yml")]
           failures = []
@@ -66,7 +67,7 @@ jobs:
                   diff_range = f"origin/{base_ref}...HEAD"
               else:
                   before = os.getenv("GITHUB_EVENT_BEFORE", "")
-                  if before and before != "0000000000000000000000000000000000000000":
+                  if before and before != ZERO_COMMIT:
                       diff_range = f"{before}...HEAD"
                   else:
                       diff_range = "HEAD~1...HEAD"

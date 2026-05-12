@@ -31,11 +31,35 @@ jobs:
       - name: Verify base branch protection
         if: steps.policy.outputs.eligible == 'true'
         run: |
-          protected=$(gh api "repos/${{ github.repository }}/branches/${{ github.event.pull_request.base.ref }}" --jq '.protected')
+          set -euo pipefail
+          api_output="$(gh api "repos/${{ github.repository }}/branches/${{ github.event.pull_request.base.ref }}" 2>&1)" || {
+            echo "Failed to read branch metadata for '${{ github.event.pull_request.base.ref }}'."
+            echo "$api_output"
+            exit 1
+          }
+          protected="$(printf '%s' "$api_output" | jq -r '.protected // false')"
           if [ "$protected" != "true" ]; then
             echo "Base branch '${{ github.event.pull_request.base.ref }}' is not protected. Auto-merge is blocked."
             exit 1
           fi
+          echo "Base branch protection is enabled."
+
+      - name: Verify required checks are configured
+        if: steps.policy.outputs.eligible == 'true'
+        run: |
+          set -euo pipefail
+          protection_output="$(gh api "repos/${{ github.repository }}/branches/${{ github.event.pull_request.base.ref }}/protection" 2>&1)" || {
+            echo "Failed to read protection rules for '${{ github.event.pull_request.base.ref }}'."
+            echo "$protection_output"
+            exit 1
+          }
+
+          required_checks_count="$(printf '%s' "$protection_output" | jq '[.required_status_checks.contexts // [], .required_status_checks.checks // []] | flatten | length')"
+          if [ "${required_checks_count}" -eq 0 ]; then
+            echo "No required checks configured on '${{ github.event.pull_request.base.ref }}'. Auto-merge is blocked."
+            exit 1
+          fi
+          echo "Required checks configured: ${required_checks_count}"
 
       - name: Verify required checks are successful
         if: steps.policy.outputs.eligible == 'true'
