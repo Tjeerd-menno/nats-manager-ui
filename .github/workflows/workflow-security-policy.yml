@@ -1,0 +1,151 @@
+name: Workflow Security Policy
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/**"
+      - ".github/dependabot.yml"
+      - ".github/pull_request_template.md"
+      - ".squad/templates/workflows/**"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/**"
+      - ".github/dependabot.yml"
+      - ".github/pull_request_template.md"
+      - ".squad/templates/workflows/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  policy-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Enforce workflow security policies
+        env:
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_BASE_REF: ${{ github.base_ref }}
+          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import os
+          import re
+          import subprocess
+          import sys
+
+          WORKFLOW_DIR = Path(".github/workflows")
+          workflow_files = sorted(WORKFLOW_DIR.glob("*.yml"))
+          non_generated = [p for p in workflow_files if not p.name.endswith(".lock.yml")]
+          failures = []
+
+          def changed_files():
+              event = os.getenv("GITHUB_EVENT_NAME", "")
+              if event == "pull_request":
+                  base_ref = os.getenv("GITHUB_BASE_REF", "")
+                  if not base_ref:
+                      return []
+                  fetch_ref = f"{base_ref}:refs/remotes/origin/{base_ref}"
+                  subprocess.run(
+                      ["git", "fetch", "--no-tags", "origin", fetch_ref],
+                      check=True,
+                      stdout=subprocess.PIPE,
+                      stderr=subprocess.PIPE,
+                      text=True,
+                  )
+                  diff_range = f"origin/{base_ref}...HEAD"
+              else:
+                  before = os.getenv("GITHUB_EVENT_BEFORE", "")
+                  if before and before != "0000000000000000000000000000000000000000":
+                      diff_range = f"{before}...HEAD"
+                  else:
+                      diff_range = "HEAD~1...HEAD"
+
+              result = subprocess.run(
+                  ["git", "diff", "--name-only", diff_range],
+                  check=False,
+                  stdout=subprocess.PIPE,
+                  stderr=subprocess.PIPE,
+                  text=True,
+              )
+              if result.returncode != 0:
+                  return []
+              return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+          changed = changed_files()
+          lock_changes = [
+              f for f in changed
+              if f.startswith(".github/workflows/") and f.endswith(".lock.yml")
+          ]
+          for lock_file in lock_changes:
+              source = lock_file[:-len(".lock.yml")] + ".md"
+              if source not in changed:
+                  failures.append(
+                      f"{lock_file}: lock workflow changed without matching source update ({source}); recompile from source flow"
+                  )
+
+          for path in non_generated:
+              text = path.read_text(encoding="utf-8")
+              lines = text.splitlines()
+
+              if re.search(r"^\s*pull_request_target\s*:", text, re.MULTILINE):
+                  failures.append(f"{path}: pull_request_target is forbidden")
+
+              if re.search(r"secrets\.[A-Z0-9_]+\s*\|\|\s*secrets\.GITHUB_TOKEN", text):
+                  failures.append(f"{path}: token fallback pattern is forbidden")
+
+              for idx, line in enumerate(lines, start=1):
+                  uses_match = re.search(r"uses:\s*([^\s#]+)", line)
+                  if uses_match:
+                      ref = uses_match.group(1)
+                      if "@" in ref:
+                          version = ref.split("@", 1)[1]
+                          if not re.fullmatch(r"[0-9a-f]{40}", version):
+                              failures.append(f"{path}:{idx}: unpinned action reference ({ref})")
+
+                          if ref.startswith("actions/checkout@"):
+                              indent = len(line) - len(line.lstrip())
+                              found_persist_false = False
+                              scan_idx = idx
+                              while scan_idx < len(lines):
+                                  next_line = lines[scan_idx]
+                                  if next_line.strip() == "" or next_line.lstrip().startswith("#"):
+                                      scan_idx += 1
+                                      continue
+                                  next_indent = len(next_line) - len(next_line.lstrip())
+                                  if next_indent <= indent and re.match(r"^\s*-\s", next_line):
+                                      break
+                                  if re.search(r"persist-credentials:\s*false\b", next_line):
+                                      found_persist_false = True
+                                      break
+                                  scan_idx += 1
+                              if not found_persist_false:
+                                  failures.append(
+                                      f"{path}:{idx}: actions/checkout must set persist-credentials: false"
+                                  )
+
+                  image_match = re.match(r"^\s*image:\s*([^\s#]+)", line)
+                  if image_match:
+                      image_ref = image_match.group(1).strip("\"'")
+                      if "@sha256:" not in image_ref and ":" in image_ref and not image_ref.startswith("${{"):
+                          failures.append(f"{path}:{idx}: mutable image tag is forbidden ({image_ref})")
+
+          if failures:
+              print("Workflow security policy violations found:")
+              for failure in failures:
+                  print(f"- {failure}")
+              sys.exit(1)
+
+          print(f"Validated {len(workflow_files)} workflow files ({len(non_generated)} non-generated).")
+          print("No workflow security policy violations found.")
+          PY
