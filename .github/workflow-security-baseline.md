@@ -22,6 +22,7 @@ Current target files:
 - `.github/workflows/daily-repo-status.lock.yml` (generated)
 
 Generated lock artifacts are excluded from manual edits and must be changed through their source/compile flow.
+Non-executable workflow template mirrors under `.squad/templates/workflows/` are kept in sync when related workflows change, but they are not part of the required policy-enforcement scope because the remediation target is executable `.github/workflows/*.yml` files.
 
 ## 2) Generated lock workflow handling
 

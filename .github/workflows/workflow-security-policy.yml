@@ -6,7 +6,6 @@ on:
       - ".github/workflows/**"
       - ".github/dependabot.yml"
       - ".github/pull_request_template.md"
-      - ".squad/templates/workflows/**"
   push:
     branches:
       - main
@@ -14,7 +13,6 @@ on:
       - ".github/workflows/**"
       - ".github/dependabot.yml"
       - ".github/pull_request_template.md"
-      - ".squad/templates/workflows/**"
   workflow_dispatch:
 
 permissions:
@@ -43,7 +41,7 @@ jobs:
           import re
           import subprocess
           import sys
-
+          
           WORKFLOW_DIR = Path(".github/workflows")
           ZERO_COMMIT = "0" * 40
           workflow_files = sorted(WORKFLOW_DIR.glob("*.yml"))
@@ -55,15 +53,22 @@ jobs:
               if event == "pull_request":
                   base_ref = os.getenv("GITHUB_BASE_REF", "")
                   if not base_ref:
+                      failures.append("Unable to determine pull request base ref for workflow policy diff")
                       return []
                   fetch_ref = f"{base_ref}:refs/remotes/origin/{base_ref}"
-                  subprocess.run(
+                  fetch_result = subprocess.run(
                       ["git", "fetch", "--no-tags", "origin", fetch_ref],
-                      check=True,
+                      check=False,
                       stdout=subprocess.PIPE,
                       stderr=subprocess.PIPE,
                       text=True,
                   )
+                  if fetch_result.returncode != 0:
+                      failures.append(
+                          "Failed to fetch base ref for workflow policy diff: "
+                          f"{fetch_result.stderr.strip() or fetch_result.stdout.strip() or 'unknown error'}"
+                      )
+                      return []
                   diff_range = f"origin/{base_ref}...HEAD"
               else:
                   before = os.getenv("GITHUB_EVENT_BEFORE", "")
@@ -80,6 +85,10 @@ jobs:
                   text=True,
               )
               if result.returncode != 0:
+                  failures.append(
+                      "Failed to determine changed files for workflow policy diff: "
+                      f"{result.stderr.strip() or result.stdout.strip() or 'unknown error'}"
+                  )
                   return []
               return [line.strip() for line in result.stdout.splitlines() if line.strip()]
 
