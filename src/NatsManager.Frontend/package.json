@@ -21,7 +21,7 @@
     "@tabler/icons-react": "3.43.0",
     "@tanstack/query-db-collection": "^1.0.36",
     "@tanstack/react-db": "^0.1.83",
-    "@tanstack/react-query": "5.100.9",
+    "@tanstack/react-query": "5.100.10",
     "@tanstack/react-virtual": "3.13.24",
     "@xyflow/react": "12.10.2",
     "axios": "1.16.0",
@@ -45,14 +45,14 @@
     "eslint-plugin-react-refresh": "0.5.2",
     "globals": "17.6.0",
     "jsdom": "29.1.1",
-    "msw": "2.14.5",
+    "msw": "2.14.6",
     "postcss": "8.5.14",
     "postcss-preset-mantine": "1.18.0",
     "postcss-simple-vars": "7.0.1",
     "prettier": "3.8.3",
     "typescript": "6.0.3",
     "typescript-eslint": "8.59.2",
-    "vite": "8.0.11",
+    "vite": "8.0.12",
     "vitest": "4.1.5"
   }
 }
