@@ -33,6 +33,18 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Detect Copilot assignment token
+        id: copilot-token
+        shell: bash
+        env:
+          COPILOT_ASSIGN_TOKEN: ${{ secrets.COPILOT_ASSIGN_TOKEN }}
+        run: |
+          if [ -n "${COPILOT_ASSIGN_TOKEN:-}" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Check triage script
         id: check-script
         run: |
@@ -105,7 +117,7 @@ jobs:
 
       # Copilot auto-assign step (requires COPILOT_ASSIGN_TOKEN)
       - name: Ralph — Assign @copilot issues
-        if: success() && secrets.COPILOT_ASSIGN_TOKEN != ''
+        if: success() && steps.copilot-token.outputs.present == 'true'
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         with:
           github-token: ${{ secrets.COPILOT_ASSIGN_TOKEN }}

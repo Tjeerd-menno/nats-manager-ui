@@ -16,6 +16,8 @@ permissions:
 jobs:
   auto-merge:
     runs-on: ubuntu-latest
+    # Defense in depth: this job also runs on opened/synchronize/reopened events, so keep
+    # an explicit draft guard even though ready_for_review only fires for non-draft PRs.
     if: github.event.pull_request.user.login == 'dependabot[bot]' && github.event.pull_request.draft == false
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -39,8 +41,7 @@ jobs:
         run: |
           set -euo pipefail
           api_output="$(gh api "repos/${{ github.repository }}/branches/${{ github.event.pull_request.base.ref }}" 2>&1)" || {
-            echo "Failed to read branch metadata for '${{ github.event.pull_request.base.ref }}'."
-            echo "$api_output"
+            echo "Failed to read branch metadata for '${{ github.event.pull_request.base.ref }}': $api_output" >&2
             exit 1
           }
           protected="$(printf '%s' "$api_output" | jq -r '.protected // false')"
@@ -55,8 +56,7 @@ jobs:
         run: |
           set -euo pipefail
           protection_output="$(gh api "repos/${{ github.repository }}/branches/${{ github.event.pull_request.base.ref }}/protection" 2>&1)" || {
-            echo "Failed to read protection rules for '${{ github.event.pull_request.base.ref }}'."
-            echo "$protection_output"
+            echo "Failed to read protection rules for '${{ github.event.pull_request.base.ref }}': $protection_output" >&2
             exit 1
           }
 
@@ -69,7 +69,8 @@ jobs:
 
       - name: Verify required checks are successful
         if: steps.policy.outputs.eligible == 'true'
-        # This fails when required checks are pending or failed, which blocks auto-merge.
+        # This intentionally fails fast when required checks are pending or failed.
+        # A later synchronize/labeled event will re-evaluate once checks complete.
         run: gh pr checks --required "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}

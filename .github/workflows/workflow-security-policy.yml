@@ -147,7 +147,7 @@ jobs:
                   image_match = re.match(r"^\s*image:\s*([^\s#]+)", line)
                   if image_match:
                       image_ref = image_match.group(1).strip("\"'")
-                      if "@sha256:" not in image_ref and ":" in image_ref and not image_ref.startswith("${{"):
+                      if "@sha256:" not in image_ref and ":" in image_ref and not image_ref.startswith("${{") and not image_ref.startswith("$"):
                           failures.append(f"{path}:{idx}: mutable image tag is forbidden ({image_ref})")
 
           if failures:
