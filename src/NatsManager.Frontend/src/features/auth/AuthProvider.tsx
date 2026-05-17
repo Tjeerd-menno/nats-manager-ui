@@ -3,16 +3,51 @@ import { apiClient } from '../../api/client';
 import { AuthContext } from './AuthContext';
 import type { AuthUser, LoginRequest } from './types';
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+interface AuthProviderProps {
+  readonly children: ReactNode;
+  readonly skipCurrentUserBootstrap?: boolean;
+}
+
+export function AuthProvider({
+  children,
+  skipCurrentUserBootstrap = false,
+}: AuthProviderProps) {
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => !skipCurrentUserBootstrap);
 
   useEffect(() => {
-    apiClient.get<AuthUser>('/auth/me')
-      .then((res) => setUser(res.data))
-      .catch(() => setUser(null))
-      .finally(() => setIsLoading(false));
-  }, []);
+    let isDisposed = false;
+
+    if (skipCurrentUserBootstrap) {
+      setIsLoading(false);
+      return () => {
+        isDisposed = true;
+      };
+    }
+
+    setIsLoading(true);
+
+    apiClient.get<AuthUser | null>('/auth/me')
+      .then((res) => {
+        if (!isDisposed) {
+          setUser(res.data);
+        }
+      })
+      .catch(() => {
+        if (!isDisposed) {
+          setUser(null);
+        }
+      })
+      .finally(() => {
+        if (!isDisposed) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      isDisposed = true;
+    };
+  }, [skipCurrentUserBootstrap]);
 
   const login = useCallback(async (credentials: LoginRequest) => {
     const res = await apiClient.post<AuthUser>('/auth/login', credentials);

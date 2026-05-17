@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text;
 using NatsManager.Application.Common;
 using NatsManager.Application.Modules.Auth.Commands;
 using NatsManager.Web.Presenters;
@@ -18,7 +19,8 @@ public static class AuthEndpoints
             .DisableAntiforgery()
             .RequireRateLimiting(RateLimitPolicyNames.Login);
         group.MapPost("/logout", Logout);
-        group.MapGet("/me", GetCurrentUser);
+        group.MapGet("/me", GetCurrentUser)
+            .AllowAnonymous();
     }
 
     private static async Task<IResult> Login(LoginCommand command, IUseCase<LoginCommand, LoginResult> useCase, HttpContext httpContext, CancellationToken cancellationToken)
@@ -44,7 +46,7 @@ public static class AuthEndpoints
     {
         if (httpContext.User.Identity?.IsAuthenticated != true)
         {
-            return Results.Unauthorized();
+            return Results.Content("null", "application/json", Encoding.UTF8, StatusCodes.Status200OK);
         }
 
         var userId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
