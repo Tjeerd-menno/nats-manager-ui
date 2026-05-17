@@ -26,11 +26,13 @@ public sealed class AuthEndpointTests : IClassFixture<NatsManagerWebAppFactory>
     }
 
     [Fact]
-    public async Task GetCurrentUser_WhenNotAuthenticated_ShouldReturn401()
+    public async Task GetCurrentUser_WhenNotAuthenticated_ShouldReturn200WithNullBody()
     {
         var response = await _client.GetAsync("/api/auth/me");
 
-        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var body = await response.Content.ReadAsStringAsync();
+        body.ShouldBe("null");
     }
 
     [Fact]
