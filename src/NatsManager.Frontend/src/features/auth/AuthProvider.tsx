@@ -4,8 +4,8 @@ import { AuthContext } from './AuthContext';
 import type { AuthUser, LoginRequest } from './types';
 
 interface AuthProviderProps {
-  children: ReactNode;
-  skipCurrentUserBootstrap?: boolean;
+  readonly children: ReactNode;
+  readonly skipCurrentUserBootstrap?: boolean;
 }
 
 export function AuthProvider({
