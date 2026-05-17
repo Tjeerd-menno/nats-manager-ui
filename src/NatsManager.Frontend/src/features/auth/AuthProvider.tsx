@@ -19,10 +19,13 @@ export function AuthProvider({
     let isDisposed = false;
 
     if (skipCurrentUserBootstrap) {
+      setIsLoading(false);
       return () => {
         isDisposed = true;
       };
     }
+
+    setIsLoading(true);
 
     apiClient.get<AuthUser | null>('/auth/me')
       .then((res) => {
