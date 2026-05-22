@@ -1,3 +1,5 @@
+using Aspire.Hosting.ApplicationModel;
+
 var builder = DistributedApplication.CreateBuilder(args);
 
 var bootstrapAdminUsername = builder.AddParameter("bootstrap-admin-username")
@@ -17,7 +19,7 @@ var openIdentityStackEnabled = !string.Equals(
     StringComparison.OrdinalIgnoreCase);
 var openIdentityStackImageTag = builder.Configuration["OPENIDENTITYSTACK_IMAGE_TAG"]
     ?? Environment.GetEnvironmentVariable("OPENIDENTITYSTACK_IMAGE_TAG")
-    ?? "v0.1.3";
+    ?? "v0.2.0";
 
 var nats = builder.AddNats("nats", userName: natsUsername, password: natsPassword)
     .WithArgs("-js", "-m", "8222")
@@ -58,6 +60,19 @@ var frontend = builder.AddViteApp("frontend", "../NatsManager.Frontend", "dev")
     .WithReference(backend)
     .WaitFor(backend);
 
+static async Task<string> ResolveLocalhostUrlAsync(EndpointReference endpoint, EnvironmentCallbackContext context)
+{
+    return await endpoint.GetValueAsync(
+        new ValueProviderContext
+        {
+            ExecutionContext = context.ExecutionContext,
+            Caller = context.Resource,
+            Network = KnownNetworkIdentifiers.LocalhostNetwork,
+        },
+        context.CancellationToken)
+        ?? throw new InvalidOperationException($"Could not resolve localhost URL for endpoint '{endpoint.EndpointName}'.");
+}
+
 if (openIdentityStackEnabled)
 {
     var openIdentityStackAdminPassword = builder.AddParameter("openidentitystack-admin-password", secret: true)
@@ -77,11 +92,34 @@ if (openIdentityStackEnabled)
         .WithEnvironment("ASPNETCORE_ENVIRONMENT", "Development")
         .WaitFor(openIdentityDb);
     var openIdentityAuthority = openIdentityApi.GetEndpoint("http");
-    openIdentityApi.WithEnvironment("OpenIddict__Issuer", openIdentityAuthority);
+    openIdentityApi.WithEnvironment(async context =>
+    {
+        context.EnvironmentVariables["OpenIddict__Issuer"] =
+            await ResolveLocalhostUrlAsync(openIdentityAuthority, context);
+    });
 
     var frontendHttp = frontend.GetEndpoint("http");
-    var oidcCallbackUri = ReferenceExpression.Create($"{frontendHttp}/signin-oidc");
     var postLogoutUri = ReferenceExpression.Create($"{frontendHttp}/login");
+
+    var openIdentityAdminWeb = builder.AddContainer(
+            "openidentitystack-adminweb",
+            "ghcr.io/tjeerd-menno/open-identity-stack-admin-web",
+            openIdentityStackImageTag)
+        .WithHttpEndpoint(targetPort: 8080, name: "http");
+    var openIdentityAdminWebHttp = openIdentityAdminWeb.GetEndpoint("http");
+    openIdentityAdminWeb
+        .WithEnvironment(async context =>
+        {
+            var openIdentityApiUrl = await ResolveLocalhostUrlAsync(openIdentityAuthority, context);
+            var adminWebUrl = await ResolveLocalhostUrlAsync(openIdentityAdminWebHttp, context);
+
+            context.EnvironmentVariables["VITE_OIDC_AUTHORITY"] = openIdentityApiUrl;
+            context.EnvironmentVariables["VITE_API_BASE_URL"] = openIdentityApiUrl;
+            context.EnvironmentVariables["VITE_OIDC_REDIRECT_URI"] = $"{adminWebUrl}/auth/callback";
+            context.EnvironmentVariables["VITE_OIDC_POST_LOGOUT_REDIRECT_URI"] = $"{adminWebUrl}/";
+            context.EnvironmentVariables["VITE_OIDC_SILENT_REDIRECT_URI"] = $"{adminWebUrl}/auth/silent-callback";
+        })
+        .WaitFor(openIdentityApi);
 
     var openIdentityMigrator = builder.AddContainer(
             "openidentitystack-db-migrator",
@@ -89,24 +127,31 @@ if (openIdentityStackEnabled)
             openIdentityStackImageTag)
         .WithReference(openIdentityDb)
         .WithEnvironment("DOTNET_ENVIRONMENT", "Development")
-        .WithEnvironment("OpenIddict__Issuer", openIdentityAuthority)
+        .WithEnvironment(async context =>
+        {
+            var openIdentityApiUrl = await ResolveLocalhostUrlAsync(openIdentityAuthority, context);
+            var frontendUrl = await ResolveLocalhostUrlAsync(frontendHttp, context);
+            var adminWebUrl = await ResolveLocalhostUrlAsync(openIdentityAdminWebHttp, context);
+
+            context.EnvironmentVariables["OpenIddict__Issuer"] = openIdentityApiUrl;
+            context.EnvironmentVariables["OpenIddict__Clients__AdminWeb__RedirectUris__0"] =
+                $"{frontendUrl}/signin-oidc";
+            context.EnvironmentVariables["OpenIddict__Clients__AdminWeb__RedirectUris__1"] =
+                $"{adminWebUrl}/auth/callback";
+            context.EnvironmentVariables["OpenIddict__Clients__AdminWeb__RedirectUris__2"] =
+                $"{adminWebUrl}/auth/silent-callback";
+            context.EnvironmentVariables["OpenIddict__Clients__AdminWeb__PostLogoutRedirectUris__0"] =
+                frontendUrl;
+            context.EnvironmentVariables["OpenIddict__Clients__AdminWeb__PostLogoutRedirectUris__1"] =
+                $"{frontendUrl}/login";
+            context.EnvironmentVariables["OpenIddict__Clients__AdminWeb__PostLogoutRedirectUris__2"] =
+                $"{adminWebUrl}/";
+        })
         .WithEnvironment("Seed__DevelopmentData", "true")
         .WithEnvironment("Seed__DefaultAdmin__Password", openIdentityStackAdminPassword)
-        .WithEnvironment("OpenIddict__Clients__AdminWeb__RedirectUris__0", oidcCallbackUri)
-        .WithEnvironment("OpenIddict__Clients__AdminWeb__PostLogoutRedirectUris__0", frontendHttp)
-        .WithEnvironment("OpenIddict__Clients__AdminWeb__PostLogoutRedirectUris__1", postLogoutUri)
         .WaitFor(openIdentityDb);
 
     openIdentityApi.WaitForCompletion(openIdentityMigrator);
-
-    builder.AddContainer(
-            "openidentitystack-adminweb",
-            "ghcr.io/tjeerd-menno/open-identity-stack-admin-web",
-            openIdentityStackImageTag)
-        .WithHttpEndpoint(targetPort: 8080, name: "http")
-        .WithEnvironment("VITE_OIDC_AUTHORITY", openIdentityAuthority)
-        .WithEnvironment("VITE_API_BASE_URL", openIdentityAuthority)
-        .WaitFor(openIdentityApi);
 
     backend
         .WithEnvironment("Oidc__Enabled", "true")
