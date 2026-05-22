@@ -28,7 +28,12 @@ public static class AuthEndpoints
         group.MapGet("/oidc/login", LoginWithOidc)
             .AllowAnonymous();
         group.MapPost("/oidc/logout", LogoutWithOidc);
-        group.MapPost("/logout", Logout);
+        group.MapPost("/logout", async (HttpContext httpContext) =>
+        {
+            httpContext.Session.Clear();
+            await httpContext.SignOutAsync(NatsManagerAuthenticationSchemes.OidcCookie);
+            return Results.Ok();
+        });
         group.MapGet("/me", GetCurrentUser)
             .AllowAnonymous();
     }
@@ -80,13 +85,6 @@ public static class AuthEndpoints
         return Results.SignOut(
             new AuthenticationProperties { RedirectUri = redirectUri },
             [NatsManagerAuthenticationSchemes.OidcCookie, OpenIdConnectDefaults.AuthenticationScheme]);
-    }
-
-    private static async Task<IResult> Logout(HttpContext httpContext)
-    {
-        httpContext.Session.Clear();
-        await httpContext.SignOutAsync(NatsManagerAuthenticationSchemes.OidcCookie);
-        return Results.Ok();
     }
 
     private static IResult GetCurrentUser(HttpContext httpContext)

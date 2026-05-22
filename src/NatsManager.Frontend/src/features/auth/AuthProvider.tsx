@@ -40,7 +40,7 @@ export function AuthProvider({
       ]);
 
       if (!isDisposed) {
-        if (configResult.status === 'fulfilled') {
+        if (configResult.status === 'fulfilled' && configResult.value.data) {
           setAuthConfig(configResult.value.data);
         }
 
