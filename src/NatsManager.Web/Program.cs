@@ -1,4 +1,5 @@
 using FluentValidation;
+using System.Security.Claims;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication;
@@ -207,9 +208,16 @@ authenticationBuilder.AddPolicyScheme(
     options =>
     {
         options.ForwardDefaultSelector = context =>
-            context.Request.Cookies.ContainsKey(NatsManagerAuthenticationSchemes.OidcCookieName)
+        {
+            if (!string.IsNullOrWhiteSpace(context.Session.GetString("UserId")))
+            {
+                return SessionAuthHandler.SchemeName;
+            }
+
+            return context.Request.Cookies.ContainsKey(NatsManagerAuthenticationSchemes.OidcCookieName)
                 ? NatsManagerAuthenticationSchemes.OidcCookie
                 : SessionAuthHandler.SchemeName;
+        };
     });
 authenticationBuilder.AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, SessionAuthHandler>(SessionAuthHandler.SchemeName, null);
 authenticationBuilder.AddCookie(NatsManagerAuthenticationSchemes.OidcCookie, options =>
@@ -247,8 +255,8 @@ if (oidcOptions.Enabled)
         options.MapInboundClaims = false;
         options.TokenValidationParameters = new TokenValidationParameters
         {
-            NameClaimType = "name",
-            RoleClaimType = "role"
+            NameClaimType = ClaimTypes.Name,
+            RoleClaimType = ClaimTypes.Role
         };
 
         options.Scope.Clear();

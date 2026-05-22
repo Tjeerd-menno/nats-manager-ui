@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Mvc;
@@ -26,10 +27,15 @@ public static class AuthEndpoints
             .AllowAnonymous();
         group.MapGet("/oidc/login", LoginWithOidc)
             .AllowAnonymous();
-        group.MapGet("/oidc/logout", LogoutWithOidc)
+        group.MapPost("/oidc/logout", LogoutWithOidc);
+        group.MapPost("/logout", async (HttpContext httpContext) =>
+        {
+            httpContext.Session.Clear();
+            await httpContext.SignOutAsync(NatsManagerAuthenticationSchemes.OidcCookie);
+            return Results.Ok();
+        });
+        group.MapGet("/me", GetCurrentUser)
             .AllowAnonymous();
-        group.MapPost("/logout", async (HttpContext httpContext) => await Logout(httpContext));
-        group.MapGet("/me", GetCurrentUser);
     }
 
     private static async Task<IResult> Login(LoginCommand command, IUseCase<LoginCommand, LoginResult> useCase, HttpContext httpContext, CancellationToken cancellationToken)
@@ -81,18 +87,11 @@ public static class AuthEndpoints
             [NatsManagerAuthenticationSchemes.OidcCookie, OpenIdConnectDefaults.AuthenticationScheme]);
     }
 
-    private static async Task<IResult> Logout(HttpContext httpContext)
-    {
-        httpContext.Session.Clear();
-        await httpContext.SignOutAsync(NatsManagerAuthenticationSchemes.OidcCookie);
-        return Results.Ok();
-    }
-
     private static IResult GetCurrentUser(HttpContext httpContext)
     {
         if (httpContext.User.Identity?.IsAuthenticated != true)
         {
-            return Results.Unauthorized();
+            return Results.Content("null", "application/json", Encoding.UTF8, StatusCodes.Status200OK);
         }
 
         var userId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -100,11 +99,11 @@ public static class AuthEndpoints
         var displayName = httpContext.User.FindFirst("DisplayName")?.Value;
         var roles = httpContext.User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
         var authProvider = string.Equals(
-            httpContext.User.Identity.AuthenticationType,
-            NatsManagerAuthenticationSchemes.OidcCookie,
-            StringComparison.Ordinal)
-                ? "oidc"
-                : "local";
+            httpContext.User.FindFirst(OidcClaimsAugmentor.AuthProviderClaimType)?.Value,
+            "oidc",
+            StringComparison.OrdinalIgnoreCase)
+            ? "oidc"
+            : "local";
 
         return Results.Ok(new { Id = userId, Username = username, DisplayName = displayName, Roles = roles, AuthProvider = authProvider });
     }

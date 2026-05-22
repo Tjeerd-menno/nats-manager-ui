@@ -7,13 +7,7 @@ namespace NatsManager.Web.Security;
 
 public static class OidcClaimsAugmentor
 {
-    private static readonly HashSet<string> ValidRoles = new(StringComparer.Ordinal)
-    {
-        Role.PredefinedNames.Administrator,
-        Role.PredefinedNames.Auditor,
-        Role.PredefinedNames.Operator,
-        Role.PredefinedNames.ReadOnly
-    };
+    public const string AuthProviderClaimType = "natsmanager:auth-provider";
 
     public static void Apply(ClaimsPrincipal principal, OidcOptions options)
     {
@@ -25,26 +19,29 @@ public static class OidcClaimsAugmentor
         AddIfMissing(identity, ClaimTypes.NameIdentifier, FindFirstValue(principal, ClaimTypes.NameIdentifier, JwtRegisteredClaimNames.Sub, "sub"));
         AddIfMissing(identity, ClaimTypes.Name, FindFirstValue(principal, ClaimTypes.Name, JwtRegisteredClaimNames.Name, "name", "preferred_username", ClaimTypes.Email, JwtRegisteredClaimNames.Email));
         AddIfMissing(identity, "DisplayName", FindFirstValue(principal, JwtRegisteredClaimNames.Name, "name", "preferred_username", ClaimTypes.Email, JwtRegisteredClaimNames.Email));
+        AddIfMissing(identity, AuthProviderClaimType, "oidc");
 
         var mappedRoles = principal.Claims
             .Where(static claim => claim.Type is ClaimTypes.Role or "role" or "roles")
             .SelectMany(static claim => claim.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             .Select(role => options.RoleMappings.TryGetValue(role, out var mappedRole) ? mappedRole : role)
-            .Where(static role => ValidRoles.Contains(role))
+            .Select(TryNormalizeRole)
+            .Where(static role => role is not null)
+            .Select(static role => role!)
             .Distinct(StringComparer.Ordinal)
             .ToList();
 
         if (mappedRoles.Count == 0)
         {
-            mappedRoles.AddRange(options.DefaultRoles.Where(static role => ValidRoles.Contains(role)));
+            mappedRoles.AddRange(options.DefaultRoles
+                .Select(TryNormalizeRole)
+                .Where(static role => role is not null)
+                .Select(static role => role!));
         }
 
-        foreach (var role in mappedRoles.Distinct(StringComparer.Ordinal))
+        foreach (var role in mappedRoles.Where(role => !identity.HasClaim(ClaimTypes.Role, role)))
         {
-            if (!identity.HasClaim(ClaimTypes.Role, role))
-            {
-                identity.AddClaim(new Claim(ClaimTypes.Role, role));
-            }
+            identity.AddClaim(new Claim(ClaimTypes.Role, role));
         }
     }
 
@@ -69,4 +66,17 @@ public static class OidcClaimsAugmentor
 
         return null;
     }
+
+    private static string? TryNormalizeRole(string role) => role switch
+    {
+        var value when value.Equals(Role.PredefinedNames.Administrator, StringComparison.OrdinalIgnoreCase)
+            => Role.PredefinedNames.Administrator,
+        var value when value.Equals(Role.PredefinedNames.Auditor, StringComparison.OrdinalIgnoreCase)
+            => Role.PredefinedNames.Auditor,
+        var value when value.Equals(Role.PredefinedNames.Operator, StringComparison.OrdinalIgnoreCase)
+            => Role.PredefinedNames.Operator,
+        var value when value.Equals(Role.PredefinedNames.ReadOnly, StringComparison.OrdinalIgnoreCase)
+            => Role.PredefinedNames.ReadOnly,
+        _ => null
+    };
 }
