@@ -1,6 +1,11 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using NatsManager.Application.Common;
 using NatsManager.Application.Modules.Auth.Commands;
+using NatsManager.Web.Configuration;
 using NatsManager.Web.Presenters;
 using NatsManager.Web.Security;
 
@@ -17,7 +22,13 @@ public static class AuthEndpoints
             .AllowAnonymous()
             .DisableAntiforgery()
             .RequireRateLimiting(RateLimitPolicyNames.Login);
-        group.MapPost("/logout", Logout);
+        group.MapGet("/config", GetAuthConfig)
+            .AllowAnonymous();
+        group.MapGet("/oidc/login", LoginWithOidc)
+            .AllowAnonymous();
+        group.MapGet("/oidc/logout", LogoutWithOidc)
+            .AllowAnonymous();
+        group.MapPost("/logout", async (HttpContext httpContext) => await Logout(httpContext));
         group.MapGet("/me", GetCurrentUser);
     }
 
@@ -34,9 +45,46 @@ public static class AuthEndpoints
         return presenter.ToResult();
     }
 
-    private static IResult Logout(HttpContext httpContext)
+    private static IResult GetAuthConfig(IOptions<OidcOptions> options)
+    {
+        return Results.Ok(new AuthConfigResponse(
+            OidcEnabled: options.Value.Enabled,
+            OidcLoginPath: "/api/auth/oidc/login"));
+    }
+
+    private static IResult LoginWithOidc([FromQuery] string? returnUrl, IOptions<OidcOptions> options)
+    {
+        if (!options.Value.Enabled)
+        {
+            return Results.NotFound();
+        }
+
+        var properties = new AuthenticationProperties
+        {
+            RedirectUri = GetSafeReturnUrl(returnUrl, options.Value)
+        };
+
+        return Results.Challenge(properties, [OpenIdConnectDefaults.AuthenticationScheme]);
+    }
+
+    private static IResult LogoutWithOidc([FromQuery] string? returnUrl, HttpContext httpContext, IOptions<OidcOptions> options)
     {
         httpContext.Session.Clear();
+        var redirectUri = GetSafeReturnUrl(returnUrl, options.Value);
+        if (!options.Value.Enabled)
+        {
+            return Results.Redirect(redirectUri);
+        }
+
+        return Results.SignOut(
+            new AuthenticationProperties { RedirectUri = redirectUri },
+            [NatsManagerAuthenticationSchemes.OidcCookie, OpenIdConnectDefaults.AuthenticationScheme]);
+    }
+
+    private static async Task<IResult> Logout(HttpContext httpContext)
+    {
+        httpContext.Session.Clear();
+        await httpContext.SignOutAsync(NatsManagerAuthenticationSchemes.OidcCookie);
         return Results.Ok();
     }
 
@@ -51,7 +99,50 @@ public static class AuthEndpoints
         var username = httpContext.User.FindFirst(ClaimTypes.Name)?.Value;
         var displayName = httpContext.User.FindFirst("DisplayName")?.Value;
         var roles = httpContext.User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
+        var authProvider = string.Equals(
+            httpContext.User.Identity.AuthenticationType,
+            NatsManagerAuthenticationSchemes.OidcCookie,
+            StringComparison.Ordinal)
+                ? "oidc"
+                : "local";
 
-        return Results.Ok(new { Id = userId, Username = username, DisplayName = displayName, Roles = roles });
+        return Results.Ok(new { Id = userId, Username = username, DisplayName = displayName, Roles = roles, AuthProvider = authProvider });
     }
+
+    private static string GetSafeReturnUrl(string? returnUrl, OidcOptions options)
+    {
+        if (string.IsNullOrWhiteSpace(returnUrl))
+        {
+            return "/";
+        }
+
+        if (Uri.TryCreate(returnUrl, UriKind.Relative, out _) && !returnUrl.StartsWith("//", StringComparison.Ordinal))
+        {
+            return returnUrl;
+        }
+
+        if (!Uri.TryCreate(returnUrl, UriKind.Absolute, out var absoluteReturnUri))
+        {
+            return "/";
+        }
+
+        foreach (var origin in options.AllowedRedirectOrigins)
+        {
+            if (!Uri.TryCreate(origin, UriKind.Absolute, out var allowedOrigin))
+            {
+                continue;
+            }
+
+            if (string.Equals(absoluteReturnUri.Scheme, allowedOrigin.Scheme, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(absoluteReturnUri.Host, allowedOrigin.Host, StringComparison.OrdinalIgnoreCase)
+                && absoluteReturnUri.Port == allowedOrigin.Port)
+            {
+                return returnUrl;
+            }
+        }
+
+        return "/";
+    }
+
+    private sealed record AuthConfigResponse(bool OidcEnabled, string OidcLoginPath);
 }

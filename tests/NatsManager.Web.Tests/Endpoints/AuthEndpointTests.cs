@@ -34,6 +34,16 @@ public sealed class AuthEndpointTests : IClassFixture<NatsManagerWebAppFactory>
     }
 
     [Fact]
+    public async Task GetAuthConfig_WhenOidcIsNotConfigured_ShouldReturnDisabledOidc()
+    {
+        var config = await _client.GetFromJsonAsync<AuthConfigResponse>("/api/auth/config");
+
+        config.ShouldNotBeNull();
+        config.OidcEnabled.ShouldBeFalse();
+        config.OidcLoginPath.ShouldBe("/api/auth/oidc/login");
+    }
+
+    [Fact]
     public async Task Logout_ShouldReturn200()
     {
         using var authenticatedClient = _factory.CreateAuthenticatedClient();
@@ -41,4 +51,6 @@ public sealed class AuthEndpointTests : IClassFixture<NatsManagerWebAppFactory>
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
+
+    private sealed record AuthConfigResponse(bool OidcEnabled, string OidcLoginPath);
 }

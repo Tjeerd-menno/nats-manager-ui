@@ -1,8 +1,13 @@
 using FluentValidation;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using Microsoft.IdentityModel.Tokens;
 using NatsManager.Application.Behaviors;
 using NatsManager.Application.Common;
 using NatsManager.Application.Modules.Audit.Ports;
@@ -82,6 +87,13 @@ builder.Services.AddHttpClient();
 
 builder.Services.Configure<BootstrapAdminOptions>(
     builder.Configuration.GetSection(BootstrapAdminOptions.SectionName));
+
+builder.Services.AddOptions<OidcOptions>()
+    .Bind(builder.Configuration.GetSection(OidcOptions.SectionName))
+    .Validate(OidcOptions.IsValid, "Oidc options are invalid. Enabled OIDC requires an absolute Authority, a ClientId, and the openid scope.")
+    .ValidateOnStart();
+
+var oidcOptions = builder.Configuration.GetSection(OidcOptions.SectionName).Get<OidcOptions>() ?? new OidcOptions();
 
 builder.Services.AddOptions<MonitoringOptions>()
     .Bind(builder.Configuration.GetSection(MonitoringOptions.SectionName))
@@ -183,8 +195,103 @@ builder.Services.AddAntiforgery(options =>
 });
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, EnvironmentScopedRoleAuthorizationHandler>();
-builder.Services.AddAuthentication(SessionAuthHandler.SchemeName)
-    .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, SessionAuthHandler>(SessionAuthHandler.SchemeName, null);
+
+var authenticationBuilder = builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = NatsManagerAuthenticationSchemes.Composite;
+    options.DefaultChallengeScheme = SessionAuthHandler.SchemeName;
+});
+authenticationBuilder.AddPolicyScheme(
+    NatsManagerAuthenticationSchemes.Composite,
+    "NATS Manager session or OpenID Connect cookie",
+    options =>
+    {
+        options.ForwardDefaultSelector = context =>
+            context.Request.Cookies.ContainsKey(NatsManagerAuthenticationSchemes.OidcCookieName)
+                ? NatsManagerAuthenticationSchemes.OidcCookie
+                : SessionAuthHandler.SchemeName;
+    });
+authenticationBuilder.AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, SessionAuthHandler>(SessionAuthHandler.SchemeName, null);
+authenticationBuilder.AddCookie(NatsManagerAuthenticationSchemes.OidcCookie, options =>
+{
+    options.Cookie.Name = NatsManagerAuthenticationSchemes.OidcCookieName;
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+    options.Cookie.SameSite = crossOriginEnabled ? SameSiteMode.None : SameSiteMode.Lax;
+    options.Cookie.SecurePolicy = crossOriginEnabled
+        ? CookieSecurePolicy.Always
+        : CookieSecurePolicy.SameAsRequest;
+    options.ExpireTimeSpan = TimeSpan.FromMinutes(30);
+    options.SlidingExpiration = true;
+});
+
+if (oidcOptions.Enabled)
+{
+    authenticationBuilder.AddOpenIdConnect(OpenIdConnectDefaults.AuthenticationScheme, options =>
+    {
+        options.SignInScheme = NatsManagerAuthenticationSchemes.OidcCookie;
+        options.Authority = oidcOptions.Authority;
+        options.ClientId = oidcOptions.ClientId;
+        if (!string.IsNullOrWhiteSpace(oidcOptions.ClientSecret))
+        {
+            options.ClientSecret = oidcOptions.ClientSecret;
+        }
+
+        options.ResponseType = OpenIdConnectResponseType.Code;
+        options.UsePkce = true;
+        options.SaveTokens = true;
+        options.GetClaimsFromUserInfoEndpoint = true;
+        options.RequireHttpsMetadata = oidcOptions.RequireHttpsMetadata;
+        options.CallbackPath = oidcOptions.CallbackPath;
+        options.SignedOutCallbackPath = oidcOptions.SignedOutCallbackPath;
+        options.MapInboundClaims = false;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            NameClaimType = "name",
+            RoleClaimType = "role"
+        };
+
+        options.Scope.Clear();
+        foreach (var scope in oidcOptions.Scopes)
+        {
+            options.Scope.Add(scope);
+        }
+
+        options.ClaimActions.MapUniqueJsonKey("preferred_username", "preferred_username");
+        options.ClaimActions.MapUniqueJsonKey("email", "email");
+        options.ClaimActions.MapJsonKey("role", "role");
+        options.ClaimActions.MapJsonKey("roles", "roles");
+
+        options.Events.OnRedirectToIdentityProvider = context =>
+        {
+            if (!string.IsNullOrWhiteSpace(oidcOptions.PublicOrigin))
+            {
+                context.ProtocolMessage.RedirectUri =
+                    $"{oidcOptions.PublicOrigin.TrimEnd('/')}{oidcOptions.CallbackPath}";
+            }
+
+            return Task.CompletedTask;
+        };
+        options.Events.OnRedirectToIdentityProviderForSignOut = context =>
+        {
+            if (!string.IsNullOrWhiteSpace(oidcOptions.PostLogoutRedirectUri))
+            {
+                context.ProtocolMessage.PostLogoutRedirectUri = oidcOptions.PostLogoutRedirectUri;
+            }
+
+            return Task.CompletedTask;
+        };
+        options.Events.OnTicketReceived = context =>
+        {
+            if (context.Principal is not null)
+            {
+                OidcClaimsAugmentor.Apply(context.Principal, oidcOptions);
+            }
+
+            return Task.CompletedTask;
+        };
+    });
+}
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy(AuthorizationPolicyNames.AdminOnly, policy =>
