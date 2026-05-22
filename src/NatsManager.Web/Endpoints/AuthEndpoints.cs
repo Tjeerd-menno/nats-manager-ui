@@ -26,8 +26,7 @@ public static class AuthEndpoints
             .AllowAnonymous();
         group.MapGet("/oidc/login", LoginWithOidc)
             .AllowAnonymous();
-        group.MapGet("/oidc/logout", LogoutWithOidc)
-            .AllowAnonymous();
+        group.MapPost("/oidc/logout", LogoutWithOidc);
         group.MapPost("/logout", async (HttpContext httpContext) => await Logout(httpContext));
         group.MapGet("/me", GetCurrentUser);
     }
@@ -100,11 +99,11 @@ public static class AuthEndpoints
         var displayName = httpContext.User.FindFirst("DisplayName")?.Value;
         var roles = httpContext.User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
         var authProvider = string.Equals(
-            httpContext.User.Identity.AuthenticationType,
-            NatsManagerAuthenticationSchemes.OidcCookie,
-            StringComparison.Ordinal)
-                ? "oidc"
-                : "local";
+            httpContext.User.FindFirst(OidcClaimsAugmentor.AuthProviderClaimType)?.Value,
+            "oidc",
+            StringComparison.OrdinalIgnoreCase)
+            ? "oidc"
+            : "local";
 
         return Results.Ok(new { Id = userId, Username = username, DisplayName = displayName, Roles = roles, AuthProvider = authProvider });
     }

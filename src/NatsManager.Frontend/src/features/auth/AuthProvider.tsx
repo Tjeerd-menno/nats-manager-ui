@@ -52,15 +52,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const loginWithOidc = useCallback(() => {
-    const returnUrl = new URL('/dashboard', window.location.origin).toString();
+    const returnUrl = '/dashboard';
     window.location.assign(`${authConfig.oidcLoginPath}?returnUrl=${encodeURIComponent(returnUrl)}`);
   }, [authConfig.oidcLoginPath]);
 
   const logout = useCallback(async () => {
     if (user?.authProvider === 'oidc') {
-      const returnUrl = new URL('/login', window.location.origin).toString();
-      window.location.assign(`/api/auth/oidc/logout?returnUrl=${encodeURIComponent(returnUrl)}`);
       setUser(null);
+      const returnUrl = '/login';
+      const form = document.createElement('form');
+      form.method = 'post';
+      form.action = `/api/auth/oidc/logout?returnUrl=${encodeURIComponent(returnUrl)}`;
+
+      const cookieValue = document.cookie
+        .split('; ')
+        .find((row) => row.startsWith('XSRF-TOKEN='))
+        ?.split('=')
+        .slice(1)
+        .join('=');
+
+      if (cookieValue) {
+        const token = document.createElement('input');
+        token.type = 'hidden';
+        token.name = '__RequestVerificationToken';
+        token.value = decodeURIComponent(cookieValue);
+        form.appendChild(token);
+      }
+
+      document.body.appendChild(form);
+      form.submit();
       return;
     }
 
