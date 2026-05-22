@@ -67,9 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const cookieValue = document.cookie
         .split('; ')
         .find((row) => row.startsWith('XSRF-TOKEN='))
-        ?.split('=')
-        .slice(1)
-        .join('=');
+        ?.split('=', 2)[1];
 
       if (cookieValue) {
         const token = document.createElement('input');

@@ -39,7 +39,7 @@ public static class OidcClaimsAugmentor
                 .Select(static role => role!));
         }
 
-        foreach (var role in mappedRoles.Distinct(StringComparer.Ordinal))
+        foreach (var role in mappedRoles)
         {
             if (!identity.HasClaim(ClaimTypes.Role, role))
             {
