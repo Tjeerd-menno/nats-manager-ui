@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Mvc;
@@ -27,8 +28,9 @@ public static class AuthEndpoints
         group.MapGet("/oidc/login", LoginWithOidc)
             .AllowAnonymous();
         group.MapPost("/oidc/logout", LogoutWithOidc);
-        group.MapPost("/logout", async (HttpContext httpContext) => await Logout(httpContext));
-        group.MapGet("/me", GetCurrentUser);
+        group.MapPost("/logout", Logout);
+        group.MapGet("/me", GetCurrentUser)
+            .AllowAnonymous();
     }
 
     private static async Task<IResult> Login(LoginCommand command, IUseCase<LoginCommand, LoginResult> useCase, HttpContext httpContext, CancellationToken cancellationToken)
@@ -91,7 +93,7 @@ public static class AuthEndpoints
     {
         if (httpContext.User.Identity?.IsAuthenticated != true)
         {
-            return Results.Unauthorized();
+            return Results.Content("null", "application/json", Encoding.UTF8, StatusCodes.Status200OK);
         }
 
         var userId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;

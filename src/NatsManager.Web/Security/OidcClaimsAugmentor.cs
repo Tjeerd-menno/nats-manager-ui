@@ -39,12 +39,9 @@ public static class OidcClaimsAugmentor
                 .Select(static role => role!));
         }
 
-        foreach (var role in mappedRoles)
+        foreach (var role in mappedRoles.Where(role => !identity.HasClaim(ClaimTypes.Role, role)))
         {
-            if (!identity.HasClaim(ClaimTypes.Role, role))
-            {
-                identity.AddClaim(new Claim(ClaimTypes.Role, role));
-            }
+            identity.AddClaim(new Claim(ClaimTypes.Role, role));
         }
     }
 

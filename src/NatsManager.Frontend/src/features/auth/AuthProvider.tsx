@@ -8,43 +8,58 @@ const defaultAuthConfig: AuthConfig = {
   oidcLoginPath: '/api/auth/oidc/login',
 };
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+interface AuthProviderProps {
+  readonly children: ReactNode;
+  readonly skipCurrentUserBootstrap?: boolean;
+}
+
+export function AuthProvider({
+  children,
+  skipCurrentUserBootstrap = false,
+}: AuthProviderProps) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [authConfig, setAuthConfig] = useState<AuthConfig>(defaultAuthConfig);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => !skipCurrentUserBootstrap);
 
   useEffect(() => {
-    let isMounted = true;
+    let isDisposed = false;
+
+    if (skipCurrentUserBootstrap) {
+      setIsLoading(false);
+      return () => {
+        isDisposed = true;
+      };
+    }
+
+    setIsLoading(true);
 
     async function loadAuthState() {
       const [configResult, userResult] = await Promise.allSettled([
         apiClient.get<AuthConfig>('/auth/config'),
-        apiClient.get<AuthUser>('/auth/me'),
+        apiClient.get<AuthUser | null>('/auth/me'),
       ]);
 
-      if (!isMounted) {
-        return;
-      }
+      if (!isDisposed) {
+        if (configResult.status === 'fulfilled') {
+          setAuthConfig(configResult.value.data);
+        }
 
-      if (configResult.status === 'fulfilled') {
-        setAuthConfig(configResult.value.data);
-      }
+        if (userResult.status === 'fulfilled') {
+          setUser(userResult.value.data);
+        } else {
+          setUser(null);
+        }
 
-      if (userResult.status === 'fulfilled') {
-        setUser(userResult.value.data);
-      } else {
-        setUser(null);
+        setIsLoading(false);
       }
-
-      setIsLoading(false);
     }
 
     void loadAuthState();
 
     return () => {
-      isMounted = false;
+      isDisposed = true;
     };
-  }, []);
+  }, [skipCurrentUserBootstrap]);
 
   const login = useCallback(async (credentials: LoginRequest) => {
     const res = await apiClient.post<AuthUser>('/auth/login', credentials);
@@ -53,31 +68,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginWithOidc = useCallback(() => {
     const returnUrl = '/dashboard';
-    window.location.assign(`${authConfig.oidcLoginPath}?returnUrl=${encodeURIComponent(returnUrl)}`);
+    globalThis.location.assign(`${authConfig.oidcLoginPath}?returnUrl=${encodeURIComponent(returnUrl)}`);
   }, [authConfig.oidcLoginPath]);
 
   const logout = useCallback(async () => {
     if (user?.authProvider === 'oidc') {
       setUser(null);
       const returnUrl = '/login';
-      const form = document.createElement('form');
+      const form = globalThis.document.createElement('form');
       form.method = 'post';
       form.action = `/api/auth/oidc/logout?returnUrl=${encodeURIComponent(returnUrl)}`;
 
-      const cookieValue = document.cookie
+      const cookieValue = globalThis.document.cookie
         .split('; ')
         .find((row) => row.startsWith('XSRF-TOKEN='))
         ?.split('=', 2)[1];
 
       if (cookieValue) {
-        const token = document.createElement('input');
+        const token = globalThis.document.createElement('input');
         token.type = 'hidden';
         token.name = '__RequestVerificationToken';
         token.value = decodeURIComponent(cookieValue);
         form.appendChild(token);
       }
 
-      document.body.appendChild(form);
+      globalThis.document.body.appendChild(form);
       form.submit();
       return;
     }
