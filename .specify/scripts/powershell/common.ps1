@@ -151,6 +151,58 @@ function Test-FeatureBranch {
     return $true
 }
 
+# Safely read .specify/feature.json's "feature_directory" value.
+# Returns an empty string if the file is missing, invalid, or does not contain the key.
+function Read-FeatureJsonFeatureDirectory {
+    param([string]$RepoRoot)
+
+    $featureJson = Join-Path $RepoRoot '.specify/feature.json'
+    if (-not (Test-Path -LiteralPath $featureJson -PathType Leaf)) {
+        return ''
+    }
+
+    try {
+        $data = Get-Content -LiteralPath $featureJson -Raw | ConvertFrom-Json
+        if ($data.feature_directory) {
+            return [string]$data.feature_directory
+        }
+    } catch {
+        return ''
+    }
+
+    return ''
+}
+
+# Returns true when .specify/feature.json pins a feature directory that exists
+# and matches the active FEATURE_DIR, allowing callers to skip branch name checks.
+function Test-FeatureJsonMatchesFeatureDir {
+    param(
+        [string]$RepoRoot,
+        [string]$ActiveFeatureDir
+    )
+
+    $featureDir = Read-FeatureJsonFeatureDirectory -RepoRoot $RepoRoot
+    if ([string]::IsNullOrWhiteSpace($featureDir)) {
+        return $false
+    }
+
+    if (-not [System.IO.Path]::IsPathRooted($featureDir)) {
+        $featureDir = Join-Path $RepoRoot $featureDir
+    }
+
+    if (-not (Test-Path -LiteralPath $featureDir -PathType Container)) {
+        return $false
+    }
+
+    try {
+        $jsonPath = (Resolve-Path -LiteralPath $featureDir).Path
+        $activePath = (Resolve-Path -LiteralPath $ActiveFeatureDir).Path
+        return [string]::Equals($jsonPath, $activePath, [System.StringComparison]::OrdinalIgnoreCase)
+    } catch {
+        return $false
+    }
+}
+
 function Get-FeatureDir {
     param([string]$RepoRoot, [string]$Branch)
     Join-Path $RepoRoot "specs/$Branch"

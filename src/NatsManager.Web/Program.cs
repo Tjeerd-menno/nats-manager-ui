@@ -1,4 +1,5 @@
 using FluentValidation;
+using System.Reflection;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Antiforgery;
@@ -11,6 +12,8 @@ using NatsManager.Application.Modules.Environments.Ports;
 using NatsManager.Application.Modules.Monitoring;
 using NatsManager.Application.Modules.Monitoring.Ports;
 using NatsManager.Application.Modules.Monitoring.Ports.ClusterObservability;
+using NatsManager.Application.Modules.Permissions.Models;
+using NatsManager.Application.Modules.Permissions.Services;
 using NatsManager.Application.Modules.Relationships.Ports;
 using NatsManager.Domain.Modules.Auth;
 using NatsManager.Infrastructure.Auth;
@@ -92,6 +95,15 @@ builder.Services.AddOptions<ObjectStoreUploadOptions>()
     .Bind(builder.Configuration.GetSection(ObjectStoreUploadOptions.SectionName))
     .Validate(ObjectStoreUploadOptions.IsValid, "ObjectStore options are invalid. MaxUploadBytes must be between 1 and 2147483647.")
     .ValidateOnStart();
+
+builder.Services.AddOptions<PermissionManifestOptions>()
+    .Bind(builder.Configuration.GetSection(PermissionManifestOptions.SectionName))
+    .Validate(PermissionManifestOptions.IsValid, "PermissionManifest options are invalid. ExposureMode must be Public or Restricted, ApplicationId and ApplicationName are required, and RestrictedAccessKeyHash must be a SHA-256 hash when restricted.")
+    .ValidateOnStart();
+
+builder.Services.AddSingleton<IPermissionManifestValidator, PermissionManifestValidator>();
+builder.Services.AddSingleton<IPermissionManifestRegistry>(_ => PermissionManifestRegistry.CreateDefault());
+builder.Services.AddSingleton<IPermissionManifestPublisher, PermissionManifestPublisher>();
 
 builder.Services.AddHttpClient("NatsMonitoring", (sp, client) =>
 {
@@ -296,6 +308,12 @@ using (var scope = app.Services.CreateScope())
 {
     var initializer = scope.ServiceProvider.GetRequiredService<DatabaseInitializer>();
     await initializer.InitializeAsync();
+
+    var manifestOptions = scope.ServiceProvider.GetRequiredService<IOptions<PermissionManifestOptions>>().Value;
+    var manifestRegistry = scope.ServiceProvider.GetRequiredService<IPermissionManifestRegistry>();
+    var manifestPublisher = scope.ServiceProvider.GetRequiredService<IPermissionManifestPublisher>();
+    manifestPublisher.Publish(manifestRegistry.CreateManifest(
+        Program.CreatePermissionManifestApplicationMetadata(manifestOptions)));
 }
 
 app.UseExceptionHandler();
@@ -379,6 +397,7 @@ app.UseMiddleware<AuditContextMiddleware>();
 app.UseMiddleware<DataFreshnessMiddleware>();
 
 app.MapDefaultEndpoints();
+app.MapPermissionManifestEndpoints();
 
 // Map SignalR hubs
 app.MapHub<MonitoringHub>("/hubs/monitoring");
@@ -422,4 +441,17 @@ app.MapFallback(async (HttpContext context, IWebHostEnvironment environment) =>
 
 app.Run();
 
-public partial class Program { }
+public partial class Program
+{
+    internal static ApplicationMetadata CreatePermissionManifestApplicationMetadata(PermissionManifestOptions options)
+    {
+        var version = !string.IsNullOrWhiteSpace(options.ApplicationVersion)
+            ? options.ApplicationVersion.Trim()
+            : typeof(Program).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+
+        return new ApplicationMetadata(
+            options.ApplicationId.Trim(),
+            options.ApplicationName.Trim(),
+            string.IsNullOrWhiteSpace(version) ? null : version);
+    }
+}
