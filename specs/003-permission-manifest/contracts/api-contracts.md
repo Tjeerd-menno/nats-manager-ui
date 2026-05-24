@@ -42,18 +42,20 @@ Body:
   },
   "permissions": [
     {
-      "name": "read:environments",
+      "name": "environments:read",
       "description": "Allows reading registered NATS environments",
       "category": "Environments"
     },
     {
-      "name": "manage:streams",
+      "name": "jetstream-streams:write",
       "description": "Allows creating, updating, or deleting JetStream streams",
       "category": "JetStream"
     }
   ]
 }
 ```
+
+Permission names use `{aggregate-resource}:{action}` with kebab-case resource segments so consumers that support wildcard policies can derive scopes such as `environments:*` or `jetstream-streams:*` from concrete manifest permissions.
 
 ### Safe Failure: 503 Service Unavailable
 

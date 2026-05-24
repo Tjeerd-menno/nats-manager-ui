@@ -31,7 +31,7 @@ An active application-owned authorization capability.
 
 | Field | Type | Required | Validation |
 |-------|------|----------|------------|
-| `name` | string | Yes | Non-empty; unique within one manifest; `{action}:{resource}` expected |
+| `name` | string | Yes | Non-empty; unique within one manifest; `{aggregate-resource}:{action}` expected |
 | `description` | string | Yes | Non-empty human-readable description |
 | `category` | string | No | Optional non-empty group label when present |
 
@@ -39,7 +39,8 @@ Rules:
 
 - Deprecated and inactive permissions are not included.
 - Permission names are case-sensitive for duplicate detection after trimming whitespace.
-- Permission names should use lowercase action/resource naming, for example `read:environments`.
+- Permission names should use lowercase kebab-case resource/action naming, for example `environments:read` or `jetstream-streams:write`.
+- Concrete permission names do not include wildcard entries; consumers can derive supported wildcard scopes such as `environments:*` or `jetstream-streams:*`.
 
 ## PermissionManifestPublicationState
 

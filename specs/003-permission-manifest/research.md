@@ -21,7 +21,7 @@ Create a `Permissions` module in `NatsManager.Application` with manifest models,
 **Alternatives considered**:
 
 - Store permissions in SQLite: rejected because the feature does not require runtime editing and would add persistence, migrations, and admin UI scope.
-- Generate permissions from current roles only: rejected because roles are assignment groupings, while the manifest contract describes permission capabilities using `{action}:{resource}` names.
+- Generate permissions from current roles only: rejected because roles are assignment groupings, while the manifest contract describes permission capabilities using `{aggregate-resource}:{action}` names.
 - Read a JSON file at request time: rejected because the request path should not depend on filesystem I/O and last-valid fallback needs explicit publication state.
 
 ## Decision: Validate on publication and serve the last valid manifest on current-source failure

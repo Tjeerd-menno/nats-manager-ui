@@ -40,7 +40,13 @@ public sealed class PermissionManifestEndpointTests : IClassFixture<NatsManagerW
         root.GetProperty("application").GetProperty("id").GetString().ShouldBe("nats-manager");
         root.GetProperty("application").GetProperty("name").GetString().ShouldBe("NATS Manager");
         root.GetProperty("permissions").GetArrayLength().ShouldBeGreaterThan(0);
-        root.GetProperty("permissions")[0].GetProperty("name").GetString().ShouldNotBeNullOrWhiteSpace();
+        var permissionNames = root.GetProperty("permissions")
+            .EnumerateArray()
+            .Select(permission => permission.GetProperty("name").GetString())
+            .ToArray();
+        permissionNames.ShouldContain("environments:read");
+        permissionNames.ShouldContain("jetstream-streams:read");
+        permissionNames.ShouldNotContain("read:environments");
         root.GetProperty("permissions")[0].GetProperty("description").GetString().ShouldNotBeNullOrWhiteSpace();
     }
 
@@ -68,7 +74,7 @@ public sealed class PermissionManifestEndpointTests : IClassFixture<NatsManagerW
     [Fact]
     public async Task GetPermissions_WhenLastValidManifestIsUsed_ShouldReturnLastValidSourceHeader()
     {
-        var manifest = TestManifest("read:environments");
+        var manifest = TestManifest("environments:read");
         await using var app = factory.WithPublisher(new StubPermissionManifestPublisher(
             ManifestRetrievalResult.LastValid(manifest, "Current manifest is invalid.")));
         using var client = app.CreateClient();
@@ -78,7 +84,7 @@ public sealed class PermissionManifestEndpointTests : IClassFixture<NatsManagerW
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         response.Headers.GetValues("X-Permission-Manifest-Source").Single().ShouldBe("last-valid");
         using var document = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
-        document.RootElement.GetProperty("permissions")[0].GetProperty("name").GetString().ShouldBe("read:environments");
+        document.RootElement.GetProperty("permissions")[0].GetProperty("name").GetString().ShouldBe("environments:read");
     }
 
     [Fact]

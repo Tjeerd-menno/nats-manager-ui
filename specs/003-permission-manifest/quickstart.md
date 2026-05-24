@@ -91,7 +91,8 @@ Invoke-RestMethod -Uri "https://localhost:5001/.well-known/permissions" -Headers
 ## Expected Results
 
 - Successful responses include `application.id`, `application.name`, optional `application.version`, and an array of active permissions.
-- Each permission has a unique `name` and non-empty `description`.
+- Each permission has a unique `{aggregate-resource}:{action}` `name` and non-empty `description`.
+- Consumers can derive wildcard scopes such as `environments:*` from concrete manifest permissions when their IAM solution supports them.
 - Deprecated or inactive permissions are absent.
 - Invalid current manifests return the last valid manifest when available.
 - If no valid manifest exists, the endpoint returns a safe problem response with no permission data.

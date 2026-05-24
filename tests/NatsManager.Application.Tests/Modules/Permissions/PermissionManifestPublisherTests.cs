@@ -13,7 +13,7 @@ public sealed class PermissionManifestPublisherTests
     [Fact]
     public void Publish_WithValidManifest_ShouldStoreCurrentManifest()
     {
-        var manifest = Manifest("read:environments");
+        var manifest = Manifest("environments:read");
 
         var publishResult = publisher.Publish(manifest);
         var retrieval = publisher.GetManifest();
@@ -28,26 +28,26 @@ public sealed class PermissionManifestPublisherTests
     [Fact]
     public void Publish_WithUpdatedValidManifest_ShouldReturnLatestOnNextRetrieval()
     {
-        publisher.Publish(Manifest("read:environments"));
-        var updated = Manifest("write:environments");
+        publisher.Publish(Manifest("environments:read"));
+        var updated = Manifest("environments:write");
 
         publisher.Publish(updated);
         var retrieval = publisher.GetManifest();
 
         retrieval.Manifest.ShouldBe(updated);
-        retrieval.Manifest!.Permissions.Select(permission => permission.Name).ShouldBe(["write:environments"]);
+        retrieval.Manifest!.Permissions.Select(permission => permission.Name).ShouldBe(["environments:write"]);
         retrieval.Source.ShouldBe(PermissionManifestSource.Current);
     }
 
     [Fact]
     public void Publish_WithInvalidManifestAfterValidPublish_ShouldReturnLastValidManifest()
     {
-        var valid = Manifest("read:environments");
+        var valid = Manifest("environments:read");
         publisher.Publish(valid);
 
         var publishResult = publisher.Publish(Manifest(
-            "read:environments",
-            new PermissionDefinition(" read:environments ", "Duplicate permission", "Environments")));
+            "environments:read",
+            new PermissionDefinition(" environments:read ", "Duplicate permission", "Environments")));
         var retrieval = publisher.GetManifest();
 
         publishResult.Published.ShouldBeFalse();

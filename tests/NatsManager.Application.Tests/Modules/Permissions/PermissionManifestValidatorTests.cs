@@ -54,13 +54,13 @@ public sealed class PermissionManifestValidatorTests
     {
         var manifest = ValidManifest(permissions:
         [
-            new PermissionDefinition("read:environments", " ", "Environments")
+            new PermissionDefinition("environments:read", " ", "Environments")
         ]);
 
         var result = validator.Validate(manifest);
 
         result.IsValid.ShouldBeFalse();
-        result.Errors.ShouldContain("Permission description is required for 'read:environments'.");
+        result.Errors.ShouldContain("Permission description is required for 'environments:read'.");
     }
 
     [Fact]
@@ -70,7 +70,7 @@ public sealed class PermissionManifestValidatorTests
             applicationVersion: "1.2.3",
             permissions:
             [
-                new PermissionDefinition("read:environments", "Allows reading environments", "Environments")
+                new PermissionDefinition("environments:read", "Allows reading environments", "Environments")
             ]);
 
         var result = validator.Validate(manifest);
@@ -83,13 +83,13 @@ public sealed class PermissionManifestValidatorTests
     {
         var manifest = ValidManifest(permissions:
         [
-            new PermissionDefinition("read:environments", "Allows reading environments", "")
+            new PermissionDefinition("environments:read", "Allows reading environments", "")
         ]);
 
         var result = validator.Validate(manifest);
 
         result.IsValid.ShouldBeFalse();
-        result.Errors.ShouldContain("Permission category must be non-empty when provided for 'read:environments'.");
+        result.Errors.ShouldContain("Permission category must be non-empty when provided for 'environments:read'.");
     }
 
     [Fact]
@@ -106,14 +106,14 @@ public sealed class PermissionManifestValidatorTests
     {
         var manifest = ValidManifest(permissions:
         [
-            new PermissionDefinition("read:environments", "Allows reading environments", "Environments"),
-            new PermissionDefinition(" read:environments ", "Allows reading environments again", "Environments")
+            new PermissionDefinition("environments:read", "Allows reading environments", "Environments"),
+            new PermissionDefinition(" environments:read ", "Allows reading environments again", "Environments")
         ]);
 
         var result = validator.Validate(manifest);
 
         result.IsValid.ShouldBeFalse();
-        result.Errors.ShouldContain("Duplicate permission name 'read:environments'.");
+        result.Errors.ShouldContain("Duplicate permission name 'environments:read'.");
     }
 
     [Fact]
@@ -121,13 +121,40 @@ public sealed class PermissionManifestValidatorTests
     {
         var registry = new PermissionManifestRegistry(
         [
-            new PermissionManifestRegistryEntry("read:environments", "Allows reading environments", "Environments"),
+            new PermissionManifestRegistryEntry("environments:read", "Allows reading environments", "Environments"),
             new PermissionManifestRegistryEntry("old:environments", "Old permission", "Environments", IsActive: false)
         ]);
 
         var manifest = registry.CreateManifest(new ApplicationMetadata("nats-manager", "NATS Manager"));
 
-        manifest.Permissions.Select(permission => permission.Name).ShouldBe(["read:environments"]);
+        manifest.Permissions.Select(permission => permission.Name).ShouldBe(["environments:read"]);
+    }
+
+    [Fact]
+    public void PermissionManifestRegistry_CreateDefault_ShouldUseAggregateResourceActionNames()
+    {
+        var registry = PermissionManifestRegistry.CreateDefault();
+
+        var manifest = registry.CreateManifest(new ApplicationMetadata("nats-manager", "NATS Manager"));
+
+        manifest.Permissions.Select(permission => permission.Name).ShouldBe(
+        [
+            "environments:read",
+            "environments:write",
+            "jetstream-streams:read",
+            "jetstream-streams:write",
+            "jetstream-consumers:read",
+            "jetstream-consumers:write",
+            "key-value:read",
+            "key-value:write",
+            "object-store:read",
+            "object-store:write",
+            "services:read",
+            "audit-events:read",
+            "access-control:manage"
+        ]);
+
+        manifest.Permissions.Select(permission => permission.Name).ShouldNotContain("read:streams");
     }
 
     private static PermissionManifest ValidManifest(
@@ -139,6 +166,6 @@ public sealed class PermissionManifestValidatorTests
             new ApplicationMetadata(applicationId, applicationName, applicationVersion),
             permissions ??
             [
-                new PermissionDefinition("read:environments", "Allows reading environments", "Environments")
+                new PermissionDefinition("environments:read", "Allows reading environments", "Environments")
             ]);
 }

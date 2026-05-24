@@ -43,18 +43,18 @@ public sealed class PermissionManifestRegistry : IPermissionManifestRegistry
 
     private static readonly IReadOnlyList<PermissionManifestRegistryEntry> DefaultEntries =
     [
-        new("read:environments", "Allows reading registered NATS environments", "Environments"),
-        new("write:environments", "Allows creating or modifying registered NATS environments", "Environments"),
-        new("read:streams", "Allows reading JetStream stream definitions and status", "JetStream"),
-        new("write:streams", "Allows creating, updating, or deleting JetStream streams", "JetStream"),
-        new("read:consumers", "Allows reading JetStream consumer definitions and status", "JetStream"),
-        new("write:consumers", "Allows creating, updating, or deleting JetStream consumers", "JetStream"),
-        new("read:key-value", "Allows reading Key Value bucket metadata and entries", "Key Value"),
-        new("write:key-value", "Allows creating, updating, or deleting Key Value bucket entries", "Key Value"),
-        new("read:object-store", "Allows reading Object Store bucket metadata and objects", "Object Store"),
-        new("write:object-store", "Allows creating, updating, or deleting Object Store buckets and objects", "Object Store"),
-        new("read:services", "Allows reading NATS service discovery information", "Services"),
-        new("read:audit-events", "Allows reading audit event history", "Audit"),
-        new("manage:access-control", "Allows managing users, roles, and role assignments", "Access Control")
+        new("environments:read", "Allows reading registered NATS environments", "Environments"),
+        new("environments:write", "Allows creating or modifying registered NATS environments", "Environments"),
+        new("jetstream-streams:read", "Allows reading JetStream stream definitions and status", "JetStream"),
+        new("jetstream-streams:write", "Allows creating, updating, or deleting JetStream streams", "JetStream"),
+        new("jetstream-consumers:read", "Allows reading JetStream consumer definitions and status", "JetStream"),
+        new("jetstream-consumers:write", "Allows creating, updating, or deleting JetStream consumers", "JetStream"),
+        new("key-value:read", "Allows reading Key Value bucket metadata and entries", "Key Value"),
+        new("key-value:write", "Allows creating, updating, or deleting Key Value bucket entries", "Key Value"),
+        new("object-store:read", "Allows reading Object Store bucket metadata and objects", "Object Store"),
+        new("object-store:write", "Allows creating, updating, or deleting Object Store buckets and objects", "Object Store"),
+        new("services:read", "Allows reading NATS service discovery information", "Services"),
+        new("audit-events:read", "Allows reading audit event history", "Audit"),
+        new("access-control:manage", "Allows managing users, roles, and role assignments", "Access Control")
     ];
 }

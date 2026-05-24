@@ -86,7 +86,7 @@ As an application owner, I need updates to the permission manifest to be reflect
 - **FR-009**: The manifest payload shape MUST remain stable across compatible versions so existing consumers can continue reading required fields.
 - **FR-010**: The application MUST validate the manifest before publishing it as available.
 - **FR-011**: Manifest validation MUST reject missing required application metadata, missing permission names, missing permission descriptions, and duplicate permission names.
-- **FR-012**: Permission names SHOULD follow the `{action}:{resource}` naming pattern.
+- **FR-012**: Permission names SHOULD follow the `{aggregate-resource}:{action}` naming pattern, using kebab-case resource segments so consumers can derive `{aggregate-resource}:*` wildcard scopes where supported.
 - **FR-013**: Application identifiers SHOULD use kebab-case.
 - **FR-014**: When the current manifest cannot be validated or retrieved, the application MUST return the last valid published manifest when one exists and MUST make the failure observable to operators.
 - **FR-015**: When no prior valid manifest exists, the application MUST fail retrieval safely without returning malformed or unvalidated permission data.
