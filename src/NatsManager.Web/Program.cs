@@ -443,6 +443,8 @@ app.Run();
 
 public partial class Program
 {
+    protected Program() { }
+
     internal static ApplicationMetadata CreatePermissionManifestApplicationMetadata(PermissionManifestOptions options)
     {
         var version = !string.IsNullOrWhiteSpace(options.ApplicationVersion)

@@ -29,24 +29,36 @@ public sealed class PermissionManifestValidator : IPermissionManifestValidator
             return PermissionManifestValidationResult.Failure(errors);
         }
 
-        if (string.IsNullOrWhiteSpace(manifest.Application.Id))
+        ValidateApplication(manifest.Application, errors);
+        ValidatePermissions(manifest.Permissions, errors);
+
+        return errors.Count == 0
+            ? PermissionManifestValidationResult.Success
+            : PermissionManifestValidationResult.Failure(errors);
+    }
+
+    private static void ValidateApplication(ApplicationMetadata application, List<string> errors)
+    {
+        if (string.IsNullOrWhiteSpace(application.Id))
         {
             errors.Add("Application id is required.");
         }
 
-        if (string.IsNullOrWhiteSpace(manifest.Application.Name))
+        if (string.IsNullOrWhiteSpace(application.Name))
         {
             errors.Add("Application name is required.");
         }
 
-        if (manifest.Application.Version is not null
-            && string.IsNullOrWhiteSpace(manifest.Application.Version))
+        if (application.Version is not null && string.IsNullOrWhiteSpace(application.Version))
         {
             errors.Add("Application version must be non-empty when provided.");
         }
+    }
 
+    private static void ValidatePermissions(IReadOnlyList<PermissionDefinition> permissions, List<string> errors)
+    {
         var permissionNames = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var permission in manifest.Permissions)
+        foreach (var permission in permissions)
         {
             var trimmedName = permission.Name?.Trim();
             if (string.IsNullOrWhiteSpace(trimmedName))
@@ -70,9 +82,5 @@ public sealed class PermissionManifestValidator : IPermissionManifestValidator
                 errors.Add($"Permission category must be non-empty when provided for '{trimmedName}'.");
             }
         }
-
-        return errors.Count == 0
-            ? PermissionManifestValidationResult.Success
-            : PermissionManifestValidationResult.Failure(errors);
     }
 }
