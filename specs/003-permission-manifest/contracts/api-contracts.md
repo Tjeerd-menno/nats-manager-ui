@@ -71,7 +71,7 @@ Body:
 
 ```json
 {
-  "type": "https://httpstatuses.com/503",
+  "type": "https://tools.ietf.org/html/rfc9110#section-15.6.4",
   "title": "Permission manifest unavailable",
   "status": 503,
   "detail": "No valid permission manifest is currently available."
@@ -92,7 +92,7 @@ Body:
 
 ```json
 {
-  "type": "https://httpstatuses.com/401",
+  "type": "https://tools.ietf.org/html/rfc9110#section-15.5.2",
   "title": "Unauthorized",
   "status": 401,
   "detail": "A valid permission manifest access key is required."

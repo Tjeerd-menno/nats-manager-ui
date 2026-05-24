@@ -212,7 +212,22 @@ function Get-FeaturePathsEnv {
     $repoRoot = Get-RepoRoot
     $currentBranch = Get-CurrentBranch
     $hasGit = Test-HasGit
-    $featureDir = Get-FeatureDir -RepoRoot $repoRoot -Branch $currentBranch
+
+    # Use pinned feature directory from feature.json if available and it exists on disk,
+    # otherwise derive from the current branch name.
+    $pinnedDir = Read-FeatureJsonFeatureDirectory -RepoRoot $repoRoot
+    if (-not [string]::IsNullOrWhiteSpace($pinnedDir)) {
+        if (-not [System.IO.Path]::IsPathRooted($pinnedDir)) {
+            $pinnedDir = Join-Path $repoRoot $pinnedDir
+        }
+        if (Test-Path -LiteralPath $pinnedDir -PathType Container) {
+            $featureDir = (Resolve-Path -LiteralPath $pinnedDir).Path
+        } else {
+            $featureDir = Get-FeatureDir -RepoRoot $repoRoot -Branch $currentBranch
+        }
+    } else {
+        $featureDir = Get-FeatureDir -RepoRoot $repoRoot -Branch $currentBranch
+    }
     
     [PSCustomObject]@{
         REPO_ROOT     = $repoRoot

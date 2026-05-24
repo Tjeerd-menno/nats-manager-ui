@@ -67,11 +67,7 @@ public static class PermissionManifestEndpoints
         {
             LogRetrievalDenied(logger, options.ExposureMode, null);
 
-            return ApiProblemResults.Problem(
-                statusCode: StatusCodes.Status401Unauthorized,
-                title: "Unauthorized",
-                detail: "A valid permission manifest access key is required.",
-                type: "https://httpstatuses.com/401");
+            return ApiProblemResults.Unauthorized("A valid permission manifest access key is required.");
         }
 
         var presenter = new Presenter<ManifestRetrievalResult>();
@@ -91,7 +87,7 @@ public static class PermissionManifestEndpoints
                 statusCode: StatusCodes.Status503ServiceUnavailable,
                 title: "Permission manifest unavailable",
                 detail: "No valid permission manifest is currently available.",
-                type: "https://httpstatuses.com/503");
+                type: "https://tools.ietf.org/html/rfc9110#section-15.6.4");
         }
 
         var source = retrieval.Source == PermissionManifestSource.LastValid
