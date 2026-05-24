@@ -151,6 +151,58 @@ function Test-FeatureBranch {
     return $true
 }
 
+# Safely read .specify/feature.json's "feature_directory" value.
+# Returns an empty string if the file is missing, invalid, or does not contain the key.
+function Read-FeatureJsonFeatureDirectory {
+    param([string]$RepoRoot)
+
+    $featureJson = Join-Path $RepoRoot '.specify/feature.json'
+    if (-not (Test-Path -LiteralPath $featureJson -PathType Leaf)) {
+        return ''
+    }
+
+    try {
+        $data = Get-Content -LiteralPath $featureJson -Raw | ConvertFrom-Json
+        if ($data.feature_directory) {
+            return [string]$data.feature_directory
+        }
+    } catch {
+        return ''
+    }
+
+    return ''
+}
+
+# Returns true when .specify/feature.json pins a feature directory that exists
+# and matches the active FEATURE_DIR, allowing callers to skip branch name checks.
+function Test-FeatureJsonMatchesFeatureDir {
+    param(
+        [string]$RepoRoot,
+        [string]$ActiveFeatureDir
+    )
+
+    $featureDir = Read-FeatureJsonFeatureDirectory -RepoRoot $RepoRoot
+    if ([string]::IsNullOrWhiteSpace($featureDir)) {
+        return $false
+    }
+
+    if (-not [System.IO.Path]::IsPathRooted($featureDir)) {
+        $featureDir = Join-Path $RepoRoot $featureDir
+    }
+
+    if (-not (Test-Path -LiteralPath $featureDir -PathType Container)) {
+        return $false
+    }
+
+    try {
+        $jsonPath = (Resolve-Path -LiteralPath $featureDir).Path
+        $activePath = (Resolve-Path -LiteralPath $ActiveFeatureDir).Path
+        return [string]::Equals($jsonPath, $activePath, [System.StringComparison]::OrdinalIgnoreCase)
+    } catch {
+        return $false
+    }
+}
+
 function Get-FeatureDir {
     param([string]$RepoRoot, [string]$Branch)
     Join-Path $RepoRoot "specs/$Branch"
@@ -160,7 +212,22 @@ function Get-FeaturePathsEnv {
     $repoRoot = Get-RepoRoot
     $currentBranch = Get-CurrentBranch
     $hasGit = Test-HasGit
-    $featureDir = Get-FeatureDir -RepoRoot $repoRoot -Branch $currentBranch
+
+    # Use pinned feature directory from feature.json if available and it exists on disk,
+    # otherwise derive from the current branch name.
+    $pinnedDir = Read-FeatureJsonFeatureDirectory -RepoRoot $repoRoot
+    if (-not [string]::IsNullOrWhiteSpace($pinnedDir)) {
+        if (-not [System.IO.Path]::IsPathRooted($pinnedDir)) {
+            $pinnedDir = Join-Path $repoRoot $pinnedDir
+        }
+        if (Test-Path -LiteralPath $pinnedDir -PathType Container) {
+            $featureDir = (Resolve-Path -LiteralPath $pinnedDir).Path
+        } else {
+            $featureDir = Get-FeatureDir -RepoRoot $repoRoot -Branch $currentBranch
+        }
+    } else {
+        $featureDir = Get-FeatureDir -RepoRoot $repoRoot -Branch $currentBranch
+    }
     
     [PSCustomObject]@{
         REPO_ROOT     = $repoRoot

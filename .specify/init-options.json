@@ -1,9 +1,10 @@
 {
-  "ai": "copilot",
+  "ai": "codex",
+  "ai_skills": true,
   "branch_numbering": "sequential",
+  "context_file": "AGENTS.md",
   "here": true,
-  "integration": "copilot",
-  "preset": null,
+  "integration": "codex",
   "script": "ps",
-  "speckit_version": "0.5.1.dev0"
+  "speckit_version": "0.8.13"
 }
