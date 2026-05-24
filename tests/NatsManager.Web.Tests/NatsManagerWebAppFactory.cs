@@ -58,7 +58,10 @@ public sealed class NatsManagerWebAppFactory : WebApplicationFactory<Program>
             {
                 ["BootstrapAdmin:Username"] = BootstrapAdminUsername,
                 ["BootstrapAdmin:Password"] = BootstrapAdminPassword,
-                ["Encryption:Key"] = EncryptionKey
+                ["Encryption:Key"] = EncryptionKey,
+                ["PermissionManifest:ExposureMode"] = "Public",
+                ["PermissionManifest:ApplicationId"] = "nats-manager",
+                ["PermissionManifest:ApplicationName"] = "NATS Manager"
             });
         });
 

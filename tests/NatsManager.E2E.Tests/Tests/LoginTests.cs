@@ -47,8 +47,8 @@ public sealed class LoginTests(AppHostFixture fixture) : E2ETestBase(fixture)
         await Page.GetByLabel("Password").First.FillAsync("wrongpassword");
         await Page.GetByRole(AriaRole.Button, new() { Name = "Sign in" }).ClickAsync();
 
-        // Should show an error message
-        var errorAlert = Page.GetByText("Login failed", new PageGetByTextOptions { Exact = false });
+        // Should show the API-provided error message
+        var errorAlert = Page.GetByRole(AriaRole.Alert).GetByText("Invalid credentials.", new() { Exact = true });
         await Expect(errorAlert).ToBeVisibleAsync(new() { Timeout = 10_000 });
 
         // Should stay on login page

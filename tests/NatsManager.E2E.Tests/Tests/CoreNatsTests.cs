@@ -357,7 +357,7 @@ public sealed class CoreNatsTests(AppHostFixture fixture) : E2ETestBase(fixture)
                 JsonContent($$"""{"subject":"{{subject}}","payload":"hello table"}"""));
         }
 
-        await Expect(Page.GetByRole(AriaRole.Main).GetByText(subject))
+        await Expect(ActiveSubjectRow(subject))
             .ToBeVisibleAsync(new() { Timeout = 20_000 });
     }
 
@@ -378,7 +378,7 @@ public sealed class CoreNatsTests(AppHostFixture fixture) : E2ETestBase(fixture)
                 JsonContent($$"""{"subject":"{{subject}}","payload":"hello filter"}"""));
         }
 
-        await Expect(Page.GetByRole(AriaRole.Main).GetByText(subject))
+        await Expect(ActiveSubjectRow(subject))
             .ToBeVisibleAsync(new() { Timeout = 20_000 });
 
         await Page.GetByLabel("Filter subjects").FillAsync("does.not.match");
@@ -403,9 +403,9 @@ public sealed class CoreNatsTests(AppHostFixture fixture) : E2ETestBase(fixture)
             .ToBeVisibleAsync(new() { Timeout = 10_000 });
         await Page.Keyboard.PressAsync("Escape");
 
-        await Expect(Page.GetByRole(AriaRole.Main).GetByText(subject))
+        await Expect(LiveMessageRow(subject))
             .ToBeVisibleAsync(new() { Timeout = 10_000 });
-        await Expect(Page.GetByRole(AriaRole.Table).GetByText("Hello live viewer"))
+        await Expect(LiveMessagesTable().GetByText("Hello live viewer"))
             .ToBeVisibleAsync(new() { Timeout = 10_000 });
     }
 
@@ -425,6 +425,21 @@ public sealed class CoreNatsTests(AppHostFixture fixture) : E2ETestBase(fixture)
             Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         }
     }
+
+    private ILocator ActiveSubjectRow(string subject) =>
+        Page.GetByRole(AriaRole.Table)
+            .Filter(new() { Has = Page.GetByRole(AriaRole.Columnheader, new() { Name = "Subscriptions" }) })
+            .GetByRole(AriaRole.Row)
+            .Filter(new() { HasText = subject });
+
+    private ILocator LiveMessagesTable() =>
+        Page.GetByRole(AriaRole.Table)
+            .Filter(new() { Has = Page.GetByRole(AriaRole.Columnheader, new() { Name = "Payload Preview" }) });
+
+    private ILocator LiveMessageRow(string subject) =>
+        LiveMessagesTable()
+            .GetByRole(AriaRole.Row)
+            .Filter(new() { HasText = subject });
 
     private static StringContent JsonContent(string json) => new(json, Encoding.UTF8, "application/json");
 }
