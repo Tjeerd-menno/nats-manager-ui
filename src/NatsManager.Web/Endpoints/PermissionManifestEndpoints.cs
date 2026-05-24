@@ -1,5 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.Extensions.Options;
 using NatsManager.Application.Common;
 using NatsManager.Application.Modules.Permissions.Models;
@@ -13,6 +15,10 @@ public static class PermissionManifestEndpoints
 {
     private const string AccessKeyHeaderName = "X-Permission-Manifest-Key";
     private const string SourceHeaderName = "X-Permission-Manifest-Source";
+    private static readonly JsonSerializerOptions ManifestJsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
 
     private static readonly Action<ILogger, PermissionManifestExposureMode, Exception?> LogRetrievalDenied =
         LoggerMessage.Define<PermissionManifestExposureMode>(
@@ -100,7 +106,7 @@ public static class PermissionManifestEndpoints
             LogLastValidServed(logger, retrieval.FailureReason, null);
         }
 
-        return Results.Json(retrieval.Manifest);
+        return Results.Json(retrieval.Manifest, ManifestJsonOptions);
     }
 
     private static bool IsAuthorized(HttpRequest request, PermissionManifestOptions options) =>

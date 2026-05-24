@@ -72,6 +72,24 @@ public sealed class PermissionManifestEndpointTests : IClassFixture<NatsManagerW
     }
 
     [Fact]
+    public async Task GetPermissions_WhenOptionalFieldsAreNull_ShouldOmitNullProperties()
+    {
+        var manifest = new PermissionManifest(
+            new ApplicationMetadata("nats-manager", "NATS Manager"),
+            [new PermissionDefinition("environments:read", "Allows reading environments")]);
+        await using var app = factory.WithPublisher(new StubPermissionManifestPublisher(
+            ManifestRetrievalResult.Current(manifest)));
+        using var client = app.CreateClient();
+
+        using var response = await client.GetAsync("/.well-known/permissions");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        using var document = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        document.RootElement.GetProperty("application").TryGetProperty("version", out _).ShouldBeFalse();
+        document.RootElement.GetProperty("permissions")[0].TryGetProperty("category", out _).ShouldBeFalse();
+    }
+
+    [Fact]
     public async Task GetPermissions_WhenLastValidManifestIsUsed_ShouldReturnLastValidSourceHeader()
     {
         var manifest = TestManifest("environments:read");
