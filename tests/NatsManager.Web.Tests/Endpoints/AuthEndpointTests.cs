@@ -54,5 +54,35 @@ public sealed class AuthEndpointTests : IClassFixture<NatsManagerWebAppFactory>
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
+    [Theory]
+    [InlineData("/dashboard", "/dashboard")]
+    [InlineData("//evil.com", "/")]
+    [InlineData("\\\\evil.com", "/")]
+    [InlineData("/\\\\evil.com", "/")]
+    public async Task OidcLogout_WhenReturnUrlIsProvided_ShouldUseSafeRedirect(string returnUrl, string expectedLocation)
+    {
+        using var authenticatedClient = CreateAuthenticatedClientWithoutRedirect();
+
+        var response = await authenticatedClient.PostAsync($"/api/auth/oidc/logout?returnUrl={Uri.EscapeDataString(returnUrl)}", null);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+        response.Headers.Location.ShouldNotBeNull();
+        response.Headers.Location.OriginalString.ShouldBe(expectedLocation);
+    }
+
+    private HttpClient CreateAuthenticatedClientWithoutRedirect()
+    {
+        var client = _factory.CreateClient(new Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false
+        });
+        client.DefaultRequestHeaders.Add(TestAuthHandler.AuthModeHeaderName, "authenticated");
+        client.DefaultRequestHeaders.Add(TestAuthHandler.UserIdHeaderName, TestAuthHandler.DefaultUserId.ToString());
+        client.DefaultRequestHeaders.Add(TestAuthHandler.UsernameHeaderName, NatsManagerWebAppFactory.BootstrapAdminUsername);
+        client.DefaultRequestHeaders.Add(TestAuthHandler.DisplayNameHeaderName, "Administrator");
+        client.DefaultRequestHeaders.Add(TestAuthHandler.RolesHeaderName, "Administrator");
+        return client;
+    }
+
     private sealed record AuthConfigResponse(bool OidcEnabled, string OidcLoginPath);
 }

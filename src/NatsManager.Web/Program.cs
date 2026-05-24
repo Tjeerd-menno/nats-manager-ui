@@ -226,9 +226,7 @@ authenticationBuilder.AddPolicyScheme(
                 return SessionAuthHandler.SchemeName;
             }
 
-            return context.Request.Cookies.ContainsKey(NatsManagerAuthenticationSchemes.OidcCookieName)
-                ? NatsManagerAuthenticationSchemes.OidcCookie
-                : SessionAuthHandler.SchemeName;
+            return NatsManagerAuthenticationSchemes.OidcCookie;
         };
     });
 authenticationBuilder.AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, SessionAuthHandler>(SessionAuthHandler.SchemeName, null);

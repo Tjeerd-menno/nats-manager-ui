@@ -115,7 +115,7 @@ public static class AuthEndpoints
             return "/";
         }
 
-        if (Uri.TryCreate(returnUrl, UriKind.Relative, out _) && !returnUrl.StartsWith("//", StringComparison.Ordinal))
+        if (IsLocalUrl(returnUrl))
         {
             return returnUrl;
         }
@@ -123,6 +123,26 @@ public static class AuthEndpoints
         if (!Uri.TryCreate(returnUrl, UriKind.Absolute, out var absoluteReturnUri))
         {
             return "/";
+        }
+
+        static bool IsLocalUrl(string url)
+        {
+            if (string.IsNullOrEmpty(url))
+            {
+                return false;
+            }
+
+            if (url[0] == '/')
+            {
+                return url.Length == 1 || (url[1] != '/' && url[1] != '\\');
+            }
+
+            if (url[0] == '~' && url.Length > 1 && url[1] == '/')
+            {
+                return url.Length == 2 || (url[2] != '/' && url[2] != '\\');
+            }
+
+            return false;
         }
 
         foreach (var origin in options.AllowedRedirectOrigins)
