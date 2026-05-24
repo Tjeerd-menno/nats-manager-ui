@@ -64,6 +64,7 @@ public sealed class AuthEndpointTests : IClassFixture<NatsManagerWebAppFactory>
 
     [Theory]
     [InlineData("/dashboard", "/dashboard")]
+    [InlineData("http://evil.example/path", "/")]
     [InlineData("https://evil.example/path", "/")]
     [InlineData("//evil.com", "/")]
     [InlineData("\\\\evil.com", "/")]

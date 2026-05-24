@@ -34,7 +34,7 @@ public static class OidcClaimsAugmentor
             .Distinct(StringComparer.Ordinal)
             .ToList();
 
-        if (roleClaims.Count == 0 && mappedRoles.Count == 0)
+        if (roleClaims.Count == 0)
         {
             mappedRoles.AddRange(options.DefaultRoles
                 .Select(TryNormalizeRole)
