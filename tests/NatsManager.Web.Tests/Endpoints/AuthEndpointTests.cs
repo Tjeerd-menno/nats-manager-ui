@@ -54,8 +54,17 @@ public sealed class AuthEndpointTests : IClassFixture<NatsManagerWebAppFactory>
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
+    [Fact]
+    public async Task OidcLogin_WhenOidcIsNotConfigured_ShouldReturn404()
+    {
+        var response = await _client.GetAsync("/api/auth/oidc/login?returnUrl=%2Fdashboard");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
     [Theory]
     [InlineData("/dashboard", "/dashboard")]
+    [InlineData("https://evil.example/path", "/")]
     [InlineData("//evil.com", "/")]
     [InlineData("\\\\evil.com", "/")]
     [InlineData("/\\\\evil.com", "/")]

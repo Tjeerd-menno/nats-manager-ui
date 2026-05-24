@@ -21,8 +21,11 @@ public static class OidcClaimsAugmentor
         AddIfMissing(identity, "DisplayName", FindFirstValue(principal, JwtRegisteredClaimNames.Name, "name", "preferred_username", ClaimTypes.Email, JwtRegisteredClaimNames.Email));
         AddIfMissing(identity, AuthProviderClaimType, "oidc");
 
-        var mappedRoles = principal.Claims
+        var roleClaims = principal.Claims
             .Where(static claim => claim.Type is ClaimTypes.Role or "role" or "roles")
+            .ToList();
+
+        var mappedRoles = roleClaims
             .SelectMany(static claim => claim.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             .Select(role => options.RoleMappings.TryGetValue(role, out var mappedRole) ? mappedRole : role)
             .Select(TryNormalizeRole)
@@ -31,7 +34,7 @@ public static class OidcClaimsAugmentor
             .Distinct(StringComparer.Ordinal)
             .ToList();
 
-        if (mappedRoles.Count == 0)
+        if (roleClaims.Count == 0 && mappedRoles.Count == 0)
         {
             mappedRoles.AddRange(options.DefaultRoles
                 .Select(TryNormalizeRole)

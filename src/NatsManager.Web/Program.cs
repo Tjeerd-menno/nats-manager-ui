@@ -292,7 +292,12 @@ if (oidcOptions.Enabled)
         };
         options.Events.OnRedirectToIdentityProviderForSignOut = context =>
         {
-            if (!string.IsNullOrWhiteSpace(oidcOptions.PostLogoutRedirectUri))
+            if (!string.IsNullOrWhiteSpace(oidcOptions.PublicOrigin))
+            {
+                context.ProtocolMessage.PostLogoutRedirectUri =
+                    $"{oidcOptions.PublicOrigin.TrimEnd('/')}{oidcOptions.SignedOutCallbackPath}";
+            }
+            else if (!string.IsNullOrWhiteSpace(oidcOptions.PostLogoutRedirectUri))
             {
                 context.ProtocolMessage.PostLogoutRedirectUri = oidcOptions.PostLogoutRedirectUri;
             }

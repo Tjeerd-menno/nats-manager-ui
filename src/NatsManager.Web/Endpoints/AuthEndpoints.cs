@@ -27,7 +27,8 @@ public static class AuthEndpoints
             .AllowAnonymous();
         group.MapGet("/oidc/login", LoginWithOidc)
             .AllowAnonymous();
-        group.MapPost("/oidc/logout", LogoutWithOidc);
+        group.MapPost("/oidc/logout", LogoutWithOidc)
+            .AllowAnonymous();
         group.MapPost("/logout", async (HttpContext httpContext) =>
         {
             httpContext.Session.Clear();
