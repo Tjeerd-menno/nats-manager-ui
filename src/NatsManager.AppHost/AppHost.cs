@@ -19,7 +19,7 @@ var openIdentityStackEnabled = !string.Equals(
     StringComparison.OrdinalIgnoreCase);
 var openIdentityStackImageTag = builder.Configuration["OPENIDENTITYSTACK_IMAGE_TAG"]
     ?? Environment.GetEnvironmentVariable("OPENIDENTITYSTACK_IMAGE_TAG")
-    ?? "v0.2.0";
+    ?? "v0.3.1";
 
 var nats = builder.AddNats("nats", userName: natsUsername, password: natsPassword)
     .WithArgs("-js", "-m", "8222")
