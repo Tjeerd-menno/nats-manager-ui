@@ -103,4 +103,20 @@ public sealed class JetStreamReadEndpointTests : IClassFixture<NatsManagerWebApp
             default,
             default);
     }
+
+    [Fact]
+    public async Task GetStreamMessages_WhenCountIsLessThanOne_ShouldReturn400()
+    {
+        var envId = Guid.NewGuid();
+
+        var response = await _client.GetAsync($"/api/environments/{envId}/jetstream/streams/orders/messages?count=0");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        await _factory.JetStreamAdapter.DidNotReceiveWithAnyArgs().GetStreamMessagesAsync(
+            default,
+            string.Empty,
+            default,
+            default,
+            default);
+    }
 }

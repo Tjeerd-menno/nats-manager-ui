@@ -61,6 +61,23 @@ public sealed class ObjectStoreEndpointTests : IClassFixture<NatsManagerWebAppFa
     }
 
     [Fact]
+    public async Task GetObjectDetail_WhenAuthenticatedWithoutOperatorAccess_ShouldReturn403()
+    {
+        var envId = Guid.NewGuid();
+        using var client = _factory.CreateAuthenticatedClient(Role.PredefinedNames.Auditor);
+        _factory.ObjectStoreAdapter.ClearReceivedCalls();
+
+        var response = await client.GetAsync($"/api/environments/{envId}/objectstore/buckets/bucket/objects/secret.bin");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        await _factory.ObjectStoreAdapter.DidNotReceiveWithAnyArgs().GetObjectInfoAsync(
+            default,
+            string.Empty,
+            string.Empty,
+            default);
+    }
+
+    [Fact]
     public async Task DeleteBucket_WithoutConfirmHeader_ShouldReturn400()
     {
         var envId = Guid.NewGuid();
@@ -89,7 +106,7 @@ public sealed class ObjectStoreEndpointTests : IClassFixture<NatsManagerWebAppFa
         _factory.ObjectStoreAdapter.GetObjectInfoAsync(envId, "bucket", "large.bin", Arg.Any<CancellationToken>())
             .Returns(new ObjectInfo(
                 Name: "large.bin",
-                Size: ObjectStoreUploadOptions.DefaultMaxUploadBytes + 1,
+                Size: ObjectStoreUploadOptions.DefaultMaxDownloadBytes + 1,
                 Description: null,
                 ContentType: "application/octet-stream",
                 LastModified: DateTimeOffset.UtcNow,

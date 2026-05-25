@@ -13,9 +13,6 @@ public sealed partial class KvStoreAdapter(
     INatsConnectionFactory connectionFactory,
     ILogger<KvStoreAdapter> logger) : IKvStoreAdapter
 {
-    private const int MaxKeysPerList = 1000;
-    private const int MaxHistoryEntries = 1000;
-
     public async Task<IReadOnlyList<KvBucketInfo>> ListBucketsAsync(Guid environmentId, CancellationToken cancellationToken = default)
     {
         var context = await GetKvContextAsync(environmentId, cancellationToken);
@@ -95,10 +92,6 @@ public sealed partial class KvStoreAdapter(
             {
                 var entry = await store.GetEntryAsync<byte[]>(key, cancellationToken: cancellationToken);
                 entries.Add(MapKvEntry(entry));
-                if (entries.Count >= MaxKeysPerList)
-                {
-                    break;
-                }
             }
             catch (NatsKVKeyNotFoundException)
             {
@@ -141,11 +134,6 @@ public sealed partial class KvStoreAdapter(
                 Operation: entry.Operation.ToString(),
                 CreatedAt: entry.Created,
                 Size: entry.Value?.Length ?? 0));
-
-            if (history.Count >= MaxHistoryEntries)
-            {
-                break;
-            }
         }
 
         return history;

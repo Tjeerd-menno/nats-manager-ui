@@ -48,6 +48,38 @@ public sealed class KvEndpointTests : IClassFixture<NatsManagerWebAppFactory>
     }
 
     [Fact]
+    public async Task GetKeys_WhenAuthenticatedWithoutOperatorAccess_ShouldReturn403()
+    {
+        var envId = Guid.NewGuid();
+        using var client = _factory.CreateAuthenticatedClient(Role.PredefinedNames.Auditor);
+
+        var response = await client.GetAsync($"/api/environments/{envId}/kv/buckets/bucket/keys");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        await _factory.KvStoreAdapter.DidNotReceiveWithAnyArgs().ListKeysAsync(
+            default,
+            string.Empty,
+            default,
+            default);
+    }
+
+    [Fact]
+    public async Task GetKeyHistory_WhenAuthenticatedWithoutOperatorAccess_ShouldReturn403()
+    {
+        var envId = Guid.NewGuid();
+        using var client = _factory.CreateAuthenticatedClient(Role.PredefinedNames.Auditor);
+
+        var response = await client.GetAsync($"/api/environments/{envId}/kv/buckets/bucket/keys/key/history");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        await _factory.KvStoreAdapter.DidNotReceiveWithAnyArgs().GetKeyHistoryAsync(
+            default,
+            string.Empty,
+            string.Empty,
+            default);
+    }
+
+    [Fact]
     public async Task DeleteBucket_WithoutConfirmHeader_ShouldReturn400()
     {
         var envId = Guid.NewGuid();
