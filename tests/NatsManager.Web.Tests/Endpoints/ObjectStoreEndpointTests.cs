@@ -4,6 +4,7 @@ using System.Text.Json;
 using Shouldly;
 using NSubstitute;
 using NatsManager.Application.Modules.ObjectStore.Models;
+using NatsManager.Domain.Modules.Auth;
 using NatsManager.Web.Configuration;
 
 namespace NatsManager.Web.Tests.Endpoints;
@@ -44,6 +45,39 @@ public sealed class ObjectStoreEndpointTests : IClassFixture<NatsManagerWebAppFa
     }
 
     [Fact]
+    public async Task DownloadObject_WhenAuthenticatedWithoutOperatorAccess_ShouldReturn403()
+    {
+        var envId = Guid.NewGuid();
+        using var client = _factory.CreateAuthenticatedClient(Role.PredefinedNames.Auditor);
+
+        var response = await client.GetAsync($"/api/environments/{envId}/objectstore/buckets/bucket/objects/secret.bin/download");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        await _factory.ObjectStoreAdapter.DidNotReceiveWithAnyArgs().DownloadObjectAsync(
+            default,
+            string.Empty,
+            string.Empty,
+            default);
+    }
+
+    [Fact]
+    public async Task GetObjectDetail_WhenAuthenticatedWithoutOperatorAccess_ShouldReturn403()
+    {
+        var envId = Guid.NewGuid();
+        using var client = _factory.CreateAuthenticatedClient(Role.PredefinedNames.Auditor);
+        _factory.ObjectStoreAdapter.ClearReceivedCalls();
+
+        var response = await client.GetAsync($"/api/environments/{envId}/objectstore/buckets/bucket/objects/secret.bin");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        await _factory.ObjectStoreAdapter.DidNotReceiveWithAnyArgs().GetObjectInfoAsync(
+            default,
+            string.Empty,
+            string.Empty,
+            default);
+    }
+
+    [Fact]
     public async Task DeleteBucket_WithoutConfirmHeader_ShouldReturn400()
     {
         var envId = Guid.NewGuid();
@@ -63,6 +97,30 @@ public sealed class ObjectStoreEndpointTests : IClassFixture<NatsManagerWebAppFa
 
         // The handler catches exception and returns null → NotFound
         response.StatusCode.ShouldBeOneOf(HttpStatusCode.NotFound, HttpStatusCode.InternalServerError);
+    }
+
+    [Fact]
+    public async Task DownloadObject_WhenObjectExceedsDownloadLimit_ShouldReturn413()
+    {
+        var envId = Guid.NewGuid();
+        _factory.ObjectStoreAdapter.GetObjectInfoAsync(envId, "bucket", "large.bin", Arg.Any<CancellationToken>())
+            .Returns(new ObjectInfo(
+                Name: "large.bin",
+                Size: ObjectStoreUploadOptions.DefaultMaxDownloadBytes + 1,
+                Description: null,
+                ContentType: "application/octet-stream",
+                LastModified: DateTimeOffset.UtcNow,
+                Chunks: 1,
+                Digest: "digest"));
+
+        var response = await _client.GetAsync($"/api/environments/{envId}/objectstore/buckets/bucket/objects/large.bin/download");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.RequestEntityTooLarge);
+        await _factory.ObjectStoreAdapter.DidNotReceiveWithAnyArgs().DownloadObjectAsync(
+            default,
+            string.Empty,
+            string.Empty,
+            default);
     }
 
     [Fact]

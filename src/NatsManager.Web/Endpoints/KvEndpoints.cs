@@ -22,9 +22,9 @@ public static class KvEndpoints
         group.MapGet("/buckets/{bucket}", GetBucketDetail);
         group.MapPost("/buckets", CreateBucket).RequireAuthorization(AuthorizationPolicyNames.OperatorAccess);
         group.MapDelete("/buckets/{bucket}", DeleteBucket).RequireAuthorization(AuthorizationPolicyNames.OperatorAccess);
-        group.MapGet("/buckets/{bucket}/keys", GetKeys);
-        group.MapGet("/buckets/{bucket}/keys/{key}", GetKeyDetail);
-        group.MapGet("/buckets/{bucket}/keys/{key}/history", GetKeyHistory);
+        group.MapGet("/buckets/{bucket}/keys", GetKeys).RequireAuthorization(AuthorizationPolicyNames.OperatorAccess);
+        group.MapGet("/buckets/{bucket}/keys/{key}", GetKeyDetail).RequireAuthorization(AuthorizationPolicyNames.OperatorAccess);
+        group.MapGet("/buckets/{bucket}/keys/{key}/history", GetKeyHistory).RequireAuthorization(AuthorizationPolicyNames.OperatorAccess);
         group.MapPut("/buckets/{bucket}/keys/{key}", PutKey).RequireAuthorization(AuthorizationPolicyNames.OperatorAccess);
         group.MapDelete("/buckets/{bucket}/keys/{key}", DeleteKey).RequireAuthorization(AuthorizationPolicyNames.OperatorAccess);
 

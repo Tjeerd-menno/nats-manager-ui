@@ -2,6 +2,7 @@ using System.Net;
 using Shouldly;
 using NSubstitute;
 using NatsManager.Application.Modules.JetStream.Models;
+using NatsManager.Domain.Modules.Auth;
 
 namespace NatsManager.Web.Tests.Endpoints;
 
@@ -68,5 +69,54 @@ public sealed class JetStreamReadEndpointTests : IClassFixture<NatsManagerWebApp
         var response = await _client.GetAsync($"/api/environments/{envId}/jetstream/streams/orders/consumers?page=0&pageSize=0");
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task GetStreamMessages_WhenAuthenticatedWithoutOperatorAccess_ShouldReturn403()
+    {
+        var envId = Guid.NewGuid();
+        using var client = _factory.CreateAuthenticatedClient(Role.PredefinedNames.Auditor);
+
+        var response = await client.GetAsync($"/api/environments/{envId}/jetstream/streams/orders/messages");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        await _factory.JetStreamAdapter.DidNotReceiveWithAnyArgs().GetStreamMessagesAsync(
+            default,
+            string.Empty,
+            default,
+            default,
+            default);
+    }
+
+    [Fact]
+    public async Task GetStreamMessages_WhenCountExceedsLimit_ShouldReturn400()
+    {
+        var envId = Guid.NewGuid();
+
+        var response = await _client.GetAsync($"/api/environments/{envId}/jetstream/streams/orders/messages?count=501");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        await _factory.JetStreamAdapter.DidNotReceiveWithAnyArgs().GetStreamMessagesAsync(
+            default,
+            string.Empty,
+            default,
+            default,
+            default);
+    }
+
+    [Fact]
+    public async Task GetStreamMessages_WhenCountIsLessThanOne_ShouldReturn400()
+    {
+        var envId = Guid.NewGuid();
+
+        var response = await _client.GetAsync($"/api/environments/{envId}/jetstream/streams/orders/messages?count=0");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        await _factory.JetStreamAdapter.DidNotReceiveWithAnyArgs().GetStreamMessagesAsync(
+            default,
+            string.Empty,
+            default,
+            default,
+            default);
     }
 }

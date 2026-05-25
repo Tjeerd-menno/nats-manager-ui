@@ -180,6 +180,8 @@ public sealed class RegisterEnvironmentCommandValidatorTests
     [InlineData("gopher://example.com")]
     [InlineData("javascript:alert(1)")]
     [InlineData("not-a-url")]
+    [InlineData("nats://user:password@localhost:4222")]
+    [InlineData("nats://a:4222,tls://token@b:4222")]
     public void Validate_WithDisallowedOrMalformedUrl_ShouldFail(string url)
     {
         var command = new RegisterEnvironmentCommand { Name = "env", ServerUrl = url };
@@ -302,6 +304,22 @@ public sealed class UpdateEnvironmentCommandValidatorTests
         var result = _validator.Validate(command);
 
         result.IsValid.ShouldBeTrue(string.Join("; ", result.Errors.Select(e => e.ErrorMessage)));
+    }
+
+    [Fact]
+    public void Validate_WithServerUrlUserInfo_ShouldFail()
+    {
+        var command = new UpdateEnvironmentCommand
+        {
+            Id = Guid.NewGuid(),
+            Name = "Test",
+            ServerUrl = "wss://user:password@broker.example.com:443"
+        };
+
+        var result = _validator.Validate(command);
+
+        result.IsValid.ShouldBeFalse();
+        result.Errors.ShouldContain(e => e.PropertyName == nameof(UpdateEnvironmentCommand.ServerUrl));
     }
 }
 

@@ -25,8 +25,9 @@ public static class ObjectStoreEndpoints
         group.MapPost("/buckets", CreateBucket).RequireAuthorization(AuthorizationPolicyNames.OperatorAccess);
         group.MapDelete("/buckets/{bucket}", DeleteBucket).RequireAuthorization(AuthorizationPolicyNames.OperatorAccess);
         group.MapGet("/buckets/{bucket}/objects", GetObjects);
-        group.MapGet("/buckets/{bucket}/objects/{objectName}", GetObjectDetail);
-        group.MapGet("/buckets/{bucket}/objects/{objectName}/download", DownloadObject);
+        group.MapGet("/buckets/{bucket}/objects/{objectName}", GetObjectDetail).RequireAuthorization(AuthorizationPolicyNames.OperatorAccess);
+        group.MapGet("/buckets/{bucket}/objects/{objectName}/download", DownloadObject)
+            .RequireAuthorization(AuthorizationPolicyNames.OperatorAccess);
         group.MapPost("/buckets/{bucket}/objects/{objectName}/upload", UploadObject)
             .RequireAuthorization(AuthorizationPolicyNames.OperatorAccess);
         group.MapDelete("/buckets/{bucket}/objects/{objectName}", DeleteObject).RequireAuthorization(AuthorizationPolicyNames.OperatorAccess);
@@ -104,12 +105,45 @@ public static class ObjectStoreEndpoints
         return presenter.ToResult();
     }
 
-    private static async Task<IResult> DownloadObject(Guid envId, string bucket, string objectName, IUseCase<DownloadObjectQuery, byte[]?> useCase, CancellationToken cancellationToken)
+    private static async Task<IResult> DownloadObject(
+        Guid envId,
+        string bucket,
+        string objectName,
+        IOptions<ObjectStoreUploadOptions> transferOptions,
+        IUseCase<GetObjectDetailQuery, ObjectInfo> detailUseCase,
+        IUseCase<DownloadObjectQuery, byte[]?> downloadUseCase,
+        CancellationToken cancellationToken)
     {
+        var detailPresenter = new Presenter<ObjectInfo>();
+        await detailUseCase.ExecuteAsync(new GetObjectDetailQuery(envId, bucket, objectName), detailPresenter, cancellationToken);
+        if (!detailPresenter.IsSuccess)
+        {
+            return detailPresenter.ToResult();
+        }
+
+        var maxDownloadBytes = transferOptions.Value.MaxDownloadBytes;
+        if (detailPresenter.Value!.Size > maxDownloadBytes)
+        {
+            return Results.Problem(
+                title: "Object download too large",
+                detail: $"Object downloads are limited to {maxDownloadBytes} bytes.",
+                statusCode: StatusCodes.Status413PayloadTooLarge);
+        }
+
         var presenter = new Presenter<byte[]?>();
-        await useCase.ExecuteAsync(new DownloadObjectQuery(envId, bucket, objectName), presenter, cancellationToken);
+        await downloadUseCase.ExecuteAsync(new DownloadObjectQuery(envId, bucket, objectName), presenter, cancellationToken);
         if (presenter.IsSuccess && presenter.Value is not null)
+        {
+            if (presenter.Value.LongLength > maxDownloadBytes)
+            {
+                return Results.Problem(
+                    title: "Object download too large",
+                    detail: $"Object downloads are limited to {maxDownloadBytes} bytes.",
+                    statusCode: StatusCodes.Status413PayloadTooLarge);
+            }
+
             return Results.File(presenter.Value, "application/octet-stream", objectName);
+        }
         return presenter.ToResult();
     }
 
