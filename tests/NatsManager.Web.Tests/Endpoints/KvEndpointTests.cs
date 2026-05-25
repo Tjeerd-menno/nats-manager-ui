@@ -4,6 +4,7 @@ using System.Text.Json;
 using Shouldly;
 using NSubstitute;
 using NatsManager.Application.Modules.KeyValue.Models;
+using NatsManager.Domain.Modules.Auth;
 
 namespace NatsManager.Web.Tests.Endpoints;
 
@@ -28,6 +29,22 @@ public sealed class KvEndpointTests : IClassFixture<NatsManagerWebAppFactory>
         var response = await _client.GetAsync($"/api/environments/{envId}/kv/buckets");
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task GetKeyDetail_WhenAuthenticatedWithoutOperatorAccess_ShouldReturn403()
+    {
+        var envId = Guid.NewGuid();
+        using var client = _factory.CreateAuthenticatedClient(Role.PredefinedNames.Auditor);
+
+        var response = await client.GetAsync($"/api/environments/{envId}/kv/buckets/bucket/keys/key");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        await _factory.KvStoreAdapter.DidNotReceiveWithAnyArgs().GetKeyAsync(
+            default,
+            string.Empty,
+            string.Empty,
+            default);
     }
 
     [Fact]

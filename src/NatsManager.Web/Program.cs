@@ -93,7 +93,7 @@ builder.Services.AddOptions<MonitoringOptions>()
 
 builder.Services.AddOptions<ObjectStoreUploadOptions>()
     .Bind(builder.Configuration.GetSection(ObjectStoreUploadOptions.SectionName))
-    .Validate(ObjectStoreUploadOptions.IsValid, "ObjectStore options are invalid. MaxUploadBytes must be between 1 and 2147483647.")
+    .Validate(ObjectStoreUploadOptions.IsValid, "ObjectStore options are invalid. MaxUploadBytes and MaxDownloadBytes must be between 1 and 2147483647.")
     .ValidateOnStart();
 
 builder.Services.AddOptions<PermissionManifestOptions>()

@@ -21,7 +21,7 @@ internal static class ServerUrlValidation
 
     public static IRuleBuilderOptions<T, string> MustBeValidNatsServerUrl<T>(this IRuleBuilder<T, string> rule)
         => rule.Must(BeValidNatsUrl)
-            .WithMessage("ServerUrl must be an absolute URL using one of the allowed schemes: nats://, tls://, ws://, wss://.");
+            .WithMessage("ServerUrl must be an absolute URL using one of the allowed schemes: nats://, tls://, ws://, wss://, and must not include embedded credentials.");
 
     private static bool BeValidNatsUrl(string? value)
     {
@@ -46,6 +46,11 @@ internal static class ServerUrlValidation
             }
 
             if (string.IsNullOrWhiteSpace(uri.Host))
+            {
+                return false;
+            }
+
+            if (!string.IsNullOrEmpty(uri.UserInfo))
             {
                 return false;
             }
