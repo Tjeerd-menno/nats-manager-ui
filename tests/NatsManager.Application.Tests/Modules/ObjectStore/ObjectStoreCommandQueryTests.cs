@@ -33,7 +33,7 @@ public sealed class GetObjectBucketsQueryTests
         await _handler.ExecuteAsync(new GetObjectBucketsQuery(envId), outputPort, CancellationToken.None);
 
         outputPort.IsSuccess.ShouldBeTrue();
-        outputPort.Value.Count().ShouldBe(1);
+        outputPort.Value!.Count.ShouldBe(1);
         outputPort.Value![0].BucketName.ShouldBe("bucket1");
     }
 }
@@ -100,7 +100,7 @@ public sealed class GetObjectsQueryTests
         await _handler.ExecuteAsync(new GetObjectsQuery(envId, "bucket1"), outputPort, CancellationToken.None);
 
         outputPort.IsSuccess.ShouldBeTrue();
-        outputPort.Value.Count().ShouldBe(1);
+        outputPort.Value!.Count.ShouldBe(1);
         outputPort.Value![0].Name.ShouldBe("file.txt");
     }
 }

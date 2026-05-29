@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { TextInput, PasswordInput, Button, Paper, Title, Stack, Alert, Center, Text } from '@mantine/core';
+import { TextInput, PasswordInput, Button, Paper, Title, Stack, Alert, Center, Text, Divider } from '@mantine/core';
 import { IconAlertCircle, IconLogin } from '@tabler/icons-react';
 import { useAuth } from './useAuth';
 import { extractProblemDetails } from '../../api/client';
 
 export function LoginPage() {
-  const { login } = useAuth();
+  const { authConfig, login, loginWithOidc } = useAuth();
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -64,6 +64,20 @@ export function LoginPage() {
             >
               Sign in
             </Button>
+            {authConfig.oidcEnabled && (
+              <>
+                <Divider label="or" labelPosition="center" />
+                <Button
+                  type="button"
+                  variant="outline"
+                  fullWidth
+                  leftSection={<IconLogin size={16} />}
+                  onClick={loginWithOidc}
+                >
+                  Sign in with OpenID Connect
+                </Button>
+              </>
+            )}
           </Stack>
         </form>
       </Paper>

@@ -19,6 +19,7 @@ public sealed class AppHostFixture : IAsyncLifetime
     private const string UsernameParameter = "Parameters__bootstrap-admin-username";
     private const string PasswordParameter = "Parameters__bootstrap-admin-password";
     private const string EncryptionKeyParameter = "Parameters__backend-encryption-key";
+    private const string OpenIdentityStackEnabled = "OPENIDENTITYSTACK_ENABLED";
     public const string BootstrapAdminUsername = "admin";
     public const string BootstrapAdminPassword = "Admin123!";
     public const string EncryptionKey = "JFar2auhLPoLfMvwy62dhRltrwY3EEPmFJ1svc17pn0=";
@@ -29,6 +30,7 @@ public sealed class AppHostFixture : IAsyncLifetime
     private string? _originalUsernameParameter;
     private string? _originalPasswordParameter;
     private string? _originalEncryptionKeyParameter;
+    private string? _originalOpenIdentityStackEnabled;
 
     public string FrontendUrl { get; private set; } = string.Empty;
     public string BackendUrl { get; private set; } = string.Empty;
@@ -42,10 +44,12 @@ public sealed class AppHostFixture : IAsyncLifetime
         _originalUsernameParameter = Environment.GetEnvironmentVariable(UsernameParameter);
         _originalPasswordParameter = Environment.GetEnvironmentVariable(PasswordParameter);
         _originalEncryptionKeyParameter = Environment.GetEnvironmentVariable(EncryptionKeyParameter);
+        _originalOpenIdentityStackEnabled = Environment.GetEnvironmentVariable(OpenIdentityStackEnabled);
 
         Environment.SetEnvironmentVariable(UsernameParameter, BootstrapAdminUsername);
         Environment.SetEnvironmentVariable(PasswordParameter, BootstrapAdminPassword);
         Environment.SetEnvironmentVariable(EncryptionKeyParameter, EncryptionKey);
+        Environment.SetEnvironmentVariable(OpenIdentityStackEnabled, "false");
 
         var appHost = await DistributedApplicationTestingBuilder
             .CreateAsync<Projects.NatsManager_AppHost>(
@@ -123,6 +127,7 @@ public sealed class AppHostFixture : IAsyncLifetime
         Environment.SetEnvironmentVariable(UsernameParameter, _originalUsernameParameter);
         Environment.SetEnvironmentVariable(PasswordParameter, _originalPasswordParameter);
         Environment.SetEnvironmentVariable(EncryptionKeyParameter, _originalEncryptionKeyParameter);
+        Environment.SetEnvironmentVariable(OpenIdentityStackEnabled, _originalOpenIdentityStackEnabled);
 
         GC.SuppressFinalize(this);
     }
