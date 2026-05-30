@@ -52,10 +52,10 @@ dotnet build src/NatsManager.Web/NatsManager.Web.csproj -c Debug
 ### Backend — Run Tests
 Plain `dotnet test` from the repository root is not the supported all-backend test command with xUnit v3 + Microsoft Testing Platform v2. Run unit test projects explicitly (as CI does):
 ```bash
-tests\NatsManager.Domain.Tests\bin\Debug\net10.0\NatsManager.Domain.Tests.exe
-tests\NatsManager.Application.Tests\bin\Debug\net10.0\NatsManager.Application.Tests.exe
-tests\NatsManager.Infrastructure.Tests\bin\Debug\net10.0\NatsManager.Infrastructure.Tests.exe
-tests\NatsManager.Web.Tests\bin\Debug\net10.0\NatsManager.Web.Tests.exe
+dotnet test --project tests/NatsManager.Domain.Tests/NatsManager.Domain.Tests.csproj --configuration Debug
+dotnet test --project tests/NatsManager.Application.Tests/NatsManager.Application.Tests.csproj --configuration Debug
+dotnet test --project tests/NatsManager.Infrastructure.Tests/NatsManager.Infrastructure.Tests.csproj --configuration Debug
+dotnet test --project tests/NatsManager.Web.Tests/NatsManager.Web.Tests.csproj --configuration Debug
 ```
 
 ### Backend — Warnings-as-errors
