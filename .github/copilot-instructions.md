@@ -50,8 +50,7 @@ dotnet build src/NatsManager.Web/NatsManager.Web.csproj -c Debug
 ```
 
 ### Backend — Run Tests
-**`dotnet test` does NOT work** — it reports 0 tests (exit code 5) with xUnit v3 + Microsoft Testing Platform v2.
-Run the built `.exe` directly:
+Plain `dotnet test` from the repository root is not the supported all-backend test command with xUnit v3 + Microsoft Testing Platform v2. Run unit test projects explicitly (as CI does):
 ```bash
 tests\NatsManager.Domain.Tests\bin\Debug\net10.0\NatsManager.Domain.Tests.exe
 tests\NatsManager.Application.Tests\bin\Debug\net10.0\NatsManager.Application.Tests.exe
