@@ -46,6 +46,10 @@ public sealed partial class ServiceDiscoveryAdapter(
             {
             }
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             LogServiceDiscoveryError(environmentId, ex);

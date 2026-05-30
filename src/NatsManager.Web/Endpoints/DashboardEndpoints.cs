@@ -1,7 +1,6 @@
 using NatsManager.Application.Common;
 using NatsManager.Application.Modules.Dashboard.Models;
 using NatsManager.Application.Modules.Dashboard.Queries;
-using NatsManager.Web.Presenters;
 
 namespace NatsManager.Web.Endpoints;
 
@@ -20,8 +19,6 @@ public static class DashboardEndpoints
 
     private static async Task<IResult> GetDashboard(Guid envId, IUseCase<GetDashboardQuery, DashboardSummary> useCase, CancellationToken cancellationToken)
     {
-        var presenter = new Presenter<DashboardSummary>();
-        await useCase.ExecuteAsync(new GetDashboardQuery(envId), presenter, cancellationToken);
-        return presenter.ToResult();
+        return await useCase.ExecuteToResultAsync(new GetDashboardQuery(envId), cancellationToken);
     }
 }

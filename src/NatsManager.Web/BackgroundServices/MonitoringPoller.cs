@@ -38,7 +38,7 @@ public sealed partial class MonitoringPoller(
             }
             catch (Exception ex)
             {
-                LogPollerError(ex.Message);
+                LogPollerError(ex);
             }
 
             await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken);
@@ -132,7 +132,7 @@ public sealed partial class MonitoringPoller(
         }
         catch (Exception ex)
         {
-            LogPollCycleFailed(environment.Name, ex.Message);
+            LogPollCycleFailed(environment.Name, ex);
         }
     }
 
@@ -148,14 +148,14 @@ public sealed partial class MonitoringPoller(
     [LoggerMessage(Level = LogLevel.Information, Message = "Monitoring poller stopped")]
     private partial void LogPollerStopped();
 
-    [LoggerMessage(Level = LogLevel.Error, Message = "Monitoring polling cycle failed: {Error}")]
-    private partial void LogPollerError(string error);
+    [LoggerMessage(Level = LogLevel.Error, Message = "Monitoring polling cycle failed")]
+    private partial void LogPollerError(Exception exception);
 
     [LoggerMessage(Level = LogLevel.Debug, Message = "Poll cycle complete for '{EnvName}': {SnapshotCount} snapshots")]
     private partial void LogPollCycleComplete(string envName, int snapshotCount);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Poll cycle failed for '{EnvName}': {Error}")]
-    private partial void LogPollCycleFailed(string envName, string error);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Poll cycle failed for '{EnvName}'")]
+    private partial void LogPollCycleFailed(string envName, Exception exception);
 
     [LoggerMessage(Level = LogLevel.Debug, Message = "Monitoring URL not configured for '{EnvName}'")]
     private partial void LogMonitoringUrlNotConfigured(string envName);

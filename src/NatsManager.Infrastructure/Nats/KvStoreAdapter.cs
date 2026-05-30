@@ -45,6 +45,10 @@ public sealed partial class KvStoreAdapter(
             var status = await store.GetStatusAsync(cancellationToken);
             return MapBucketInfo(status, bucketName);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception)
         {
             return null;

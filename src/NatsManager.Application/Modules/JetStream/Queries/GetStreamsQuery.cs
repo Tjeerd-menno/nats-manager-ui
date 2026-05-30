@@ -45,21 +45,13 @@ public sealed class GetStreamsQueryHandler(
         };
 
         var list = sorted.ToList();
-        var totalCount = list.Count;
-        var items = list
-            .Skip((request.Page - 1) * request.PageSize)
-            .Take(request.PageSize)
-            .Select(s => new StreamListItem(
+        var result = list.ToPaginatedResult(
+            request.Page,
+            request.PageSize,
+            s => new StreamListItem(
                 s.Name, s.Description, s.Subjects, s.RetentionPolicy,
-                s.StorageType, s.Messages, s.Bytes, s.ConsumerCount, s.Created))
-            .ToList();
+                s.StorageType, s.Messages, s.Bytes, s.ConsumerCount, s.Created));
 
-        outputPort.Success(new PaginatedResult<StreamListItem>
-        {
-            Items = items,
-            TotalCount = totalCount,
-            Page = request.Page,
-            PageSize = request.PageSize
-        });
+        outputPort.Success(result);
     }
 }

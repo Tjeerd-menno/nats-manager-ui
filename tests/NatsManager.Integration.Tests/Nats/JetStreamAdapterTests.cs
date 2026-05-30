@@ -1,4 +1,4 @@
-using NatsManager.Application.Modules.JetStream.Commands;
+using NatsManager.Application.Modules.JetStream.Ports;
 using NatsManager.Infrastructure.Nats;
 using NatsManager.Integration.Tests.Infrastructure;
 
@@ -14,7 +14,7 @@ public sealed class JetStreamAdapterTests(NatsFixture fixture) : NatsIntegration
         var adapter = CreateAdapter();
         var streamName = $"test-{Guid.NewGuid():N}"[..20];
 
-        await adapter.CreateStreamAsync(new CreateStreamCommand
+        await adapter.CreateStreamAsync(new CreateStreamSpec
         {
             EnvironmentId = EnvironmentId,
             Name = streamName,
@@ -31,7 +31,7 @@ public sealed class JetStreamAdapterTests(NatsFixture fixture) : NatsIntegration
     {
         var adapter = CreateAdapter();
         var streamName = $"test-{Guid.NewGuid():N}"[..20];
-        await adapter.CreateStreamAsync(new CreateStreamCommand
+        await adapter.CreateStreamAsync(new CreateStreamSpec
         {
             EnvironmentId = EnvironmentId,
             Name = streamName,
@@ -59,7 +59,7 @@ public sealed class JetStreamAdapterTests(NatsFixture fixture) : NatsIntegration
     {
         var adapter = CreateAdapter();
         var streamName = $"test-{Guid.NewGuid():N}"[..20];
-        await adapter.CreateStreamAsync(new CreateStreamCommand
+        await adapter.CreateStreamAsync(new CreateStreamSpec
         {
             EnvironmentId = EnvironmentId,
             Name = streamName,
@@ -80,7 +80,7 @@ public sealed class JetStreamAdapterTests(NatsFixture fixture) : NatsIntegration
     {
         var adapter = CreateAdapter();
         var streamName = $"test-{Guid.NewGuid():N}"[..20];
-        await adapter.CreateStreamAsync(new CreateStreamCommand
+        await adapter.CreateStreamAsync(new CreateStreamSpec
         {
             EnvironmentId = EnvironmentId,
             Name = streamName,
@@ -100,14 +100,14 @@ public sealed class JetStreamAdapterTests(NatsFixture fixture) : NatsIntegration
         var streamName = $"test-{Guid.NewGuid():N}"[..20];
         var consumerName = "test-consumer";
 
-        await adapter.CreateStreamAsync(new CreateStreamCommand
+        await adapter.CreateStreamAsync(new CreateStreamSpec
         {
             EnvironmentId = EnvironmentId,
             Name = streamName,
             Subjects = [$"{streamName}.>"]
         });
 
-        await adapter.CreateConsumerAsync(new CreateConsumerCommand
+        await adapter.CreateConsumerAsync(new CreateConsumerSpec
         {
             EnvironmentId = EnvironmentId,
             StreamName = streamName,
@@ -128,14 +128,14 @@ public sealed class JetStreamAdapterTests(NatsFixture fixture) : NatsIntegration
         var streamName = $"test-{Guid.NewGuid():N}"[..20];
         var consumerName = "test-consumer";
 
-        await adapter.CreateStreamAsync(new CreateStreamCommand
+        await adapter.CreateStreamAsync(new CreateStreamSpec
         {
             EnvironmentId = EnvironmentId,
             Name = streamName,
             Subjects = [$"{streamName}.>"]
         });
 
-        await adapter.CreateConsumerAsync(new CreateConsumerCommand
+        await adapter.CreateConsumerAsync(new CreateConsumerSpec
         {
             EnvironmentId = EnvironmentId,
             StreamName = streamName,

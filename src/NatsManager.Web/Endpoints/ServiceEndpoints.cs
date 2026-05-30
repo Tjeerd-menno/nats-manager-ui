@@ -33,9 +33,7 @@ public static class ServiceEndpoints
 
     private static async Task<IResult> GetServiceDetail(Guid envId, string name, IUseCase<GetServiceDetailQuery, ServiceInfo> useCase, CancellationToken cancellationToken)
     {
-        var presenter = new Presenter<ServiceInfo>();
-        await useCase.ExecuteAsync(new GetServiceDetailQuery(envId, name), presenter, cancellationToken);
-        return presenter.ToResult();
+        return await useCase.ExecuteToResultAsync(new GetServiceDetailQuery(envId, name), cancellationToken);
     }
 
     private static async Task<IResult> TestServiceRequest(

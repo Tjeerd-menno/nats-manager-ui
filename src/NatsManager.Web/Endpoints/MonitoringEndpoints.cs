@@ -1,9 +1,10 @@
+using NatsManager.Application.Common;
 using NatsManager.Application.Modules.Environments.Ports;
 using NatsManager.Application.Modules.Monitoring.Models;
 using NatsManager.Application.Modules.Monitoring.Models.ClusterObservability;
 using NatsManager.Application.Modules.Monitoring.Ports;
-using NatsManager.Application.Modules.Monitoring.Ports.ClusterObservability;
 using NatsManager.Application.Modules.Monitoring.Queries.ClusterObservability;
+using NatsManager.Web.Security;
 
 namespace NatsManager.Web.Endpoints;
 
@@ -15,9 +16,12 @@ public static class MonitoringEndpoints
             .WithTags("Monitoring")
             .RequireAuthorization();
 
-        group.MapGet("/{envId:guid}/monitoring/metrics/history", GetMonitoringHistory);
-        group.MapGet("/{environmentId:guid}/monitoring/cluster/overview", GetClusterOverview);
-        group.MapGet("/{environmentId:guid}/monitoring/cluster/topology", GetClusterTopology);
+        group.MapGet("/{envId:guid}/monitoring/metrics/history", GetMonitoringHistory)
+            .RequireAuthorization(AuthorizationPolicyNames.EnvironmentReadAccess);
+        group.MapGet("/{environmentId:guid}/monitoring/cluster/overview", GetClusterOverview)
+            .RequireAuthorization(AuthorizationPolicyNames.EnvironmentReadAccess);
+        group.MapGet("/{environmentId:guid}/monitoring/cluster/topology", GetClusterTopology)
+            .RequireAuthorization(AuthorizationPolicyNames.EnvironmentReadAccess);
 
         return app;
     }
@@ -43,7 +47,7 @@ public static class MonitoringEndpoints
     private static async Task<IResult> GetClusterOverview(
         Guid environmentId,
         IEnvironmentRepository environmentRepository,
-        IClusterObservationStore observationStore,
+        IUseCase<GetClusterOverviewQuery, ClusterObservation> useCase,
         CancellationToken ct)
     {
         var environment = await environmentRepository.GetByIdAsync(environmentId, ct);
@@ -53,21 +57,13 @@ public static class MonitoringEndpoints
         if (environment.MonitoringUrl is null)
             return ApiProblemResults.BadRequest("Monitoring is not configured for this environment.");
 
-        var handler = new GetClusterOverviewQueryHandler(observationStore);
-        var observation = handler.Handle(new GetClusterOverviewQuery(environmentId));
-        if (observation is null)
-            return Results.Problem(
-                detail: "No cluster observation data is available. All monitoring endpoints may be unavailable.",
-                statusCode: 503,
-                title: "Cluster Monitoring Unavailable");
-
-        return Results.Ok(observation);
+        return await useCase.ExecuteToResultAsync(new GetClusterOverviewQuery(environmentId), ct);
     }
 
     private static async Task<IResult> GetClusterTopology(
         Guid environmentId,
         IEnvironmentRepository environmentRepository,
-        IClusterObservationStore observationStore,
+        IUseCase<GetClusterTopologyQuery, ClusterTopologyGraphResult> useCase,
         string? types,
         string? status,
         bool includeStale = true,
@@ -107,16 +103,8 @@ public static class MonitoringEndpoints
             statusFilter = parsedStatus;
         }
 
-        var handler = new GetClusterTopologyQueryHandler(observationStore);
-        var result = handler.Handle(new GetClusterTopologyQuery(environmentId, typeFilter, statusFilter, includeStale, maxNodes));
-
-        if (result is null)
-            return Results.Problem(
-                detail: "No topology data is available. Monitoring endpoints may be unavailable.",
-                statusCode: 503,
-                title: "Cluster Topology Unavailable");
-
-        return Results.Ok(result);
+        return await useCase.ExecuteToResultAsync(
+            new GetClusterTopologyQuery(environmentId, typeFilter, statusFilter, includeStale, maxNodes), ct);
     }
 }
 

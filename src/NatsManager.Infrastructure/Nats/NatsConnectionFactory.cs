@@ -58,7 +58,7 @@ public sealed partial class NatsConnectionFactory(
         }
     }
 
-    public async Task<ConnectionStatus> TestConnectionAsync(string serverUrl, string? credentialReference, CancellationToken cancellationToken = default)
+    public async Task<ConnectionStatus> TestConnectionAsync(string serverUrl, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -70,8 +70,6 @@ public sealed partial class NatsConnectionFactory(
             };
 
             await using var connection = new NatsConnection(opts);
-            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cts.CancelAfter(ConnectionTimeout);
             await connection.ConnectAsync();
 
             return connection.ConnectionState == NatsConnectionState.Open
@@ -80,7 +78,7 @@ public sealed partial class NatsConnectionFactory(
         }
         catch (Exception ex)
         {
-            LogConnectionTestFailed(serverUrl, ex.Message);
+            LogConnectionTestFailed(serverUrl, ex);
             return ConnectionStatus.Unavailable;
         }
     }
@@ -133,6 +131,6 @@ public sealed partial class NatsConnectionFactory(
     [LoggerMessage(Level = LogLevel.Information, Message = "NATS connection established to {Name} at {Url}")]
     private partial void LogConnectionEstablished(string name, string url);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "NATS connection test failed for {Url}: {Error}")]
-    private partial void LogConnectionTestFailed(string url, string error);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "NATS connection test failed for {Url}")]
+    private partial void LogConnectionTestFailed(string url, Exception exception);
 }

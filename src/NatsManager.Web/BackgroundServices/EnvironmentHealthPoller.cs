@@ -25,7 +25,7 @@ public sealed partial class EnvironmentHealthPoller(
             }
             catch (Exception ex)
             {
-                LogPollerError(ex.Message);
+                LogPollerError(ex);
             }
 
             await Task.Delay(DefaultInterval, stoppingToken);
@@ -65,7 +65,7 @@ public sealed partial class EnvironmentHealthPoller(
             }
             catch (Exception ex)
             {
-                LogEnvironmentPollFailed(environment.Name, ex.Message);
+                LogEnvironmentPollFailed(environment.Name, ex);
             }
         }
     }
@@ -76,12 +76,12 @@ public sealed partial class EnvironmentHealthPoller(
     [LoggerMessage(Level = LogLevel.Information, Message = "Environment health poller stopped")]
     private partial void LogPollerStopped();
 
-    [LoggerMessage(Level = LogLevel.Error, Message = "Environment health polling cycle failed: {Error}")]
-    private partial void LogPollerError(string error);
+    [LoggerMessage(Level = LogLevel.Error, Message = "Environment health polling cycle failed")]
+    private partial void LogPollerError(Exception exception);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Environment '{Name}' status changed to {Status}")]
     private partial void LogStatusChanged(string name, string status);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to poll environment '{Name}': {Error}")]
-    private partial void LogEnvironmentPollFailed(string name, string error);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to poll environment '{Name}'")]
+    private partial void LogEnvironmentPollFailed(string name, Exception exception);
 }

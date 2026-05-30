@@ -20,20 +20,18 @@ public static class CoreNatsEndpoints
             .WithTags("Core NATS")
             .RequireAuthorization();
 
-        group.MapGet("/status", GetStatus);
-        group.MapGet("/subjects", GetSubjects);
-        group.MapGet("/clients", GetClients);
+        group.MapGet("/status", GetStatus).RequireAuthorization(AuthorizationPolicyNames.EnvironmentReadAccess);
+        group.MapGet("/subjects", GetSubjects).RequireAuthorization(AuthorizationPolicyNames.EnvironmentReadAccess);
+        group.MapGet("/clients", GetClients).RequireAuthorization(AuthorizationPolicyNames.EnvironmentReadAccess);
         group.MapPost("/publish", PublishMessage).RequireAuthorization(AuthorizationPolicyNames.OperatorAccess);
-        group.MapGet("/stream", StreamMessages);
+        group.MapGet("/stream", StreamMessages).RequireAuthorization(AuthorizationPolicyNames.EnvironmentReadAccess);
 
         return app;
     }
 
     private static async Task<IResult> GetStatus(Guid envId, IUseCase<GetCoreStatusQuery, NatsServerInfo> useCase, CancellationToken cancellationToken)
     {
-        var presenter = new Presenter<NatsServerInfo>();
-        await useCase.ExecuteAsync(new GetCoreStatusQuery(envId), presenter, cancellationToken);
-        return presenter.ToResult();
+        return await useCase.ExecuteToResultAsync(new GetCoreStatusQuery(envId), cancellationToken);
     }
 
     private static async Task<IResult> GetSubjects(Guid envId, IUseCase<GetSubjectsQuery, ListSubjectsResult> useCase, HttpResponse response, CancellationToken cancellationToken)
