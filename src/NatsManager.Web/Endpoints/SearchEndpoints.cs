@@ -66,9 +66,7 @@ public static class SearchEndpoints
         var userId = GetUserId(httpContext);
         if (userId is null) return Results.Unauthorized();
 
-        var presenter = new Presenter<Unit>();
-        await useCase.ExecuteAsync(new RemoveBookmarkCommand(userId.Value, bookmarkId), presenter, cancellationToken);
-        return presenter.ToNoContentResult();
+        return await useCase.ExecuteToNoContentResultAsync(new RemoveBookmarkCommand(userId.Value, bookmarkId), cancellationToken);
     }
 
     private static async Task<IResult> GetPreferences(HttpContext httpContext, IUseCase<GetUserPreferencesQuery, Dictionary<string, string>> useCase, CancellationToken cancellationToken)
@@ -86,9 +84,7 @@ public static class SearchEndpoints
         var userId = GetUserId(httpContext);
         if (userId is null) return Results.Unauthorized();
 
-        var presenter = new Presenter<Unit>();
-        await useCase.ExecuteAsync(new SetPreferenceCommand(userId.Value, key, request.Value), presenter, cancellationToken);
-        return presenter.ToNoContentResult();
+        return await useCase.ExecuteToNoContentResultAsync(new SetPreferenceCommand(userId.Value, key, request.Value), cancellationToken);
     }
 
     private static Guid? GetUserId(HttpContext httpContext)

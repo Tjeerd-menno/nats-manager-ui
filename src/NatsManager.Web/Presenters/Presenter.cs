@@ -83,6 +83,14 @@ public sealed class Presenter<T> : IOutputPort<T>
         return ToResult();
     }
 
+    public IResult ToCreatedResult(Func<T, string> uriFactory)
+    {
+        if (IsSuccess)
+            return Results.Created(uriFactory(Value!), Value);
+
+        return ToResult();
+    }
+
     public IResult ToNoContentResult()
     {
         if (IsSuccess)

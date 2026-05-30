@@ -6,15 +6,16 @@ namespace NatsManager.Infrastructure.Tests.Auth;
 public sealed class PasswordHasherTests
 {
     [Fact]
-    public void Hash_ShouldReturnSaltDotHash()
+    public void Hash_ShouldReturnVersionedFormat()
     {
         var result = PasswordHasher.Hash("password123");
 
-        result.ShouldContain(".");
         var parts = result.Split('.');
-        parts.Count().ShouldBe(2);
-        parts[0].ShouldNotBeNullOrEmpty();
-        parts[1].ShouldNotBeNullOrEmpty();
+        parts.Length.ShouldBe(4);
+        parts[0].ShouldBe("pbkdf2-sha512");
+        parts[1].ShouldBe("100000");
+        parts[2].ShouldNotBeNullOrEmpty();
+        parts[3].ShouldNotBeNullOrEmpty();
     }
 
     [Fact]
@@ -46,6 +47,41 @@ public sealed class PasswordHasherTests
     public void Verify_WithInvalidHashFormat_ShouldReturnFalse()
     {
         PasswordHasher.Verify("password123", "invalidhash").ShouldBeFalse();
+    }
+
+    [Fact]
+    public void Verify_WithMalformedBase64_ShouldReturnFalseNotThrow()
+    {
+        // 4-part shape but base64 segments are not decodable.
+        PasswordHasher.Verify("password123", "pbkdf2-sha512.100000.!!!.???").ShouldBeFalse();
+    }
+
+    [Fact]
+    public void Verify_WithLegacyTwoPartHash_ShouldStillVerify()
+    {
+        // Legacy format: {saltBase64}.{hashBase64} with 100k PBKDF2-SHA512.
+        var salt = System.Security.Cryptography.RandomNumberGenerator.GetBytes(16);
+        var hash = System.Security.Cryptography.Rfc2898DeriveBytes.Pbkdf2(
+            "password123", salt, 100_000, System.Security.Cryptography.HashAlgorithmName.SHA512, 32);
+        var legacy = $"{Convert.ToBase64String(salt)}.{Convert.ToBase64String(hash)}";
+
+        PasswordHasher.Verify("password123", legacy).ShouldBeTrue();
+        PasswordHasher.Verify("wrong", legacy).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void NeedsRehash_ShouldBeTrueForLegacyAndFalseForCurrent()
+    {
+        var current = PasswordHasher.Hash("password123");
+        PasswordHasher.NeedsRehash(current).ShouldBeFalse();
+
+        var salt = System.Security.Cryptography.RandomNumberGenerator.GetBytes(16);
+        var hash = System.Security.Cryptography.Rfc2898DeriveBytes.Pbkdf2(
+            "password123", salt, 100_000, System.Security.Cryptography.HashAlgorithmName.SHA512, 32);
+        var legacy = $"{Convert.ToBase64String(salt)}.{Convert.ToBase64String(hash)}";
+
+        PasswordHasher.NeedsRehash(legacy).ShouldBeTrue();
+        PasswordHasher.NeedsRehash("garbage").ShouldBeTrue();
     }
 
     [Fact]

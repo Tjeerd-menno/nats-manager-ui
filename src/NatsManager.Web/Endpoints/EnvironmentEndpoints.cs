@@ -5,7 +5,6 @@ using NatsManager.Application.Modules.Environments.Commands;
 using NatsManager.Application.Modules.Environments.Ports;
 using NatsManager.Application.Modules.Environments.Queries;
 using NatsManager.Domain.Modules.Auth;
-using NatsManager.Web.Presenters;
 using NatsManager.Web.Security;
 
 namespace NatsManager.Web.Endpoints;
@@ -43,9 +42,7 @@ public static class EnvironmentEndpoints
             Search = queryParams.Search
         };
 
-        var presenter = new Presenter<PaginatedResult<EnvironmentListItem>>();
-        await useCase.ExecuteAsync(query, presenter, cancellationToken);
-        return presenter.ToResult();
+        return await useCase.ExecuteToResultAsync(query, cancellationToken);
     }
 
     private static async Task<IResult> GetEnvironmentDetail(
@@ -53,9 +50,7 @@ public static class EnvironmentEndpoints
         IUseCase<GetEnvironmentDetailQuery, EnvironmentDetailResult> useCase,
         CancellationToken cancellationToken)
     {
-        var presenter = new Presenter<EnvironmentDetailResult>();
-        await useCase.ExecuteAsync(new GetEnvironmentDetailQuery(id), presenter, cancellationToken);
-        return presenter.ToResult();
+        return await useCase.ExecuteToResultAsync(new GetEnvironmentDetailQuery(id), cancellationToken);
     }
 
     private static async Task<IResult> RegisterEnvironment(
@@ -73,9 +68,8 @@ public static class EnvironmentEndpoints
             IsProduction = request.IsProduction
         };
 
-        var presenter = new Presenter<RegisterEnvironmentResult>();
-        await useCase.ExecuteAsync(command, presenter, cancellationToken);
-        return presenter.ToCreatedResult($"/api/environments/{presenter.Value!.Id}");
+        return await useCase.ExecuteToCreatedResultAsync(
+            command, value => $"/api/environments/{value.Id}", cancellationToken);
     }
 
     private static async Task<IResult> UpdateEnvironment(
@@ -108,9 +102,7 @@ public static class EnvironmentEndpoints
             MonitoringPollingIntervalSeconds = request.MonitoringPollingIntervalSeconds
         };
 
-        var presenter = new Presenter<Unit>();
-        await useCase.ExecuteAsync(command, presenter, cancellationToken);
-        return presenter.ToResult();
+        return await useCase.ExecuteToResultAsync(command, cancellationToken);
     }
 
     private static bool HasMonitoringUrlChanged(string? current, string? requested) =>
@@ -124,9 +116,8 @@ public static class EnvironmentEndpoints
         IUseCase<DeleteEnvironmentCommand, Unit> useCase,
         CancellationToken cancellationToken)
     {
-        var presenter = new Presenter<Unit>();
-        await useCase.ExecuteAsync(new DeleteEnvironmentCommand { Id = id }, presenter, cancellationToken);
-        return presenter.ToNoContentResult();
+        return await useCase.ExecuteToNoContentResultAsync(
+            new DeleteEnvironmentCommand { Id = id }, cancellationToken);
     }
 
     private static async Task<IResult> TestConnection(
@@ -134,9 +125,7 @@ public static class EnvironmentEndpoints
         IUseCase<TestConnectionCommand, TestConnectionResult> useCase,
         CancellationToken cancellationToken)
     {
-        var presenter = new Presenter<TestConnectionResult>();
-        await useCase.ExecuteAsync(new TestConnectionCommand { Id = id }, presenter, cancellationToken);
-        return presenter.ToResult();
+        return await useCase.ExecuteToResultAsync(new TestConnectionCommand { Id = id }, cancellationToken);
     }
 
     private static async Task<IResult> EnableDisableEnvironment(
@@ -151,9 +140,7 @@ public static class EnvironmentEndpoints
             Enable = request.Enable
         };
 
-        var presenter = new Presenter<Unit>();
-        await useCase.ExecuteAsync(command, presenter, cancellationToken);
-        return presenter.ToResult();
+        return await useCase.ExecuteToResultAsync(command, cancellationToken);
     }
 }
 

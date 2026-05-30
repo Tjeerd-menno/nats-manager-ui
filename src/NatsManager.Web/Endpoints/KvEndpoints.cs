@@ -40,9 +40,7 @@ public static class KvEndpoints
 
     private static async Task<IResult> GetBucketDetail(Guid envId, string bucket, IUseCase<GetKvBucketDetailQuery, KvBucketInfo> useCase, CancellationToken cancellationToken)
     {
-        var presenter = new Presenter<KvBucketInfo>();
-        await useCase.ExecuteAsync(new GetKvBucketDetailQuery(envId, bucket), presenter, cancellationToken);
-        return presenter.ToResult();
+        return await useCase.ExecuteToResultAsync(new GetKvBucketDetailQuery(envId, bucket), cancellationToken);
     }
 
     private static async Task<IResult> CreateBucket(
@@ -56,8 +54,7 @@ public static class KvEndpoints
         var guardResult = await HighImpactActionGuard.RequireAllowedAsync(envId, user, environmentRepository, cancellationToken);
         if (guardResult is not null) return guardResult;
 
-        var presenter = new Presenter<Unit>();
-        await useCase.ExecuteAsync(new CreateKvBucketCommand
+        return await useCase.ExecuteToCreatedResultAsync(new CreateKvBucketCommand
         {
             EnvironmentId = envId,
             BucketName = request.BucketName,
@@ -65,8 +62,7 @@ public static class KvEndpoints
             MaxBytes = request.MaxBytes ?? -1,
             MaxValueSize = request.MaxValueSize ?? -1,
             Ttl = request.Ttl.HasValue ? TimeSpan.FromSeconds(request.Ttl.Value) : null,
-        }, presenter, cancellationToken);
-        return presenter.ToCreatedResult($"/api/environments/{envId}/kv/buckets/{request.BucketName}");
+        }, _ => $"/api/environments/{envId}/kv/buckets/{request.BucketName}", cancellationToken);
     }
 
     private static async Task<IResult> DeleteBucket(
@@ -83,9 +79,7 @@ public static class KvEndpoints
         if (!string.Equals(confirm, "true", StringComparison.OrdinalIgnoreCase))
             return ApiProblemResults.ConfirmationRequired("X-Confirm header must be 'true' for destructive operations.");
 
-        var presenter = new Presenter<Unit>();
-        await useCase.ExecuteAsync(new DeleteKvBucketCommand { EnvironmentId = envId, BucketName = bucket }, presenter, cancellationToken);
-        return presenter.ToNoContentResult();
+        return await useCase.ExecuteToNoContentResultAsync(new DeleteKvBucketCommand { EnvironmentId = envId, BucketName = bucket }, cancellationToken);
     }
 
     private static async Task<IResult> GetKeys(
@@ -100,9 +94,7 @@ public static class KvEndpoints
 
     private static async Task<IResult> GetKeyDetail(Guid envId, string bucket, string key, IUseCase<GetKvKeyDetailQuery, KvEntry> useCase, CancellationToken cancellationToken)
     {
-        var presenter = new Presenter<KvEntry>();
-        await useCase.ExecuteAsync(new GetKvKeyDetailQuery(envId, bucket, key), presenter, cancellationToken);
-        return presenter.ToResult();
+        return await useCase.ExecuteToResultAsync(new GetKvKeyDetailQuery(envId, bucket, key), cancellationToken);
     }
 
     private static async Task<IResult> GetKeyHistory(Guid envId, string bucket, string key, IUseCase<GetKvKeyHistoryQuery, IReadOnlyList<KvKeyHistoryEntry>> useCase, CancellationToken cancellationToken)
@@ -152,9 +144,7 @@ public static class KvEndpoints
         if (!string.Equals(confirm, "true", StringComparison.OrdinalIgnoreCase))
             return ApiProblemResults.ConfirmationRequired("X-Confirm header must be 'true' for destructive operations.");
 
-        var presenter = new Presenter<Unit>();
-        await useCase.ExecuteAsync(new DeleteKvKeyCommand { EnvironmentId = envId, BucketName = bucket, Key = key }, presenter, cancellationToken);
-        return presenter.ToNoContentResult();
+        return await useCase.ExecuteToNoContentResultAsync(new DeleteKvKeyCommand { EnvironmentId = envId, BucketName = bucket, Key = key }, cancellationToken);
     }
 }
 

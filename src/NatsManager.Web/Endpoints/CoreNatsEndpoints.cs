@@ -31,9 +31,7 @@ public static class CoreNatsEndpoints
 
     private static async Task<IResult> GetStatus(Guid envId, IUseCase<GetCoreStatusQuery, NatsServerInfo> useCase, CancellationToken cancellationToken)
     {
-        var presenter = new Presenter<NatsServerInfo>();
-        await useCase.ExecuteAsync(new GetCoreStatusQuery(envId), presenter, cancellationToken);
-        return presenter.ToResult();
+        return await useCase.ExecuteToResultAsync(new GetCoreStatusQuery(envId), cancellationToken);
     }
 
     private static async Task<IResult> GetSubjects(Guid envId, IUseCase<GetSubjectsQuery, ListSubjectsResult> useCase, HttpResponse response, CancellationToken cancellationToken)

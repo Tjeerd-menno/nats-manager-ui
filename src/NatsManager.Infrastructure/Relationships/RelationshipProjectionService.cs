@@ -339,31 +339,48 @@ public sealed partial class RelationshipProjectionService(
         MapFilter filters,
         CancellationToken ct)
     {
+        // Materialize once so each source can enumerate the same node ids safely while running concurrently.
+        var nodeIdList = nodeIds as IReadOnlyList<string> ?? [.. nodeIds];
+        var focalNodeId = ResourceNode.BuildNodeId(focal.EnvironmentId, focal.ResourceType, focal.ResourceId);
+
+        // Sources resolve independently, so fan out the (typically network-bound) calls in parallel.
+        var perSourceNodes = await Task.WhenAll(
+            _sources.Select(source => ResolveNodesFromSourceAsync(source, nodeIdList, focal.EnvironmentId, ct)));
+
         var result = new Dictionary<string, ResourceNode>();
 
-        foreach (var source in _sources)
+        // Aggregate in source order to preserve first-wins resolution between overlapping sources.
+        foreach (var nodes in perSourceNodes)
         {
-            try
+            foreach (var node in nodes)
             {
-                var nodes = await source.ResolveNodesAsync(nodeIds, focal.EnvironmentId, ct);
-                foreach (var node in nodes)
-                {
-                    // Apply health state filter
-                    if (filters.HealthStates is { Count: > 0 } && !filters.HealthStates.Contains(node.Status))
-                        continue;
+                // Apply health state filter
+                if (filters.HealthStates is { Count: > 0 } && !filters.HealthStates.Contains(node.Status))
+                    continue;
 
-                    var focalNodeId = ResourceNode.BuildNodeId(focal.EnvironmentId, focal.ResourceType, focal.ResourceId);
-                    var isFocal = node.NodeId == focalNodeId;
-                    result.TryAdd(node.NodeId, node with { IsFocal = isFocal });
-                }
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                LogNodeResolutionFailed(focal.EnvironmentId, source.SourceModule);
+                var isFocal = node.NodeId == focalNodeId;
+                result.TryAdd(node.NodeId, node with { IsFocal = isFocal });
             }
         }
 
         return result;
+    }
+
+    private async Task<IReadOnlyList<ResourceNode>> ResolveNodesFromSourceAsync(
+        IRelationshipSource source,
+        IReadOnlyList<string> nodeIds,
+        Guid environmentId,
+        CancellationToken ct)
+    {
+        try
+        {
+            return await source.ResolveNodesAsync(nodeIds, environmentId, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            LogNodeResolutionFailed(environmentId, source.SourceModule);
+            return [];
+        }
     }
 
     private static void PropagateWarningStates(

@@ -64,6 +64,20 @@ public sealed class BookmarkTests
     }
 
     [Fact]
+    public void Create_WithEmptyUserId_ShouldThrow()
+    {
+        var act = () => Bookmark.Create(Guid.Empty, Guid.NewGuid(), ResourceType.Stream, "id", "Name");
+        Should.Throw<ArgumentException>(act);
+    }
+
+    [Fact]
+    public void Create_WithEmptyEnvironmentId_ShouldThrow()
+    {
+        var act = () => Bookmark.Create(Guid.NewGuid(), Guid.Empty, ResourceType.Stream, "id", "Name");
+        Should.Throw<ArgumentException>(act);
+    }
+
+    [Fact]
     public void Create_ShouldTrimFields()
     {
         var bookmark = Bookmark.Create(Guid.NewGuid(), Guid.NewGuid(), ResourceType.Stream, "  id  ", "  Name  ");
@@ -96,6 +110,13 @@ public sealed class UserPreferenceTests
     public void Create_WithInvalidKey_ShouldThrow(string? key)
     {
         var act = () => UserPreference.Create(Guid.NewGuid(), key!, "value");
+        Should.Throw<ArgumentException>(act);
+    }
+
+    [Fact]
+    public void Create_WithEmptyUserId_ShouldThrow()
+    {
+        var act = () => UserPreference.Create(Guid.Empty, "key", "value");
         Should.Throw<ArgumentException>(act);
     }
 

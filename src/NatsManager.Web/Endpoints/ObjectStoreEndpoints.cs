@@ -44,9 +44,7 @@ public static class ObjectStoreEndpoints
 
     private static async Task<IResult> GetBucketDetail(Guid envId, string bucket, IUseCase<GetObjectBucketDetailQuery, ObjectBucketInfo> useCase, CancellationToken cancellationToken)
     {
-        var presenter = new Presenter<ObjectBucketInfo>();
-        await useCase.ExecuteAsync(new GetObjectBucketDetailQuery(envId, bucket), presenter, cancellationToken);
-        return presenter.ToResult();
+        return await useCase.ExecuteToResultAsync(new GetObjectBucketDetailQuery(envId, bucket), cancellationToken);
     }
 
     private static async Task<IResult> CreateBucket(
@@ -86,9 +84,7 @@ public static class ObjectStoreEndpoints
         if (!string.Equals(confirm, "true", StringComparison.OrdinalIgnoreCase))
             return ApiProblemResults.ConfirmationRequired("X-Confirm header must be 'true' for destructive operations.");
 
-        var presenter = new Presenter<Unit>();
-        await useCase.ExecuteAsync(new DeleteObjectBucketCommand { EnvironmentId = envId, BucketName = bucket }, presenter, cancellationToken);
-        return presenter.ToNoContentResult();
+        return await useCase.ExecuteToNoContentResultAsync(new DeleteObjectBucketCommand { EnvironmentId = envId, BucketName = bucket }, cancellationToken);
     }
 
     private static async Task<IResult> GetObjects(Guid envId, string bucket, IUseCase<GetObjectsQuery, IReadOnlyList<ObjectInfo>> useCase, CancellationToken cancellationToken)
@@ -100,9 +96,7 @@ public static class ObjectStoreEndpoints
 
     private static async Task<IResult> GetObjectDetail(Guid envId, string bucket, string objectName, IUseCase<GetObjectDetailQuery, ObjectInfo> useCase, CancellationToken cancellationToken)
     {
-        var presenter = new Presenter<ObjectInfo>();
-        await useCase.ExecuteAsync(new GetObjectDetailQuery(envId, bucket, objectName), presenter, cancellationToken);
-        return presenter.ToResult();
+        return await useCase.ExecuteToResultAsync(new GetObjectDetailQuery(envId, bucket, objectName), cancellationToken);
     }
 
     private static async Task<IResult> DownloadObject(
@@ -195,9 +189,7 @@ public static class ObjectStoreEndpoints
         if (!string.Equals(confirm, "true", StringComparison.OrdinalIgnoreCase))
             return ApiProblemResults.ConfirmationRequired("X-Confirm header must be 'true' for destructive operations.");
 
-        var presenter = new Presenter<Unit>();
-        await useCase.ExecuteAsync(new DeleteObjectCommand { EnvironmentId = envId, BucketName = bucket, ObjectName = objectName }, presenter, cancellationToken);
-        return presenter.ToNoContentResult();
+        return await useCase.ExecuteToNoContentResultAsync(new DeleteObjectCommand { EnvironmentId = envId, BucketName = bucket, ObjectName = objectName }, cancellationToken);
     }
 
     private static async Task<byte[]?> ReadBoundedBodyAsync(HttpRequest request, long maxBytes, CancellationToken cancellationToken)

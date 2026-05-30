@@ -146,6 +146,7 @@ public sealed class FocalResourceResolver(
     {
         var serverInfo = await coreNatsAdapter.GetServerInfoAsync(environmentId, ct);
         if (serverInfo == null) return null;
+        if (!string.Equals(serverInfo.ServerId, resourceId, StringComparison.Ordinal)) return null;
         return new FocalResource(
             EnvironmentId: environmentId,
             ResourceType: ResourceType.Server,
