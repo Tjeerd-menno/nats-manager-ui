@@ -40,7 +40,19 @@ public sealed class CreateConsumerCommandHandler(
 {
     public async Task ExecuteAsync(CreateConsumerCommand request, IOutputPort<Unit> outputPort, CancellationToken cancellationToken)
     {
-        await writeAdapter.CreateConsumerAsync(request, cancellationToken);
+        await writeAdapter.CreateConsumerAsync(
+            new CreateConsumerSpec
+            {
+                EnvironmentId = request.EnvironmentId,
+                StreamName = request.StreamName,
+                Name = request.Name,
+                Description = request.Description,
+                DeliverPolicy = request.DeliverPolicy,
+                AckPolicy = request.AckPolicy,
+                FilterSubject = request.FilterSubject,
+                MaxDeliver = request.MaxDeliver,
+            },
+            cancellationToken);
         await auditTrail.RecordAsync(request, cancellationToken);
         outputPort.Success(Unit.Value);
     }

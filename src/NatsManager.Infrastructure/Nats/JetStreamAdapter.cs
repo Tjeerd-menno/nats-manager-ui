@@ -3,7 +3,6 @@ using NATS.Client.Core;
 using NATS.Client.JetStream;
 using NATS.Client.JetStream.Models;
 using NatsManager.Application.Modules.Environments.Ports;
-using NatsManager.Application.Modules.JetStream.Commands;
 using NatsManager.Application.Modules.JetStream.Ports;
 using AppStreamState = NatsManager.Application.Modules.JetStream.Models.StreamState;
 using ConsumerInfo = NatsManager.Application.Modules.JetStream.Models.ConsumerInfo;
@@ -217,44 +216,44 @@ public sealed partial class JetStreamAdapter(
 
     // Write operations
 
-    public async Task CreateStreamAsync(CreateStreamCommand command, CancellationToken cancellationToken = default)
+    public async Task CreateStreamAsync(CreateStreamSpec spec, CancellationToken cancellationToken = default)
     {
-        var connection = (NatsConnection)await connectionFactory.GetConnectionAsync(command.EnvironmentId, cancellationToken);
+        var connection = (NatsConnection)await connectionFactory.GetConnectionAsync(spec.EnvironmentId, cancellationToken);
         var js = new NatsJSContext(connection);
 
         var config = new NATS.Client.JetStream.Models.StreamConfig
         {
-            Name = command.Name,
-            Description = command.Description,
-            Subjects = [.. command.Subjects],
-            Retention = Enum.Parse<NATS.Client.JetStream.Models.StreamConfigRetention>(command.RetentionPolicy, ignoreCase: true),
-            Storage = Enum.Parse<NATS.Client.JetStream.Models.StreamConfigStorage>(command.StorageType, ignoreCase: true),
-            MaxMsgs = command.MaxMessages,
-            MaxBytes = command.MaxBytes,
-            NumReplicas = command.Replicas,
-            Discard = Enum.Parse<NATS.Client.JetStream.Models.StreamConfigDiscard>(command.DiscardPolicy, ignoreCase: true),
+            Name = spec.Name,
+            Description = spec.Description,
+            Subjects = [.. spec.Subjects],
+            Retention = Enum.Parse<NATS.Client.JetStream.Models.StreamConfigRetention>(spec.RetentionPolicy, ignoreCase: true),
+            Storage = Enum.Parse<NATS.Client.JetStream.Models.StreamConfigStorage>(spec.StorageType, ignoreCase: true),
+            MaxMsgs = spec.MaxMessages,
+            MaxBytes = spec.MaxBytes,
+            NumReplicas = spec.Replicas,
+            Discard = Enum.Parse<NATS.Client.JetStream.Models.StreamConfigDiscard>(spec.DiscardPolicy, ignoreCase: true),
         };
 
         await js.CreateStreamAsync(config, cancellationToken);
-        LogStreamCreated(command.Name, command.EnvironmentId);
+        LogStreamCreated(spec.Name, spec.EnvironmentId);
     }
 
-    public async Task UpdateStreamAsync(UpdateStreamCommand command, CancellationToken cancellationToken = default)
+    public async Task UpdateStreamAsync(UpdateStreamSpec spec, CancellationToken cancellationToken = default)
     {
-        var connection = (NatsConnection)await connectionFactory.GetConnectionAsync(command.EnvironmentId, cancellationToken);
+        var connection = (NatsConnection)await connectionFactory.GetConnectionAsync(spec.EnvironmentId, cancellationToken);
         var js = new NatsJSContext(connection);
 
-        var existing = await js.GetStreamAsync(command.Name, cancellationToken: cancellationToken);
+        var existing = await js.GetStreamAsync(spec.Name, cancellationToken: cancellationToken);
         var config = existing.Info.Config;
 
-        config.Description = command.Description;
-        config.Subjects = [.. command.Subjects];
-        config.MaxMsgs = command.MaxMessages;
-        config.MaxBytes = command.MaxBytes;
-        config.NumReplicas = command.Replicas;
+        config.Description = spec.Description;
+        config.Subjects = [.. spec.Subjects];
+        config.MaxMsgs = spec.MaxMessages;
+        config.MaxBytes = spec.MaxBytes;
+        config.NumReplicas = spec.Replicas;
 
         await js.UpdateStreamAsync(config, cancellationToken);
-        LogStreamUpdated(command.Name, command.EnvironmentId);
+        LogStreamUpdated(spec.Name, spec.EnvironmentId);
     }
 
     public async Task DeleteStreamAsync(Guid environmentId, string streamName, CancellationToken cancellationToken = default)
@@ -274,24 +273,24 @@ public sealed partial class JetStreamAdapter(
         LogStreamPurged(streamName, environmentId);
     }
 
-    public async Task CreateConsumerAsync(CreateConsumerCommand command, CancellationToken cancellationToken = default)
+    public async Task CreateConsumerAsync(CreateConsumerSpec spec, CancellationToken cancellationToken = default)
     {
-        var connection = (NatsConnection)await connectionFactory.GetConnectionAsync(command.EnvironmentId, cancellationToken);
+        var connection = (NatsConnection)await connectionFactory.GetConnectionAsync(spec.EnvironmentId, cancellationToken);
         var js = new NatsJSContext(connection);
 
         var config = new NATS.Client.JetStream.Models.ConsumerConfig
         {
-            Name = command.Name,
-            Description = command.Description,
-            DurableName = command.Name,
-            DeliverPolicy = Enum.Parse<NATS.Client.JetStream.Models.ConsumerConfigDeliverPolicy>(command.DeliverPolicy, ignoreCase: true),
-            AckPolicy = Enum.Parse<NATS.Client.JetStream.Models.ConsumerConfigAckPolicy>(command.AckPolicy, ignoreCase: true),
-            FilterSubject = command.FilterSubject,
-            MaxDeliver = command.MaxDeliver,
+            Name = spec.Name,
+            Description = spec.Description,
+            DurableName = spec.Name,
+            DeliverPolicy = Enum.Parse<NATS.Client.JetStream.Models.ConsumerConfigDeliverPolicy>(spec.DeliverPolicy, ignoreCase: true),
+            AckPolicy = Enum.Parse<NATS.Client.JetStream.Models.ConsumerConfigAckPolicy>(spec.AckPolicy, ignoreCase: true),
+            FilterSubject = spec.FilterSubject,
+            MaxDeliver = spec.MaxDeliver,
         };
 
-        await js.CreateOrUpdateConsumerAsync(command.StreamName, config, cancellationToken);
-        LogConsumerCreated(command.Name, command.StreamName, command.EnvironmentId);
+        await js.CreateOrUpdateConsumerAsync(spec.StreamName, config, cancellationToken);
+        LogConsumerCreated(spec.Name, spec.StreamName, spec.EnvironmentId);
     }
 
     public async Task DeleteConsumerAsync(Guid environmentId, string streamName, string consumerName, CancellationToken cancellationToken = default)

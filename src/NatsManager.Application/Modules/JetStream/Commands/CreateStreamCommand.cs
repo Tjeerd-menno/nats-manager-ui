@@ -43,7 +43,21 @@ public sealed class CreateStreamCommandHandler(
 {
     public async Task ExecuteAsync(CreateStreamCommand request, IOutputPort<Unit> outputPort, CancellationToken cancellationToken)
     {
-        await writeAdapter.CreateStreamAsync(request, cancellationToken);
+        await writeAdapter.CreateStreamAsync(
+            new CreateStreamSpec
+            {
+                EnvironmentId = request.EnvironmentId,
+                Name = request.Name,
+                Description = request.Description,
+                Subjects = request.Subjects,
+                RetentionPolicy = request.RetentionPolicy,
+                StorageType = request.StorageType,
+                MaxMessages = request.MaxMessages,
+                MaxBytes = request.MaxBytes,
+                Replicas = request.Replicas,
+                DiscardPolicy = request.DiscardPolicy,
+            },
+            cancellationToken);
         await auditTrail.RecordAsync(request, cancellationToken);
         outputPort.Success(Unit.Value);
     }
