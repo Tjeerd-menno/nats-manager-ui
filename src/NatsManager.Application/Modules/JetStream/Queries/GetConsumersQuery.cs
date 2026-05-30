@@ -52,18 +52,6 @@ public sealed class GetConsumersQueryHandler(
         };
 
         var list = sorted.ToList();
-        var totalCount = list.Count;
-        var items = list
-            .Skip((request.Page - 1) * request.PageSize)
-            .Take(request.PageSize)
-            .ToList();
-
-        outputPort.Success(new PaginatedResult<ConsumerInfo>
-        {
-            Items = items,
-            TotalCount = totalCount,
-            Page = request.Page,
-            PageSize = request.PageSize
-        });
+        outputPort.Success(list.ToPaginatedResult(request.Page, request.PageSize));
     }
 }

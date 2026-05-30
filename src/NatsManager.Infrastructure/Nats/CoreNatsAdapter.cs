@@ -65,6 +65,11 @@ public sealed partial class CoreNatsAdapter(
                     JetStreamEnabled: si.JetStreamAvailable);
             }
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Propagate genuine caller cancellation; HTTP/monitoring timeouts fall through to graceful degradation.
+            throw;
+        }
         catch (Exception ex)
         {
             LogServerInfoError(environmentId, ex);
@@ -111,6 +116,10 @@ public sealed partial class CoreNatsAdapter(
 
             return new ListSubjectsResult(subjects, IsMonitoringAvailable: true);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             LogSubjectsUnavailable(environmentId, ex);
@@ -144,6 +153,10 @@ public sealed partial class CoreNatsAdapter(
                 .EnumerateArray()
                 .Select(ParseClientInfo)
                 .OrderBy(client => client.Id)];
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {

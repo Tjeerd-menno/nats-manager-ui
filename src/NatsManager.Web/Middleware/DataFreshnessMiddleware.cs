@@ -2,6 +2,11 @@ namespace NatsManager.Web.Middleware;
 
 public sealed class DataFreshnessMiddleware(RequestDelegate next)
 {
+    private const string ApiPathPrefix = "/api";
+    private const string FreshnessHeader = "X-Data-Freshness";
+    private const string TimestampHeader = "X-Data-Timestamp";
+    private const string LiveFreshnessValue = "live";
+
     public async Task InvokeAsync(HttpContext context)
     {
         // Register the callback before invoking the rest of the pipeline so the headers are written
@@ -12,12 +17,12 @@ public sealed class DataFreshnessMiddleware(RequestDelegate next)
             var ctx = (HttpContext)state;
 
             // Only add freshness headers for successful NATS-sourced API responses.
-            if (ctx.Request.Path.StartsWithSegments("/api")
+            if (ctx.Request.Path.StartsWithSegments(ApiPathPrefix)
                 && ctx.Response.StatusCode is >= 200 and < 300
-                && !ctx.Response.Headers.ContainsKey("X-Data-Freshness"))
+                && !ctx.Response.Headers.ContainsKey(FreshnessHeader))
             {
-                ctx.Response.Headers["X-Data-Freshness"] = "live";
-                ctx.Response.Headers["X-Data-Timestamp"] = DateTimeOffset.UtcNow.ToString("o");
+                ctx.Response.Headers[FreshnessHeader] = LiveFreshnessValue;
+                ctx.Response.Headers[TimestampHeader] = DateTimeOffset.UtcNow.ToString("o");
             }
 
             return Task.CompletedTask;
