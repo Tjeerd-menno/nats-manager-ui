@@ -379,9 +379,9 @@ as a thin coordinator implementing the port.
 
 ## Status checklist
 
-- [ ] Read-authorization model decided & documented (gating S1/S2)
-- [ ] S2 — CoreNats read endpoints scoped + tests
-- [ ] S1 — MonitoringHub read authz + tests
-- [ ] M1 — cluster handlers → `IUseCase` (+ port decision) + tests
-- [ ] M7a — `RelationshipProjectionService` split + tests
+- [x] Read-authorization model decided & documented (gating S1/S2)
+- [x] S2 — CoreNats read endpoints scoped + tests
+- [x] S1 — MonitoringHub read authz + tests
+- [x] M1 — cluster handlers → `IUseCase` (+ port decision) + tests
+- [x] M7a — `RelationshipProjectionService` split + tests
 - [ ] M7b — `NatsClusterMonitoringHttpAdapter` split + tests

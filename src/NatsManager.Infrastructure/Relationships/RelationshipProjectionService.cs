@@ -33,14 +33,14 @@ public sealed partial class RelationshipProjectionService(
             .ToList();
 
         // Build node set from edges + focal
-        var nodeIds = BuildNodeIds(focal, uniqueEdges);
+        var nodeIds = RelationshipGraphBounding.BuildNodeIds(focal, uniqueEdges);
 
         // Apply MaxNodes/MaxEdges bounds
         var filteredNodes = Math.Max(0, nodeIds.Count - filters.MaxNodes);
         var focalNodeId = ResourceNode.BuildNodeId(focal.EnvironmentId, focal.ResourceType, focal.ResourceId);
-        var includedNodeIds = SelectIncludedNodeIds(nodeIds, focalNodeId, filters.MaxNodes);
+        var includedNodeIds = RelationshipGraphBounding.SelectIncludedNodeIds(nodeIds, focalNodeId, filters.MaxNodes);
 
-        var boundedEdges = FilterEdgesByIncludedNodes(uniqueEdges, includedNodeIds);
+        var boundedEdges = RelationshipGraphBounding.FilterEdgesByIncludedNodes(uniqueEdges, includedNodeIds);
         var filteredEdges = boundedEdges.FilteredEdges;
         var includedEdges = boundedEdges.Edges;
 
@@ -48,10 +48,10 @@ public sealed partial class RelationshipProjectionService(
         var resolvedNodes = await ResolveNodesAsync(includedNodeIds, focal, filters, ct);
 
         // Ensure focal node is always present
-        EnsureFocalNode(resolvedNodes, focal, focalNodeId);
+        RelationshipGraphBounding.EnsureFocalNode(resolvedNodes, focal, focalNodeId);
 
         // Filter out dangling edges BEFORE applying MaxEdges so truncation operates on valid edges only
-        var danglingResult = RemoveDanglingEdges(includedEdges, resolvedNodes);
+        var danglingResult = RelationshipGraphBounding.RemoveDanglingEdges(includedEdges, resolvedNodes);
         includedEdges = danglingResult.Edges;
         filteredEdges += danglingResult.FilteredEdges;
 
@@ -59,8 +59,8 @@ public sealed partial class RelationshipProjectionService(
         includedEdges = [.. includedEdges.Take(filters.MaxEdges)];
 
         // Propagate neighbor warning states (for US2 incident traversal)
-        PropagateWarningStates(resolvedNodes, includedEdges, focalNodeId);
-        var postPropagationFilterResult = ApplyHealthStateFilterAfterPropagation(resolvedNodes, includedEdges, filters);
+        RelationshipWarningPropagation.PropagateWarningStates(resolvedNodes, includedEdges, focalNodeId);
+        var postPropagationFilterResult = RelationshipWarningPropagation.ApplyHealthStateFilterAfterPropagation(resolvedNodes, includedEdges, filters);
         includedEdges = postPropagationFilterResult.Edges;
         filteredNodes += postPropagationFilterResult.FilteredNodes;
         filteredEdges += postPropagationFilterResult.FilteredEdges;
@@ -194,7 +194,7 @@ public sealed partial class RelationshipProjectionService(
                 continue;
             }
 
-            if (PassesFilters(edge, filters))
+            if (RelationshipEdgeFilter.PassesFilters(edge, filters))
             {
                 edges.Add(edge);
             }
@@ -219,7 +219,7 @@ public sealed partial class RelationshipProjectionService(
 
         foreach (var edge in edges)
         {
-            var neighborNodeId = GetNeighborNodeId(edge, frontierNodeId);
+            var neighborNodeId = RelationshipGraphBounding.GetNeighborNodeId(edge, frontierNodeId);
             if (visitedNodeIds.Add(neighborNodeId) && TryCreateFocalResource(focal.EnvironmentId, neighborNodeId, out var resource))
             {
                 nextFrontier.Add(resource);
@@ -238,99 +238,6 @@ public sealed partial class RelationshipProjectionService(
 
         resource = default!;
         return false;
-    }
-
-    private static HashSet<string> BuildNodeIds(FocalResource focal, IEnumerable<RelationshipEdge> edges)
-    {
-        var nodeIds = new HashSet<string> { ResourceNode.BuildNodeId(focal.EnvironmentId, focal.ResourceType, focal.ResourceId) };
-        foreach (var edge in edges)
-        {
-            nodeIds.Add(edge.SourceNodeId);
-            nodeIds.Add(edge.TargetNodeId);
-        }
-
-        return nodeIds;
-    }
-
-    private static HashSet<string> SelectIncludedNodeIds(HashSet<string> nodeIds, string focalNodeId, int maxNodes) =>
-        nodeIds
-            .OrderBy(nodeId => nodeId == focalNodeId ? 0 : 1)
-            .Take(maxNodes)
-            .ToHashSet();
-
-    private static (List<RelationshipEdge> Edges, int FilteredEdges) FilterEdgesByIncludedNodes(
-        IEnumerable<RelationshipEdge> edges,
-        HashSet<string> includedNodeIds)
-    {
-        var includedEdges = new List<RelationshipEdge>();
-        var filteredEdges = 0;
-
-        foreach (var edge in edges)
-        {
-            if (includedNodeIds.Contains(edge.SourceNodeId) && includedNodeIds.Contains(edge.TargetNodeId))
-                includedEdges.Add(edge);
-            else
-                filteredEdges++;
-        }
-
-        return (includedEdges, filteredEdges);
-    }
-
-    private static void EnsureFocalNode(
-        Dictionary<string, ResourceNode> resolvedNodes,
-        FocalResource focal,
-        string focalNodeId)
-    {
-        if (resolvedNodes.ContainsKey(focalNodeId))
-        {
-            return;
-        }
-
-        resolvedNodes[focalNodeId] = new ResourceNode(
-            NodeId: focalNodeId,
-            EnvironmentId: focal.EnvironmentId,
-            ResourceType: focal.ResourceType,
-            ResourceId: focal.ResourceId,
-            DisplayName: focal.DisplayName,
-            Status: ResourceHealthStatus.Unknown,
-            Freshness: RelationshipFreshness.Live,
-            IsFocal: true,
-            DetailRoute: focal.Route,
-            Metadata: new Dictionary<string, string>());
-    }
-
-    private static (List<RelationshipEdge> Edges, int FilteredEdges) RemoveDanglingEdges(
-        List<RelationshipEdge> includedEdges,
-        Dictionary<string, ResourceNode> resolvedNodes)
-    {
-        var remainingEdges = includedEdges
-            .Where(edge => resolvedNodes.ContainsKey(edge.SourceNodeId) && resolvedNodes.ContainsKey(edge.TargetNodeId))
-            .ToList();
-
-        return (remainingEdges, includedEdges.Count - remainingEdges.Count);
-    }
-
-    private static bool PassesFilters(RelationshipEdge edge, MapFilter filters)
-    {
-        if (!filters.IncludeInferred && edge.ObservationKind == ObservationKind.Inferred)
-            return false;
-
-        if (!filters.IncludeStale && edge.Freshness == RelationshipFreshness.Stale)
-            return false;
-
-        if (filters.RelationshipTypes is { Count: > 0 } && !filters.RelationshipTypes.Contains(edge.RelationshipType))
-            return false;
-
-        if (filters.MinimumConfidence != RelationshipConfidence.Unknown)
-        {
-            var minLevel = (int)filters.MinimumConfidence;
-            var edgeLevel = (int)edge.Confidence;
-            // High=0, Medium=1, Low=2, Unknown=3 — we want confidence >= minimum
-            if (edgeLevel > minLevel && edge.Confidence != RelationshipConfidence.Unknown)
-                return false;
-        }
-
-        return true;
     }
 
     private async Task<Dictionary<string, ResourceNode>> ResolveNodesAsync(
@@ -382,100 +289,6 @@ public sealed partial class RelationshipProjectionService(
             return [];
         }
     }
-
-    private static void PropagateWarningStates(
-        Dictionary<string, ResourceNode> nodes,
-        IReadOnlyList<RelationshipEdge> edges,
-        string focalNodeId)
-    {
-        if (!nodes.TryGetValue(focalNodeId, out var focalNode))
-            return;
-
-        nodes[focalNodeId] = focalNode with { IsFocal = true };
-        var focalHasIncidentStatus = IsIncidentStatus(focalNode.Status);
-
-        foreach (var edge in edges.Where(edge => edge.SourceNodeId == focalNodeId || edge.TargetNodeId == focalNodeId))
-        {
-            var neighborNodeId = GetNeighborNodeId(edge, focalNodeId);
-
-            if (!nodes.TryGetValue(neighborNodeId, out var neighborNode))
-                continue;
-
-            var propagatedStatus = GetPropagatedStatus(edge, focalHasIncidentStatus);
-
-            if (!IsIncidentStatus(propagatedStatus))
-                continue;
-
-            nodes[neighborNodeId] = neighborNode with
-            {
-                Status = GetMoreSevereStatus(neighborNode.Status, propagatedStatus)
-            };
-        }
-    }
-
-    private static (List<RelationshipEdge> Edges, int FilteredNodes, int FilteredEdges) ApplyHealthStateFilterAfterPropagation(
-        Dictionary<string, ResourceNode> nodes,
-        List<RelationshipEdge> edges,
-        MapFilter filters)
-    {
-        if (filters.HealthStates is not { Count: > 0 })
-            return ([.. edges], 0, 0);
-
-        var filteredNodeIds = nodes.Values
-            .Where(node => !filters.HealthStates.Contains(node.Status))
-            .Select(node => node.NodeId)
-            .ToHashSet();
-
-        if (filteredNodeIds.Count == 0)
-            return ([.. edges], 0, 0);
-
-        foreach (var filteredNodeId in filteredNodeIds)
-            nodes.Remove(filteredNodeId);
-
-        var remainingEdges = edges
-            .Where(edge => !filteredNodeIds.Contains(edge.SourceNodeId) && !filteredNodeIds.Contains(edge.TargetNodeId))
-            .ToList();
-
-        return (remainingEdges, filteredNodeIds.Count, edges.Count - remainingEdges.Count);
-    }
-
-    private static bool IsIncidentStatus(ResourceHealthStatus status) =>
-        status is ResourceHealthStatus.Warning
-            or ResourceHealthStatus.Degraded
-            or ResourceHealthStatus.Stale
-            or ResourceHealthStatus.Unavailable;
-
-    private static string GetNeighborNodeId(RelationshipEdge edge, string focalNodeId) =>
-        edge.SourceNodeId == focalNodeId
-            ? edge.TargetNodeId
-            : edge.SourceNodeId;
-
-    private static ResourceHealthStatus GetPropagatedStatus(RelationshipEdge edge, bool focalHasIncidentStatus)
-    {
-        if (IsIncidentStatus(edge.Status))
-            return edge.Status;
-
-        return focalHasIncidentStatus
-            ? ResourceHealthStatus.Warning
-            : ResourceHealthStatus.Healthy;
-    }
-
-    private static ResourceHealthStatus GetMoreSevereStatus(
-        ResourceHealthStatus currentStatus,
-        ResourceHealthStatus propagatedStatus) =>
-        GetSeverity(currentStatus) >= GetSeverity(propagatedStatus)
-            ? currentStatus
-            : propagatedStatus;
-
-    private static int GetSeverity(ResourceHealthStatus status) =>
-        status switch
-        {
-            ResourceHealthStatus.Warning => 1,
-            ResourceHealthStatus.Stale => 2,
-            ResourceHealthStatus.Degraded => 3,
-            ResourceHealthStatus.Unavailable => 4,
-            _ => 0
-        };
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Building relationship map for environment {EnvironmentId}, resource type {ResourceType}, depth {Depth}, max nodes {MaxNodes}, max edges {MaxEdges}.")]
     private partial void LogProjectionStarted(Guid environmentId, ResourceType resourceType, int depth, int maxNodes, int maxEdges);
