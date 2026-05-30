@@ -42,7 +42,7 @@ npm run lint    # ESLint
 
 ### Backend — Build
 ```bash
-# Solution file is NatsManager.slnx (Aspire format — no .sln exists)
+# Solution file is NatsManager.slnx (XML solution format — no .sln exists)
 dotnet build NatsManager.slnx -c Debug
 
 # dotnet build only accepts ONE project path at a time (MSB1008 with multiple paths)
