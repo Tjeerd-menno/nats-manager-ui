@@ -1,6 +1,7 @@
 using System.Net;
 using NSubstitute;
 using NatsManager.Application.Modules.Monitoring.Models;
+using NatsManager.Application.Modules.Monitoring.Models.ClusterObservability;
 using NatsManager.Domain.Modules.Auth;
 using Shouldly;
 using Environment = NatsManager.Domain.Modules.Environments.Environment;
@@ -91,14 +92,73 @@ public sealed class MonitoringEndpointTests : IClassFixture<NatsManagerWebAppFac
     }
 
     [Fact]
-    public async Task GetClusterOverview_WithNoAccessToEnvironment_ShouldReturn403()
+    public async Task GetClusterOverview_WhenNoObservationData_ShouldReturn503()
     {
-        var environmentId = Guid.NewGuid();
-        var otherEnvironmentId = Guid.NewGuid();
-        var client = _factory.CreateAuthenticatedClientWithScopedRole(Role.PredefinedNames.ReadOnly, otherEnvironmentId);
+        var environment = Environment.Create("Test", "nats://localhost:4222");
+        environment.UpdateMonitoringSettings("http://localhost:8222", 30);
+        _factory.EnvironmentRepository.GetByIdAsync(environment.Id, Arg.Any<CancellationToken>())
+            .Returns(environment);
+        _factory.ClusterObservationStore.GetLatest(environment.Id).Returns((ClusterObservation?)null);
 
-        var response = await client.GetAsync($"/api/environments/{environmentId}/monitoring/cluster/overview");
+        var response = await _client.GetAsync($"/api/environments/{environment.Id}/monitoring/cluster/overview");
 
-        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        response.StatusCode.ShouldBe(HttpStatusCode.ServiceUnavailable);
     }
+
+    [Fact]
+    public async Task GetClusterOverview_WhenObservationAvailable_ShouldReturn200()
+    {
+        var environment = Environment.Create("Test", "nats://localhost:4222");
+        environment.UpdateMonitoringSettings("http://localhost:8222", 30);
+        _factory.EnvironmentRepository.GetByIdAsync(environment.Id, Arg.Any<CancellationToken>())
+            .Returns(environment);
+        _factory.ClusterObservationStore.GetLatest(environment.Id).Returns(BuildObservation(environment.Id));
+
+        var response = await _client.GetAsync($"/api/environments/{environment.Id}/monitoring/cluster/overview");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task GetClusterTopology_WhenNoObservationData_ShouldReturn503()
+    {
+        var environment = Environment.Create("Test", "nats://localhost:4222");
+        environment.UpdateMonitoringSettings("http://localhost:8222", 30);
+        _factory.EnvironmentRepository.GetByIdAsync(environment.Id, Arg.Any<CancellationToken>())
+            .Returns(environment);
+        _factory.ClusterObservationStore.GetLatest(environment.Id).Returns((ClusterObservation?)null);
+
+        var response = await _client.GetAsync($"/api/environments/{environment.Id}/monitoring/cluster/topology");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.ServiceUnavailable);
+    }
+
+    [Fact]
+    public async Task GetClusterTopology_WhenObservationAvailable_ShouldReturn200()
+    {
+        var environment = Environment.Create("Test", "nats://localhost:4222");
+        environment.UpdateMonitoringSettings("http://localhost:8222", 30);
+        _factory.EnvironmentRepository.GetByIdAsync(environment.Id, Arg.Any<CancellationToken>())
+            .Returns(environment);
+        _factory.ClusterObservationStore.GetLatest(environment.Id).Returns(BuildObservation(environment.Id));
+
+        var response = await _client.GetAsync($"/api/environments/{environment.Id}/monitoring/cluster/topology");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    private static ClusterObservation BuildObservation(Guid environmentId) => new(
+        EnvironmentId: environmentId,
+        ObservedAt: DateTimeOffset.UtcNow,
+        Status: ClusterStatus.Healthy,
+        Freshness: ObservationFreshness.Live,
+        ServerCount: 1,
+        DegradedServerCount: 0,
+        JetStreamAvailable: true,
+        ConnectionCount: 5,
+        InMsgsPerSecond: 10.0,
+        OutMsgsPerSecond: 5.0,
+        Warnings: [],
+        Servers: [],
+        Topology: []);
 }

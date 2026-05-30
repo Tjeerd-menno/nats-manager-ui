@@ -16,6 +16,13 @@ public sealed class GetClusterOverviewQueryTests
         _handler = new GetClusterOverviewQueryHandler(_store);
     }
 
+    private async Task<TestOutputPort<ClusterObservation>> ExecuteAsync(GetClusterOverviewQuery query)
+    {
+        var outputPort = new TestOutputPort<ClusterObservation>();
+        await _handler.ExecuteAsync(query, outputPort);
+        return outputPort;
+    }
+
     private static ClusterObservation BuildObservation(Guid environmentId) => new(
         EnvironmentId: environmentId,
         ObservedAt: DateTimeOffset.UtcNow,
@@ -32,33 +39,36 @@ public sealed class GetClusterOverviewQueryTests
         Topology: []);
 
     [Fact]
-    public void Handle_WhenStoreHasData_ReturnsLatestObservation()
+    public async Task ExecuteAsync_WhenStoreHasData_EmitsSuccessWithLatestObservation()
     {
         var envId = Guid.NewGuid();
         var obs = BuildObservation(envId);
         _store.GetLatest(envId).Returns(obs);
 
-        var result = _handler.Handle(new GetClusterOverviewQuery(envId));
+        var result = await ExecuteAsync(new GetClusterOverviewQuery(envId));
 
-        result.ShouldNotBeNull();
-        result!.EnvironmentId.ShouldBe(envId);
-        result.Status.ShouldBe(ClusterStatus.Healthy);
-        result.ServerCount.ShouldBe(2);
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldNotBeNull();
+        result.Value!.EnvironmentId.ShouldBe(envId);
+        result.Value.Status.ShouldBe(ClusterStatus.Healthy);
+        result.Value.ServerCount.ShouldBe(2);
     }
 
     [Fact]
-    public void Handle_WhenStoreEmpty_ReturnsNull()
+    public async Task ExecuteAsync_WhenStoreEmpty_EmitsUnavailable()
     {
         var envId = Guid.NewGuid();
         _store.GetLatest(envId).Returns((ClusterObservation?)null);
 
-        var result = _handler.Handle(new GetClusterOverviewQuery(envId));
+        var result = await ExecuteAsync(new GetClusterOverviewQuery(envId));
 
-        result.ShouldBeNull();
+        result.IsSuccess.ShouldBeFalse();
+        result.IsUnavailable.ShouldBeTrue();
+        result.Value.ShouldBeNull();
     }
 
     [Fact]
-    public void Handle_EnvironmentIsolation_ReturnsCorrectEnvironmentData()
+    public async Task ExecuteAsync_EnvironmentIsolation_ReturnsCorrectEnvironmentData()
     {
         var envId1 = Guid.NewGuid();
         var envId2 = Guid.NewGuid();
@@ -68,17 +78,17 @@ public sealed class GetClusterOverviewQueryTests
         _store.GetLatest(envId1).Returns(obs1);
         _store.GetLatest(envId2).Returns(obs2);
 
-        var result1 = _handler.Handle(new GetClusterOverviewQuery(envId1));
-        var result2 = _handler.Handle(new GetClusterOverviewQuery(envId2));
+        var result1 = await ExecuteAsync(new GetClusterOverviewQuery(envId1));
+        var result2 = await ExecuteAsync(new GetClusterOverviewQuery(envId2));
 
-        result1!.EnvironmentId.ShouldBe(envId1);
-        result1.Status.ShouldBe(ClusterStatus.Healthy);
-        result2!.EnvironmentId.ShouldBe(envId2);
-        result2.Status.ShouldBe(ClusterStatus.Degraded);
+        result1.Value!.EnvironmentId.ShouldBe(envId1);
+        result1.Value.Status.ShouldBe(ClusterStatus.Healthy);
+        result2.Value!.EnvironmentId.ShouldBe(envId2);
+        result2.Value.Status.ShouldBe(ClusterStatus.Degraded);
     }
 
     [Fact]
-    public void Handle_WithWarnings_IncludesWarnings()
+    public async Task ExecuteAsync_WithWarnings_IncludesWarnings()
     {
         var envId = Guid.NewGuid();
         var warning = new ClusterWarning(
@@ -90,14 +100,14 @@ public sealed class GetClusterOverviewQueryTests
         var obs = BuildObservation(envId) with { Warnings = [warning] };
         _store.GetLatest(envId).Returns(obs);
 
-        var result = _handler.Handle(new GetClusterOverviewQuery(envId));
+        var result = await ExecuteAsync(new GetClusterOverviewQuery(envId));
 
-        result!.Warnings.Count.ShouldBe(1);
-        result.Warnings[0].Code.ShouldBe("SlowConsumers");
+        result.Value!.Warnings.Count.ShouldBe(1);
+        result.Value.Warnings[0].Code.ShouldBe("SlowConsumers");
     }
 
     [Fact]
-    public void Handle_UnavailableState_ReturnsUnavailableObservation()
+    public async Task ExecuteAsync_UnavailableState_ReturnsUnavailableObservation()
     {
         var envId = Guid.NewGuid();
         var unavailableObs = BuildObservation(envId) with
@@ -108,9 +118,9 @@ public sealed class GetClusterOverviewQueryTests
         };
         _store.GetLatest(envId).Returns(unavailableObs);
 
-        var result = _handler.Handle(new GetClusterOverviewQuery(envId));
+        var result = await ExecuteAsync(new GetClusterOverviewQuery(envId));
 
-        result!.Status.ShouldBe(ClusterStatus.Unavailable);
-        result.Freshness.ShouldBe(ObservationFreshness.Unavailable);
+        result.Value!.Status.ShouldBe(ClusterStatus.Unavailable);
+        result.Value.Freshness.ShouldBe(ObservationFreshness.Unavailable);
     }
 }

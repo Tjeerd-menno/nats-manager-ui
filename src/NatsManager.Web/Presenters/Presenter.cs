@@ -10,6 +10,7 @@ public sealed class Presenter<T> : IOutputPort<T>
     public bool IsConflict { get; private set; }
     public bool IsUnauthorized { get; private set; }
     public bool IsForbidden { get; private set; }
+    public bool IsUnavailable { get; private set; }
     public string? ErrorMessage { get; private set; }
     public string? ResourceType { get; private set; }
     public string? ResourceId { get; private set; }
@@ -46,6 +47,12 @@ public sealed class Presenter<T> : IOutputPort<T>
         ErrorMessage = message;
     }
 
+    public void Unavailable(string message)
+    {
+        IsUnavailable = true;
+        ErrorMessage = message;
+    }
+
     public IResult ToResult()
     {
         if (IsSuccess)
@@ -71,6 +78,13 @@ public sealed class Presenter<T> : IOutputPort<T>
 
         if (IsForbidden)
             return NatsManager.Web.Endpoints.ApiProblemResults.Forbidden(ErrorMessage ?? "The current user is not allowed to perform this action.");
+
+        if (IsUnavailable)
+            return NatsManager.Web.Endpoints.ApiProblemResults.Problem(
+                statusCode: StatusCodes.Status503ServiceUnavailable,
+                title: "Service Unavailable",
+                detail: ErrorMessage ?? "The requested resource is temporarily unavailable.",
+                type: "https://tools.ietf.org/html/rfc9110#section-15.6.4");
 
         return Results.Problem("An unexpected error occurred.");
     }

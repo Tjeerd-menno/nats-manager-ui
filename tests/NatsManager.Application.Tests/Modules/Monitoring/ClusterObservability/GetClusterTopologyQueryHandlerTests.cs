@@ -16,6 +16,13 @@ public sealed class GetClusterTopologyQueryHandlerTests
         _handler = new GetClusterTopologyQueryHandler(_store);
     }
 
+    private async Task<TestOutputPort<ClusterTopologyGraphResult>> ExecuteAsync(GetClusterTopologyQuery query)
+    {
+        var outputPort = new TestOutputPort<ClusterTopologyGraphResult>();
+        await _handler.ExecuteAsync(query, outputPort);
+        return outputPort;
+    }
+
     private static ClusterObservation BuildObservation(
         Guid environmentId,
         IReadOnlyList<TopologyRelationship>? topology = null,
@@ -56,25 +63,27 @@ public sealed class GetClusterTopologyQueryHandlerTests
             SafeLabel: $"{sourceNodeId} → {targetNodeId}");
 
     [Fact]
-    public void Handle_WhenStoreEmpty_ReturnsNull()
+    public async Task ExecuteAsync_WhenStoreEmpty_EmitsUnavailable()
     {
         var envId = Guid.NewGuid();
         _store.GetLatest(envId).Returns((ClusterObservation?)null);
 
-        var result = _handler.Handle(new GetClusterTopologyQuery(envId));
+        var output = await ExecuteAsync(new GetClusterTopologyQuery(envId));
 
-        result.ShouldBeNull();
+        output.IsSuccess.ShouldBeFalse();
+        output.IsUnavailable.ShouldBeTrue();
+        output.Value.ShouldBeNull();
     }
 
     [Fact]
-    public void Handle_WhenStoreHasData_ReturnsCompleteTopology()
+    public async Task ExecuteAsync_WhenStoreHasData_ReturnsCompleteTopology()
     {
         var envId = Guid.NewGuid();
         var rel = BuildRelationship(envId, "server-1", "server-2");
         var obs = BuildObservation(envId, topology: [rel]);
         _store.GetLatest(envId).Returns(obs);
 
-        var result = _handler.Handle(new GetClusterTopologyQuery(envId));
+        var result = (await ExecuteAsync(new GetClusterTopologyQuery(envId))).Value;
 
         result.ShouldNotBeNull();
         result!.EnvironmentId.ShouldBe(envId);
@@ -83,7 +92,7 @@ public sealed class GetClusterTopologyQueryHandlerTests
     }
 
     [Fact]
-    public void Handle_WithTypeFilter_ReturnsOnlyMatchingRelationships()
+    public async Task ExecuteAsync_WithTypeFilter_ReturnsOnlyMatchingRelationships()
     {
         var envId = Guid.NewGuid();
         var route = BuildRelationship(envId, "s1", "s2", TopologyRelationshipType.Route);
@@ -91,7 +100,7 @@ public sealed class GetClusterTopologyQueryHandlerTests
         var obs = BuildObservation(envId, topology: [route, gateway]);
         _store.GetLatest(envId).Returns(obs);
 
-        var result = _handler.Handle(new GetClusterTopologyQuery(envId, Types: [TopologyRelationshipType.Route]));
+        var result = (await ExecuteAsync(new GetClusterTopologyQuery(envId, Types: [TopologyRelationshipType.Route]))).Value;
 
         result.ShouldNotBeNull();
         result!.Edges.Count.ShouldBe(1);
@@ -99,7 +108,7 @@ public sealed class GetClusterTopologyQueryHandlerTests
     }
 
     [Fact]
-    public void Handle_WithStatusFilter_ReturnsOnlyMatchingRelationships()
+    public async Task ExecuteAsync_WithStatusFilter_ReturnsOnlyMatchingRelationships()
     {
         var envId = Guid.NewGuid();
         var healthy = BuildRelationship(envId, "s1", "s2", status: RelationshipStatus.Healthy);
@@ -107,7 +116,7 @@ public sealed class GetClusterTopologyQueryHandlerTests
         var obs = BuildObservation(envId, topology: [healthy, warning]);
         _store.GetLatest(envId).Returns(obs);
 
-        var result = _handler.Handle(new GetClusterTopologyQuery(envId, Status: RelationshipStatus.Warning));
+        var result = (await ExecuteAsync(new GetClusterTopologyQuery(envId, Status: RelationshipStatus.Warning))).Value;
 
         result.ShouldNotBeNull();
         result!.Edges.Count.ShouldBe(1);
@@ -115,7 +124,7 @@ public sealed class GetClusterTopologyQueryHandlerTests
     }
 
     [Fact]
-    public void Handle_WithIncludeStaleSetToFalse_ExcludesStaleRelationships()
+    public async Task ExecuteAsync_WithIncludeStaleSetToFalse_ExcludesStaleRelationships()
     {
         var envId = Guid.NewGuid();
         var live = BuildRelationship(envId, "s1", "s2", freshness: ObservationFreshness.Live);
@@ -123,7 +132,7 @@ public sealed class GetClusterTopologyQueryHandlerTests
         var obs = BuildObservation(envId, topology: [live, stale]);
         _store.GetLatest(envId).Returns(obs);
 
-        var result = _handler.Handle(new GetClusterTopologyQuery(envId, IncludeStale: false));
+        var result = (await ExecuteAsync(new GetClusterTopologyQuery(envId, IncludeStale: false))).Value;
 
         result.ShouldNotBeNull();
         result!.Edges.Count.ShouldBe(1);
@@ -131,7 +140,7 @@ public sealed class GetClusterTopologyQueryHandlerTests
     }
 
     [Fact]
-    public void Handle_WithMaxNodesLimit_TruncatesNodes()
+    public async Task ExecuteAsync_WithMaxNodesLimit_TruncatesNodes()
     {
         var envId = Guid.NewGuid();
         // Four distinct node IDs: s1, s2, s3, s4
@@ -143,7 +152,7 @@ public sealed class GetClusterTopologyQueryHandlerTests
         var obs = BuildObservation(envId, topology: rels);
         _store.GetLatest(envId).Returns(obs);
 
-        var result = _handler.Handle(new GetClusterTopologyQuery(envId, MaxNodes: 2));
+        var result = (await ExecuteAsync(new GetClusterTopologyQuery(envId, MaxNodes: 2))).Value;
 
         result.ShouldNotBeNull();
         result!.Nodes.Count.ShouldBe(2);
@@ -151,7 +160,7 @@ public sealed class GetClusterTopologyQueryHandlerTests
     }
 
     [Fact]
-    public void Handle_WithServerObservations_BuildsServerNodes()
+    public async Task ExecuteAsync_WithServerObservations_BuildsServerNodes()
     {
         var envId = Guid.NewGuid();
         var server = new ServerObservation(
@@ -179,7 +188,7 @@ public sealed class GetClusterTopologyQueryHandlerTests
         var obs = BuildObservation(envId, topology: [rel], servers: [server]);
         _store.GetLatest(envId).Returns(obs);
 
-        var result = _handler.Handle(new GetClusterTopologyQuery(envId));
+        var result = (await ExecuteAsync(new GetClusterTopologyQuery(envId))).Value;
 
         result.ShouldNotBeNull();
         var serverNode = result!.Nodes.First(n => n.Id == "server-1");
@@ -195,14 +204,14 @@ public sealed class GetClusterTopologyQueryHandlerTests
     [InlineData("leaf-branch-1", "leafnode")]
     [InlineData("route-peer-2", "routePeer")]
     [InlineData("unknown-node-x", "external")]
-    public void Handle_DeterminesNodeTypeByIdPrefix(string nodeId, string expectedType)
+    public async Task ExecuteAsync_DeterminesNodeTypeByIdPrefix(string nodeId, string expectedType)
     {
         var envId = Guid.NewGuid();
         var rel = BuildRelationship(envId, nodeId, "server-2");
         var obs = BuildObservation(envId, topology: [rel]);
         _store.GetLatest(envId).Returns(obs);
 
-        var result = _handler.Handle(new GetClusterTopologyQuery(envId));
+        var result = (await ExecuteAsync(new GetClusterTopologyQuery(envId))).Value;
 
         result.ShouldNotBeNull();
         var node = result!.Nodes.First(n => n.Id == nodeId);
@@ -210,13 +219,13 @@ public sealed class GetClusterTopologyQueryHandlerTests
     }
 
     [Fact]
-    public void Handle_WithEmptyTopology_ReturnsEmptyGraph()
+    public async Task ExecuteAsync_WithEmptyTopology_ReturnsEmptyGraph()
     {
         var envId = Guid.NewGuid();
         var obs = BuildObservation(envId, topology: []);
         _store.GetLatest(envId).Returns(obs);
 
-        var result = _handler.Handle(new GetClusterTopologyQuery(envId));
+        var result = (await ExecuteAsync(new GetClusterTopologyQuery(envId))).Value;
 
         result.ShouldNotBeNull();
         result!.Nodes.ShouldBeEmpty();
@@ -226,7 +235,7 @@ public sealed class GetClusterTopologyQueryHandlerTests
     }
 
     [Fact]
-    public void Handle_MaxNodesClampedToAtLeastOne()
+    public async Task ExecuteAsync_MaxNodesClampedToAtLeastOne()
     {
         var envId = Guid.NewGuid();
         var rel = BuildRelationship(envId, "s1", "s2");
@@ -234,7 +243,7 @@ public sealed class GetClusterTopologyQueryHandlerTests
         _store.GetLatest(envId).Returns(obs);
 
         // MaxNodes=0 should be clamped to 1 (not throw or return 0 nodes from a non-empty graph)
-        var result = _handler.Handle(new GetClusterTopologyQuery(envId, MaxNodes: 0));
+        var result = (await ExecuteAsync(new GetClusterTopologyQuery(envId, MaxNodes: 0))).Value;
 
         result.ShouldNotBeNull();
         result!.Nodes.Count.ShouldBeGreaterThan(0);
