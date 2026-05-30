@@ -35,6 +35,10 @@ public sealed class UpdateEnvironmentCommandValidator : AbstractValidator<Update
         RuleFor(x => x.ServerUrl).NotEmpty().MaximumLength(2048).MustBeValidNatsServerUrl();
         RuleFor(x => x.Description).MaximumLength(500);
 
+        RuleFor(x => x.Credential).NotEmpty()
+            .When(x => x.CredentialType != CredentialType.None)
+            .WithMessage("Credential is required when CredentialType is not None.");
+
         When(x => !string.IsNullOrWhiteSpace(x.MonitoringUrl), () =>
             RuleFor(x => x.MonitoringUrl!)
                 .Must(url => Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri) &&
@@ -69,11 +73,7 @@ public sealed class UpdateEnvironmentCommandHandler(
             return;
         }
 
-        string? credentialRef = null;
-        if (request.CredentialType != CredentialType.None && !string.IsNullOrEmpty(request.Credential))
-        {
-            credentialRef = encryptionService.Encrypt(request.Credential);
-        }
+        var credentialRef = encryptionService.EncryptCredential(request.CredentialType, request.Credential);
 
         environment.Update(
             name: request.Name,

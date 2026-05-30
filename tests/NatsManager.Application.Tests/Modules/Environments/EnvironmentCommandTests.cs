@@ -321,18 +321,37 @@ public sealed class UpdateEnvironmentCommandValidatorTests
         result.IsValid.ShouldBeFalse();
         result.Errors.ShouldContain(e => e.PropertyName == nameof(UpdateEnvironmentCommand.ServerUrl));
     }
+
+    [Fact]
+    public void Validate_WithCredentialTypeButNoCredential_ShouldFail()
+    {
+        var command = new UpdateEnvironmentCommand
+        {
+            Id = Guid.NewGuid(),
+            Name = "Test",
+            ServerUrl = "nats://localhost:4222",
+            CredentialType = CredentialType.UserPassword,
+            Credential = null
+        };
+
+        var result = _validator.Validate(command);
+
+        result.IsValid.ShouldBeFalse();
+        result.Errors.ShouldContain(e => e.PropertyName == nameof(UpdateEnvironmentCommand.Credential));
+    }
 }
 
 public sealed class DeleteEnvironmentCommandTests
 {
     private readonly IEnvironmentRepository _repository = Substitute.For<IEnvironmentRepository>();
     private readonly INatsConnectionFactory _connectionFactory = Substitute.For<INatsConnectionFactory>();
+    private readonly IEnvironmentScopedStore _scopedStore = Substitute.For<IEnvironmentScopedStore>();
     private readonly IAuditTrail _auditTrail = Substitute.For<IAuditTrail>();
     private readonly DeleteEnvironmentCommandHandler _handler;
 
     public DeleteEnvironmentCommandTests()
     {
-        _handler = new DeleteEnvironmentCommandHandler(_repository, _connectionFactory, _auditTrail);
+        _handler = new DeleteEnvironmentCommandHandler(_repository, _connectionFactory, [_scopedStore], _auditTrail);
     }
 
     [Fact]
@@ -350,6 +369,7 @@ public sealed class DeleteEnvironmentCommandTests
         outputPort.IsSuccess.ShouldBeTrue();
         await _connectionFactory.Received(1).RemoveConnectionAsync(envId, Arg.Any<CancellationToken>());
         await _repository.Received(1).DeleteAsync(existing, Arg.Any<CancellationToken>());
+        _scopedStore.Received(1).EvictEnvironment(envId);
     }
 
     [Fact]

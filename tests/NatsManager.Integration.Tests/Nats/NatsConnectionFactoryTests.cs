@@ -41,7 +41,7 @@ public sealed class NatsConnectionFactoryTests(NatsFixture fixture) : NatsIntegr
     {
         await using var connectionFactory = CreateSut();
 
-        var status = await connectionFactory.TestConnectionAsync(NatsUrl, null);
+        var status = await connectionFactory.TestConnectionAsync(NatsUrl);
 
         status.ShouldBe(ConnectionStatus.Available);
     }

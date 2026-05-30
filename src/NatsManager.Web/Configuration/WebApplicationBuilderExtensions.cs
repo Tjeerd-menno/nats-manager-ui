@@ -94,12 +94,16 @@ public static class WebApplicationBuilderExtensions
         services.AddSingleton<NatsManager.Application.Modules.ObjectStore.Ports.IObjectStoreAdapter, ObjectStoreAdapter>();
         services.AddSingleton<NatsManager.Application.Modules.CoreNats.Ports.ICoreNatsAdapter, CoreNatsAdapter>();
 
-        services.Configure<CoreNatsMonitoringOptions>(
-            configuration.GetSection(CoreNatsMonitoringOptions.SectionName));
+        services.AddOptions<CoreNatsMonitoringOptions>()
+            .Bind(configuration.GetSection(CoreNatsMonitoringOptions.SectionName))
+            .Validate(CoreNatsMonitoringOptions.IsValid, "CoreNats monitoring options are invalid. DefaultPort must be 1-65535, HttpTimeout must be between 0 and 60 seconds, and BaseUrl (when set) must be an absolute URL.")
+            .ValidateOnStart();
         services.AddHttpClient();
 
-        services.Configure<BootstrapAdminOptions>(
-            configuration.GetSection(BootstrapAdminOptions.SectionName));
+        services.AddOptions<BootstrapAdminOptions>()
+            .Bind(configuration.GetSection(BootstrapAdminOptions.SectionName))
+            .Validate(BootstrapAdminOptions.IsValid, "BootstrapAdmin options are invalid. DisplayName must not be blank and Password (when set) must be at least 8 characters.")
+            .ValidateOnStart();
 
         return services;
     }
@@ -128,10 +132,14 @@ public static class WebApplicationBuilderExtensions
         services.AddSignalR();
         services.AddSingleton<IMonitoringAdapter, NatsMonitoringHttpAdapter>();
         services.AddSingleton<IMonitoringMetricsStore, MonitoringMetricsStore>();
+        services.AddSingleton<NatsManager.Application.Modules.Environments.Ports.IEnvironmentScopedStore>(
+            sp => (NatsManager.Application.Modules.Environments.Ports.IEnvironmentScopedStore)sp.GetRequiredService<IMonitoringMetricsStore>());
 
         // Cluster Observability
         services.AddScoped<IClusterMonitoringAdapter, NatsClusterMonitoringHttpAdapter>();
         services.AddSingleton<IClusterObservationStore, ClusterObservationStore>();
+        services.AddSingleton<NatsManager.Application.Modules.Environments.Ports.IEnvironmentScopedStore>(
+            sp => (NatsManager.Application.Modules.Environments.Ports.IEnvironmentScopedStore)sp.GetRequiredService<IClusterObservationStore>());
 
         return services;
     }

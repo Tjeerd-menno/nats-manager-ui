@@ -35,7 +35,7 @@ public sealed partial class ClusterObservationPoller(
             }
             catch (Exception ex)
             {
-                LogPollerError(ex.Message);
+                LogPollerError(ex);
             }
 
             await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken);
@@ -79,7 +79,7 @@ public sealed partial class ClusterObservationPoller(
             }
             catch (Exception ex)
             {
-                LogEnvironmentPollFailed(env.Id, ex.Message);
+                LogEnvironmentPollFailed(env.Id, ex);
             }
         }
     }
@@ -96,9 +96,9 @@ public sealed partial class ClusterObservationPoller(
     [LoggerMessage(Level = LogLevel.Debug, Message = "Polled cluster observation for environment {EnvironmentId}: {Status}.")]
     private partial void LogPolledEnvironment(Guid environmentId, ClusterStatus status);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to poll cluster observation for environment {EnvironmentId}: {Reason}.")]
-    private partial void LogEnvironmentPollFailed(Guid environmentId, string reason);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to poll cluster observation for environment {EnvironmentId}.")]
+    private partial void LogEnvironmentPollFailed(Guid environmentId, Exception exception);
 
-    [LoggerMessage(Level = LogLevel.Error, Message = "ClusterObservationPoller error: {Reason}.")]
-    private partial void LogPollerError(string reason);
+    [LoggerMessage(Level = LogLevel.Error, Message = "ClusterObservationPoller error.")]
+    private partial void LogPollerError(Exception exception);
 }

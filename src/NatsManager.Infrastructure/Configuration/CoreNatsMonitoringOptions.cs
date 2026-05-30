@@ -12,4 +12,15 @@ public sealed class CoreNatsMonitoringOptions
     /// the NATS connection host and <see cref="DefaultPort"/>.
     /// </summary>
     public string? BaseUrl { get; set; }
+
+    /// <summary>
+    /// Validates the bound options. The default values are valid; configuration that supplies an
+    /// out-of-range port, a non-positive/excessive timeout, or a malformed base URL fails fast at startup.
+    /// </summary>
+    public static bool IsValid(CoreNatsMonitoringOptions options) =>
+        options.DefaultPort is >= 1 and <= 65535
+        && options.HttpTimeout > TimeSpan.Zero
+        && options.HttpTimeout <= TimeSpan.FromSeconds(60)
+        && (string.IsNullOrWhiteSpace(options.BaseUrl)
+            || Uri.TryCreate(options.BaseUrl, UriKind.Absolute, out _));
 }
