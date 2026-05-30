@@ -91,6 +91,10 @@ public static class WebApplicationExtensions
 
                     if (!string.IsNullOrEmpty(tokens.RequestToken))
                     {
+                        // Double-submit antiforgery cookie: it is intentionally readable by the SPA
+                        // (HttpOnly = false) so the client can echo the value back in the X-XSRF-TOKEN
+                        // header. It carries no secret/session material. Secure is enabled whenever the
+                        // request is HTTPS (or cross-origin), while still allowing plain-HTTP local dev.
                         context.Response.Cookies.Append("XSRF-TOKEN", tokens.RequestToken, new CookieOptions
                         {
                             HttpOnly = false,

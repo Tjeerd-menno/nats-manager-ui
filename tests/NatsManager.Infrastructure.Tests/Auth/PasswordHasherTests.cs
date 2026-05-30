@@ -57,6 +57,27 @@ public sealed class PasswordHasherTests
     }
 
     [Fact]
+    public void Verify_WithDecodableButWrongSizedSaltAndHash_ShouldReturnFalse()
+    {
+        // Both segments are valid base64 but decode to sizes that do not match the hasher's
+        // expected salt (16) / hash (32) sizes. Such degenerate values must be rejected before
+        // being fed to PBKDF2 rather than treated as a valid (unverifiable) hash.
+        var tinySalt = Convert.ToBase64String(new byte[1]);
+        var tinyHash = Convert.ToBase64String(new byte[1]);
+
+        PasswordHasher.Verify("password123", $"pbkdf2-sha512.100000.{tinySalt}.{tinyHash}").ShouldBeFalse();
+        PasswordHasher.Verify("password123", $"{tinySalt}.{tinyHash}").ShouldBeFalse();
+    }
+
+    [Fact]
+    public void Verify_WithEmptyDecodedSaltAndHash_ShouldReturnFalse()
+    {
+        var empty = Convert.ToBase64String([]);
+
+        PasswordHasher.Verify("password123", $"pbkdf2-sha512.100000.{empty}.{empty}").ShouldBeFalse();
+    }
+
+    [Fact]
     public void Verify_WithLegacyTwoPartHash_ShouldStillVerify()
     {
         // Legacy format: {saltBase64}.{hashBase64} with 100k PBKDF2-SHA512.

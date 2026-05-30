@@ -93,9 +93,16 @@ public sealed class PasswordHasher : IPasswordHasher
                         return false;
                     }
 
+                    var salt = Convert.FromBase64String(parts[2]);
+                    var hash = Convert.FromBase64String(parts[3]);
+                    if (!HasExpectedSizes(salt, hash))
+                    {
+                        return false;
+                    }
+
                     parsed = new ParsedHash(
-                        Convert.FromBase64String(parts[2]),
-                        Convert.FromBase64String(parts[3]),
+                        salt,
+                        hash,
                         iterations,
                         algorithm.Value,
                         IsCurrentFormat: true);
@@ -104,9 +111,16 @@ public sealed class PasswordHasher : IPasswordHasher
 
                 case 2:
                 {
+                    var salt = Convert.FromBase64String(parts[0]);
+                    var hash = Convert.FromBase64String(parts[1]);
+                    if (!HasExpectedSizes(salt, hash))
+                    {
+                        return false;
+                    }
+
                     parsed = new ParsedHash(
-                        Convert.FromBase64String(parts[0]),
-                        Convert.FromBase64String(parts[1]),
+                        salt,
+                        hash,
                         LegacyIterations,
                         LegacyAlgorithm,
                         IsCurrentFormat: false);
@@ -122,6 +136,9 @@ public sealed class PasswordHasher : IPasswordHasher
             return false;
         }
     }
+
+    private static bool HasExpectedSizes(byte[] salt, byte[] hash) =>
+        salt.Length == SaltSize && hash.Length == HashSize;
 
     private static HashAlgorithmName? PrfToAlgorithm(string prf) => prf switch
     {

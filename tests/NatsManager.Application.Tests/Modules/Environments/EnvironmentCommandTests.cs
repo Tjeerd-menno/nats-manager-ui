@@ -1,5 +1,6 @@
 using Shouldly;
 using NSubstitute;
+using FluentValidation;
 using NatsManager.Application.Behaviors;
 using NatsManager.Application.Common;
 using NatsManager.Application.Modules.Environments.Commands;
@@ -268,6 +269,61 @@ public sealed class UpdateEnvironmentCommandTests
 
         outputPort.IsConflict.ShouldBeTrue();
     }
+
+    [Fact]
+    public async Task Handle_WithCredentialTypeButNoCredentialAndNoStoredReference_ShouldThrowValidation()
+    {
+        var envId = Guid.NewGuid();
+        var existing = Environment.Create("Old", "nats://old:4222");
+        var command = new UpdateEnvironmentCommand
+        {
+            Id = envId,
+            Name = "New",
+            ServerUrl = "nats://new:4222",
+            CredentialType = CredentialType.Token,
+            Credential = null
+        };
+
+        _repository.GetByIdAsync(envId, Arg.Any<CancellationToken>()).Returns(existing);
+        _repository.ExistsWithNameAsync("New", envId, Arg.Any<CancellationToken>()).Returns(false);
+
+        var outputPort = new TestOutputPort<Unit>();
+        var exception = await Should.ThrowAsync<ValidationException>(
+            () => _handler.ExecuteAsync(command, outputPort, CancellationToken.None));
+
+        exception.Errors.ShouldContain(e => e.PropertyName == nameof(UpdateEnvironmentCommand.Credential));
+        await _repository.DidNotReceive().UpdateAsync(Arg.Any<Environment>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_WithCredentialTypeButNoCredential_WhenStoredReferenceExists_ShouldPreserveAndSucceed()
+    {
+        var envId = Guid.NewGuid();
+        var existing = Environment.Create(
+            "Old",
+            "nats://old:4222",
+            credentialType: CredentialType.Token,
+            credentialReference: "stored-ref");
+        var command = new UpdateEnvironmentCommand
+        {
+            Id = envId,
+            Name = "New",
+            ServerUrl = "nats://new:4222",
+            CredentialType = CredentialType.Token,
+            Credential = null
+        };
+
+        _repository.GetByIdAsync(envId, Arg.Any<CancellationToken>()).Returns(existing);
+        _repository.ExistsWithNameAsync("New", envId, Arg.Any<CancellationToken>()).Returns(false);
+
+        var outputPort = new TestOutputPort<Unit>();
+        await _handler.ExecuteAsync(command, outputPort, CancellationToken.None);
+
+        outputPort.IsSuccess.ShouldBeTrue();
+        existing.CredentialReference.ShouldBe("stored-ref");
+        await _repository.Received(1).UpdateAsync(existing, Arg.Any<CancellationToken>());
+        _encryption.DidNotReceive().Encrypt(Arg.Any<string>());
+    }
 }
 
 public sealed class UpdateEnvironmentCommandValidatorTests
@@ -323,8 +379,10 @@ public sealed class UpdateEnvironmentCommandValidatorTests
     }
 
     [Fact]
-    public void Validate_WithCredentialTypeButNoCredential_ShouldFail()
+    public void Validate_WithCredentialTypeButNoCredential_ShouldPass_BecauseEnforcedInHandler()
     {
+        // The "credential required" rule moved to the handler so an update can omit the secret
+        // to preserve an already-stored credential reference; the validator no longer rejects it.
         var command = new UpdateEnvironmentCommand
         {
             Id = Guid.NewGuid(),
@@ -336,8 +394,7 @@ public sealed class UpdateEnvironmentCommandValidatorTests
 
         var result = _validator.Validate(command);
 
-        result.IsValid.ShouldBeFalse();
-        result.Errors.ShouldContain(e => e.PropertyName == nameof(UpdateEnvironmentCommand.Credential));
+        result.IsValid.ShouldBeTrue(string.Join("; ", result.Errors.Select(e => e.ErrorMessage)));
     }
 }
 
