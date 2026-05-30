@@ -33,11 +33,44 @@ specs/                           # SpecKit feature artifacts
 
 ## Commands
 
-npm test; npm run lint
+### Frontend
+```bash
+cd src/NatsManager.Frontend
+npm test        # Vitest unit tests
+npm run lint    # ESLint
+```
+
+### Backend — Build
+```bash
+# Solution file is NatsManager.slnx (Aspire format — no .sln exists)
+dotnet build NatsManager.slnx -c Debug
+
+# dotnet build only accepts ONE project path at a time (MSB1008 with multiple paths)
+dotnet build src/NatsManager.Web/NatsManager.Web.csproj -c Debug
+```
+
+### Backend — Run Tests
+**`dotnet test` does NOT work** — it reports 0 tests (exit code 5) with xUnit v3 + Microsoft Testing Platform v2.
+Run the built `.exe` directly:
+```bash
+tests\NatsManager.Domain.Tests\bin\Debug\net10.0\NatsManager.Domain.Tests.exe
+tests\NatsManager.Application.Tests\bin\Debug\net10.0\NatsManager.Application.Tests.exe
+tests\NatsManager.Infrastructure.Tests\bin\Debug\net10.0\NatsManager.Infrastructure.Tests.exe
+tests\NatsManager.Web.Tests\bin\Debug\net10.0\NatsManager.Web.Tests.exe
+```
+
+### Backend — Warnings-as-errors
+`src/` projects have warnings-as-errors enabled; test projects do not. Common build-breaking warnings:
+- **CA1859** — use `ConfigurationManager` (concrete type) instead of `IConfiguration` when the concrete type flows in
+- **CA1725** — parameter names on overrides/implementations must exactly match the interface
+- **Unused `using` directives** — remove after refactoring endpoint files
 
 ## Code Style
 
 C# / .NET 10 (backend), TypeScript (frontend): Follow standard conventions
+
+### File editing gotcha
+The `create` tool **cannot overwrite existing files**. To replace an existing file from scratch, create a `.new` temp file then use `Move-Item -Force`. Use the `edit` tool for all partial edits to existing files.
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
