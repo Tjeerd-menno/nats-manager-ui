@@ -4,6 +4,7 @@ using NatsManager.Application.Modules.Monitoring.Models.ClusterObservability;
 using NatsManager.Application.Modules.Monitoring.Ports;
 using NatsManager.Application.Modules.Monitoring.Ports.ClusterObservability;
 using NatsManager.Application.Modules.Monitoring.Queries.ClusterObservability;
+using NatsManager.Web.Security;
 
 namespace NatsManager.Web.Endpoints;
 
@@ -15,9 +16,12 @@ public static class MonitoringEndpoints
             .WithTags("Monitoring")
             .RequireAuthorization();
 
-        group.MapGet("/{envId:guid}/monitoring/metrics/history", GetMonitoringHistory);
-        group.MapGet("/{environmentId:guid}/monitoring/cluster/overview", GetClusterOverview);
-        group.MapGet("/{environmentId:guid}/monitoring/cluster/topology", GetClusterTopology);
+        group.MapGet("/{envId:guid}/monitoring/metrics/history", GetMonitoringHistory)
+            .RequireAuthorization(AuthorizationPolicyNames.EnvironmentReadAccess);
+        group.MapGet("/{environmentId:guid}/monitoring/cluster/overview", GetClusterOverview)
+            .RequireAuthorization(AuthorizationPolicyNames.EnvironmentReadAccess);
+        group.MapGet("/{environmentId:guid}/monitoring/cluster/topology", GetClusterTopology)
+            .RequireAuthorization(AuthorizationPolicyNames.EnvironmentReadAccess);
 
         return app;
     }

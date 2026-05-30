@@ -107,6 +107,56 @@ public sealed class CoreNatsEndpointTests : IClassFixture<NatsManagerWebAppFacto
     }
 
     [Fact]
+    public async Task GetSubjects_WithScopedReadRole_Returns200()
+    {
+        var envId = Guid.NewGuid();
+        var client = _factory.CreateAuthenticatedClientWithScopedRole(Role.PredefinedNames.ReadOnly, envId);
+        _factory.CoreNatsAdapter.ListSubjectsAsync(envId, Arg.Any<CancellationToken>())
+            .Returns(new ListSubjectsResult([], IsMonitoringAvailable: true));
+
+        var response = await client.GetAsync($"/api/environments/{envId}/core-nats/subjects");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task GetSubjects_WithNoAccessToEnvironment_Returns403()
+    {
+        var envId = Guid.NewGuid();
+        var otherEnvId = Guid.NewGuid();
+        var client = _factory.CreateAuthenticatedClientWithScopedRole(Role.PredefinedNames.ReadOnly, otherEnvId);
+
+        var response = await client.GetAsync($"/api/environments/{envId}/core-nats/subjects");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task GetClients_AsGlobalReadOnly_Returns200()
+    {
+        var envId = Guid.NewGuid();
+        var client = _factory.CreateAuthenticatedClient(Role.PredefinedNames.ReadOnly);
+        _factory.CoreNatsAdapter.ListClientsAsync(envId, Arg.Any<CancellationToken>())
+            .Returns(new List<NatsClientInfo>());
+
+        var response = await client.GetAsync($"/api/environments/{envId}/core-nats/clients");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task StreamEndpoint_WithNoAccessToEnvironment_Returns403()
+    {
+        var envId = Guid.NewGuid();
+        var otherEnvId = Guid.NewGuid();
+        var client = _factory.CreateAuthenticatedClientWithScopedRole(Role.PredefinedNames.ReadOnly, otherEnvId);
+
+        var response = await client.GetAsync($"/api/environments/{envId}/core-nats/stream?subject=test.%3E");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
     public async Task PublishMessage_InProductionAsOperator_ShouldReturn403()
     {
         var client = _factory.CreateAuthenticatedClient(Role.PredefinedNames.Operator);

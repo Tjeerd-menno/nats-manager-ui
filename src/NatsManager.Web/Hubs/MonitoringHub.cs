@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using NatsManager.Application.Modules.Environments.Ports;
 using NatsManager.Application.Modules.Monitoring.Ports;
+using NatsManager.Web.Security;
 
 namespace NatsManager.Web.Hubs;
 
@@ -14,6 +15,10 @@ public sealed class MonitoringHub(
     {
         if (!Guid.TryParse(environmentId, out var id))
             throw new HubException("Invalid environment id.");
+
+        // Authorize read access before disclosing whether the environment exists.
+        if (!EnvironmentAccess.CanRead(Context.User!, id))
+            throw new HubException("You do not have access to this environment.");
 
         _ = await environmentRepository.GetByIdAsync(id, Context.ConnectionAborted)
             ?? throw new HubException("Environment not found.");

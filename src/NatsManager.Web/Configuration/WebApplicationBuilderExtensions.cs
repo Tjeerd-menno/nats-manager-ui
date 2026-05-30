@@ -243,6 +243,10 @@ public static class WebApplicationBuilderExtensions
                     .AddRequirements(new EnvironmentScopedRoleRequirement(
                         Role.PredefinedNames.Administrator,
                         Role.PredefinedNames.Operator)));
+
+            options.AddPolicy(AuthorizationPolicyNames.EnvironmentReadAccess, policy =>
+                policy.RequireAuthenticatedUser()
+                    .AddRequirements(new EnvironmentScopedRoleRequirement(EnvironmentAccess.ReadRoles)));
         });
 
         // CORS — opt-in. With no allowed origins configured the middleware is a no-op

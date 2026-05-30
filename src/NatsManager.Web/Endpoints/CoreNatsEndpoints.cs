@@ -20,11 +20,11 @@ public static class CoreNatsEndpoints
             .WithTags("Core NATS")
             .RequireAuthorization();
 
-        group.MapGet("/status", GetStatus);
-        group.MapGet("/subjects", GetSubjects);
-        group.MapGet("/clients", GetClients);
+        group.MapGet("/status", GetStatus).RequireAuthorization(AuthorizationPolicyNames.EnvironmentReadAccess);
+        group.MapGet("/subjects", GetSubjects).RequireAuthorization(AuthorizationPolicyNames.EnvironmentReadAccess);
+        group.MapGet("/clients", GetClients).RequireAuthorization(AuthorizationPolicyNames.EnvironmentReadAccess);
         group.MapPost("/publish", PublishMessage).RequireAuthorization(AuthorizationPolicyNames.OperatorAccess);
-        group.MapGet("/stream", StreamMessages);
+        group.MapGet("/stream", StreamMessages).RequireAuthorization(AuthorizationPolicyNames.EnvironmentReadAccess);
 
         return app;
     }
