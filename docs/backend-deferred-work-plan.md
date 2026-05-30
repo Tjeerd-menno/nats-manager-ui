@@ -384,4 +384,4 @@ as a thin coordinator implementing the port.
 - [x] S1 — MonitoringHub read authz + tests
 - [x] M1 — cluster handlers → `IUseCase` (+ port decision) + tests
 - [x] M7a — `RelationshipProjectionService` split + tests
-- [ ] M7b — `NatsClusterMonitoringHttpAdapter` split + tests
+- [x] M7b — `NatsClusterMonitoringHttpAdapter` split + tests
