@@ -22,7 +22,7 @@ public sealed class DashboardEndpointTests : IClassFixture<NatsManagerWebAppFact
         var envId = Guid.NewGuid();
         var env = NatsManager.Domain.Modules.Environments.Environment.Create("Test", "nats://localhost:4222");
         _factory.EnvironmentRepository.GetByIdAsync(envId, Arg.Any<CancellationToken>()).Returns(env);
-        _factory.JetStreamAdapter.ListStreamsAsync(envId, Arg.Any<CancellationToken>())
+        _factory.JetStreamReadAdapter.ListStreamsAsync(envId, Arg.Any<CancellationToken>())
             .Returns(new List<NatsManager.Application.Modules.JetStream.Models.StreamInfo>());
         _factory.KvStoreAdapter.ListBucketsAsync(envId, Arg.Any<CancellationToken>())
             .Returns(new List<NatsManager.Application.Modules.KeyValue.Models.KvBucketInfo>());
