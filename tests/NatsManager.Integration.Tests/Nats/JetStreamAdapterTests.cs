@@ -4,24 +4,27 @@ using NatsManager.Integration.Tests.Infrastructure;
 
 namespace NatsManager.Integration.Tests.Nats;
 
-public sealed class JetStreamAdapterTests(NatsFixture fixture) : NatsIntegrationTestBase(fixture)
+public sealed class JetStreamReadWriteAdapterTests(NatsFixture fixture) : NatsIntegrationTestBase(fixture)
 {
-    private JetStreamAdapter CreateAdapter() => new(ConnectionFactory, NullLogger<JetStreamAdapter>());
+    private JetStreamReadAdapter CreateReadAdapter() => new(ConnectionFactory, NullLogger<JetStreamReadAdapter>());
+
+    private JetStreamWriteAdapter CreateWriteAdapter() => new(ConnectionFactory, NullLogger<JetStreamWriteAdapter>());
 
     [Fact]
     public async Task CreateStream_ThenListStreams_ShouldContainCreatedStream()
     {
-        var adapter = CreateAdapter();
+        var readAdapter = CreateReadAdapter();
+        var writeAdapter = CreateWriteAdapter();
         var streamName = $"test-{Guid.NewGuid():N}"[..20];
 
-        await adapter.CreateStreamAsync(new CreateStreamSpec
+        await writeAdapter.CreateStreamAsync(new CreateStreamSpec
         {
             EnvironmentId = EnvironmentId,
             Name = streamName,
             Subjects = [$"{streamName}.>"]
         });
 
-        var streams = await adapter.ListStreamsAsync(EnvironmentId);
+        var streams = await readAdapter.ListStreamsAsync(EnvironmentId);
 
         streams.ShouldContain(s => s.Name == streamName);
     }
@@ -29,16 +32,17 @@ public sealed class JetStreamAdapterTests(NatsFixture fixture) : NatsIntegration
     [Fact]
     public async Task GetStreamAsync_WithExistingStream_ShouldReturnStreamInfo()
     {
-        var adapter = CreateAdapter();
+        var readAdapter = CreateReadAdapter();
+        var writeAdapter = CreateWriteAdapter();
         var streamName = $"test-{Guid.NewGuid():N}"[..20];
-        await adapter.CreateStreamAsync(new CreateStreamSpec
+        await writeAdapter.CreateStreamAsync(new CreateStreamSpec
         {
             EnvironmentId = EnvironmentId,
             Name = streamName,
             Subjects = [$"{streamName}.>"]
         });
 
-        var info = await adapter.GetStreamAsync(EnvironmentId, streamName);
+        var info = await readAdapter.GetStreamAsync(EnvironmentId, streamName);
 
         info.ShouldNotBeNull();
         info!.Name.ShouldBe(streamName);
@@ -47,9 +51,9 @@ public sealed class JetStreamAdapterTests(NatsFixture fixture) : NatsIntegration
     [Fact]
     public async Task GetStreamAsync_WithNonExistentStream_ShouldReturnNull()
     {
-        var adapter = CreateAdapter();
+        var readAdapter = CreateReadAdapter();
 
-        var result = await adapter.GetStreamAsync(EnvironmentId, "nonexistent-stream");
+        var result = await readAdapter.GetStreamAsync(EnvironmentId, "nonexistent-stream");
 
         result.ShouldBeNull();
     }
@@ -57,9 +61,10 @@ public sealed class JetStreamAdapterTests(NatsFixture fixture) : NatsIntegration
     [Fact]
     public async Task GetStreamConfigAsync_ShouldReturnConfig()
     {
-        var adapter = CreateAdapter();
+        var readAdapter = CreateReadAdapter();
+        var writeAdapter = CreateWriteAdapter();
         var streamName = $"test-{Guid.NewGuid():N}"[..20];
-        await adapter.CreateStreamAsync(new CreateStreamSpec
+        await writeAdapter.CreateStreamAsync(new CreateStreamSpec
         {
             EnvironmentId = EnvironmentId,
             Name = streamName,
@@ -68,7 +73,7 @@ public sealed class JetStreamAdapterTests(NatsFixture fixture) : NatsIntegration
             StorageType = "Memory"
         });
 
-        var config = await adapter.GetStreamConfigAsync(EnvironmentId, streamName);
+        var config = await readAdapter.GetStreamConfigAsync(EnvironmentId, streamName);
 
         config.ShouldNotBeNull();
         config!.RetentionPolicy.ShouldBe("Limits");
@@ -78,36 +83,38 @@ public sealed class JetStreamAdapterTests(NatsFixture fixture) : NatsIntegration
     [Fact]
     public async Task DeleteStreamAsync_ShouldRemoveStream()
     {
-        var adapter = CreateAdapter();
+        var readAdapter = CreateReadAdapter();
+        var writeAdapter = CreateWriteAdapter();
         var streamName = $"test-{Guid.NewGuid():N}"[..20];
-        await adapter.CreateStreamAsync(new CreateStreamSpec
+        await writeAdapter.CreateStreamAsync(new CreateStreamSpec
         {
             EnvironmentId = EnvironmentId,
             Name = streamName,
             Subjects = [$"{streamName}.>"]
         });
 
-        await adapter.DeleteStreamAsync(EnvironmentId, streamName);
+        await writeAdapter.DeleteStreamAsync(EnvironmentId, streamName);
 
-        var info = await adapter.GetStreamAsync(EnvironmentId, streamName);
+        var info = await readAdapter.GetStreamAsync(EnvironmentId, streamName);
         info.ShouldBeNull();
     }
 
     [Fact]
     public async Task CreateConsumer_ThenListConsumers_ShouldContainConsumer()
     {
-        var adapter = CreateAdapter();
+        var readAdapter = CreateReadAdapter();
+        var writeAdapter = CreateWriteAdapter();
         var streamName = $"test-{Guid.NewGuid():N}"[..20];
         var consumerName = "test-consumer";
 
-        await adapter.CreateStreamAsync(new CreateStreamSpec
+        await writeAdapter.CreateStreamAsync(new CreateStreamSpec
         {
             EnvironmentId = EnvironmentId,
             Name = streamName,
             Subjects = [$"{streamName}.>"]
         });
 
-        await adapter.CreateConsumerAsync(new CreateConsumerSpec
+        await writeAdapter.CreateConsumerAsync(new CreateConsumerSpec
         {
             EnvironmentId = EnvironmentId,
             StreamName = streamName,
@@ -116,7 +123,7 @@ public sealed class JetStreamAdapterTests(NatsFixture fixture) : NatsIntegration
             AckPolicy = "Explicit"
         });
 
-        var consumers = await adapter.ListConsumersAsync(EnvironmentId, streamName);
+        var consumers = await readAdapter.ListConsumersAsync(EnvironmentId, streamName);
 
         consumers.ShouldContain(c => c.Name == consumerName);
     }
@@ -124,18 +131,19 @@ public sealed class JetStreamAdapterTests(NatsFixture fixture) : NatsIntegration
     [Fact]
     public async Task DeleteConsumerAsync_ShouldRemoveConsumer()
     {
-        var adapter = CreateAdapter();
+        var readAdapter = CreateReadAdapter();
+        var writeAdapter = CreateWriteAdapter();
         var streamName = $"test-{Guid.NewGuid():N}"[..20];
         var consumerName = "test-consumer";
 
-        await adapter.CreateStreamAsync(new CreateStreamSpec
+        await writeAdapter.CreateStreamAsync(new CreateStreamSpec
         {
             EnvironmentId = EnvironmentId,
             Name = streamName,
             Subjects = [$"{streamName}.>"]
         });
 
-        await adapter.CreateConsumerAsync(new CreateConsumerSpec
+        await writeAdapter.CreateConsumerAsync(new CreateConsumerSpec
         {
             EnvironmentId = EnvironmentId,
             StreamName = streamName,
@@ -144,9 +152,9 @@ public sealed class JetStreamAdapterTests(NatsFixture fixture) : NatsIntegration
             AckPolicy = "Explicit"
         });
 
-        await adapter.DeleteConsumerAsync(EnvironmentId, streamName, consumerName);
+        await writeAdapter.DeleteConsumerAsync(EnvironmentId, streamName, consumerName);
 
-        var consumers = await adapter.ListConsumersAsync(EnvironmentId, streamName);
+        var consumers = await readAdapter.ListConsumersAsync(EnvironmentId, streamName);
         consumers.ShouldNotContain(c => c.Name == consumerName);
     }
 }

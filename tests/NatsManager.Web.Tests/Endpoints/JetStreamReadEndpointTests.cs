@@ -21,7 +21,7 @@ public sealed class JetStreamReadEndpointTests : IClassFixture<NatsManagerWebApp
     public async Task GetStreams_ShouldReturn200()
     {
         var envId = Guid.NewGuid();
-        _factory.JetStreamAdapter.ListStreamsAsync(envId, Arg.Any<CancellationToken>())
+        _factory.JetStreamReadAdapter.ListStreamsAsync(envId, Arg.Any<CancellationToken>())
             .Returns(new List<StreamInfo>());
 
         var response = await _client.GetAsync($"/api/environments/{envId}/jetstream/streams");
@@ -37,11 +37,11 @@ public sealed class JetStreamReadEndpointTests : IClassFixture<NatsManagerWebApp
             100, 1024, 1, DateTimeOffset.UtcNow,
             new StreamState(100, 1024, null, null, 1, 100));
         var config = new StreamConfig("orders", "Orders stream", ["orders.>"], "Limits", -1, -1, -1, "File", 1, "Old", -1, false, false, false);
-        _factory.JetStreamAdapter.GetStreamAsync(envId, "orders", Arg.Any<CancellationToken>())
+        _factory.JetStreamReadAdapter.GetStreamAsync(envId, "orders", Arg.Any<CancellationToken>())
             .Returns(stream);
-        _factory.JetStreamAdapter.GetStreamConfigAsync(envId, "orders", Arg.Any<CancellationToken>())
+        _factory.JetStreamReadAdapter.GetStreamConfigAsync(envId, "orders", Arg.Any<CancellationToken>())
             .Returns(config);
-        _factory.JetStreamAdapter.ListConsumersAsync(envId, "orders", Arg.Any<CancellationToken>())
+        _factory.JetStreamReadAdapter.ListConsumersAsync(envId, "orders", Arg.Any<CancellationToken>())
             .Returns(new List<ConsumerInfo>());
 
         var response = await _client.GetAsync($"/api/environments/{envId}/jetstream/streams/orders");
@@ -53,7 +53,7 @@ public sealed class JetStreamReadEndpointTests : IClassFixture<NatsManagerWebApp
     public async Task GetConsumers_ShouldReturn200()
     {
         var envId = Guid.NewGuid();
-        _factory.JetStreamAdapter.ListConsumersAsync(envId, "orders", Arg.Any<CancellationToken>())
+        _factory.JetStreamReadAdapter.ListConsumersAsync(envId, "orders", Arg.Any<CancellationToken>())
             .Returns(new List<ConsumerInfo>());
 
         var response = await _client.GetAsync($"/api/environments/{envId}/jetstream/streams/orders/consumers");
@@ -80,7 +80,7 @@ public sealed class JetStreamReadEndpointTests : IClassFixture<NatsManagerWebApp
         var response = await client.GetAsync($"/api/environments/{envId}/jetstream/streams/orders/messages");
 
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
-        await _factory.JetStreamAdapter.DidNotReceiveWithAnyArgs().GetStreamMessagesAsync(
+        await _factory.JetStreamReadAdapter.DidNotReceiveWithAnyArgs().GetStreamMessagesAsync(
             default,
             string.Empty,
             default,
@@ -96,7 +96,7 @@ public sealed class JetStreamReadEndpointTests : IClassFixture<NatsManagerWebApp
         var response = await _client.GetAsync($"/api/environments/{envId}/jetstream/streams/orders/messages?count=501");
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
-        await _factory.JetStreamAdapter.DidNotReceiveWithAnyArgs().GetStreamMessagesAsync(
+        await _factory.JetStreamReadAdapter.DidNotReceiveWithAnyArgs().GetStreamMessagesAsync(
             default,
             string.Empty,
             default,
@@ -112,7 +112,7 @@ public sealed class JetStreamReadEndpointTests : IClassFixture<NatsManagerWebApp
         var response = await _client.GetAsync($"/api/environments/{envId}/jetstream/streams/orders/messages?count=0");
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
-        await _factory.JetStreamAdapter.DidNotReceiveWithAnyArgs().GetStreamMessagesAsync(
+        await _factory.JetStreamReadAdapter.DidNotReceiveWithAnyArgs().GetStreamMessagesAsync(
             default,
             string.Empty,
             default,

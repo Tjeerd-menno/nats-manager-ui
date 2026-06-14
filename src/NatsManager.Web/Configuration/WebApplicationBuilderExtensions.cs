@@ -86,9 +86,8 @@ public static class WebApplicationBuilderExtensions
         services.AddScoped<NatsManager.Application.Modules.Search.Ports.IBookmarkRepository, BookmarkRepository>();
         services.AddScoped<NatsManager.Application.Modules.Search.Ports.IUserPreferenceRepository, UserPreferenceRepository>();
         services.AddSingleton<INatsHealthChecker, NatsHealthChecker>();
-        services.AddSingleton<NatsManager.Application.Modules.JetStream.Ports.IJetStreamAdapter, JetStreamAdapter>();
-        services.AddSingleton<NatsManager.Application.Modules.JetStream.Ports.IJetStreamWriteAdapter>(sp =>
-            (JetStreamAdapter)sp.GetRequiredService<NatsManager.Application.Modules.JetStream.Ports.IJetStreamAdapter>());
+        services.AddSingleton<NatsManager.Application.Modules.JetStream.Ports.IJetStreamAdapter, JetStreamReadAdapter>();
+        services.AddSingleton<NatsManager.Application.Modules.JetStream.Ports.IJetStreamWriteAdapter, JetStreamWriteAdapter>();
         services.AddSingleton<NatsManager.Application.Modules.KeyValue.Ports.IKvStoreAdapter, KvStoreAdapter>();
         services.AddSingleton<NatsManager.Application.Modules.Services.Ports.IServiceDiscoveryAdapter, ServiceDiscoveryAdapter>();
         services.AddSingleton<NatsManager.Application.Modules.ObjectStore.Ports.IObjectStoreAdapter, ObjectStoreAdapter>();
