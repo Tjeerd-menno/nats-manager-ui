@@ -12,22 +12,22 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@mantine/core": "9.3.1",
-    "@mantine/form": "9.3.1",
-    "@mantine/hooks": "9.3.1",
-    "@mantine/modals": "9.3.1",
-    "@mantine/notifications": "9.3.1",
+    "@mantine/core": "9.3.2",
+    "@mantine/form": "9.3.2",
+    "@mantine/hooks": "9.3.2",
+    "@mantine/modals": "9.3.2",
+    "@mantine/notifications": "9.3.2",
     "@microsoft/signalr": "^10.0.0",
     "@tabler/icons-react": "3.44.0",
     "@tanstack/query-db-collection": "^1.0.40",
     "@tanstack/react-db": "^0.1.86",
     "@tanstack/react-query": "5.101.0",
-    "@tanstack/react-virtual": "3.14.2",
+    "@tanstack/react-virtual": "3.14.3",
     "@xyflow/react": "12.11.0",
-    "axios": "1.17.0",
+    "axios": "1.18.0",
     "react": "19.2.7",
     "react-dom": "19.2.7",
-    "react-router-dom": "7.17.0",
+    "react-router-dom": "7.18.0",
     "recharts": "3.8.1"
   },
   "devDependencies": {
@@ -39,10 +39,10 @@
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.2",
-    "@vitest/coverage-v8": "4.1.8",
-    "eslint": "10.4.1",
+    "@vitest/coverage-v8": "4.1.9",
+    "eslint": "10.5.0",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "eslint-plugin-react-refresh": "0.5.2",
+    "eslint-plugin-react-refresh": "0.5.3",
     "globals": "17.6.0",
     "jsdom": "29.1.1",
     "msw": "2.14.6",
@@ -51,8 +51,8 @@
     "postcss-simple-vars": "7.0.1",
     "prettier": "3.8.4",
     "typescript": "6.0.3",
-    "typescript-eslint": "8.61.0",
+    "typescript-eslint": "8.61.1",
     "vite": "8.0.16",
-    "vitest": "4.1.8"
+    "vitest": "4.1.9"
   }
 }
