@@ -285,8 +285,9 @@ public sealed partial class CoreNatsAdapter(
             var uri = new Uri(opts.Url ?? "nats://localhost:4222");
             return uri.Host;
         }
-        catch
+        catch (UriFormatException)
         {
+            // Multi-server URLs and other non-URI forms fall through to ServerInfo below.
         }
 
         var serverInfo = connection.ServerInfo;

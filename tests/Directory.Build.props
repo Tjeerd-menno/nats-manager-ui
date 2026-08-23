@@ -1,5 +1,6 @@
 <Project>
   <PropertyGroup>
-    <NoWarn>$(NoWarn);CA1707;xUnit1051</NoWarn>
+    <!-- CA1707: test method names use underscores by convention (Method_State_Expectation). -->
+    <NoWarn>$(NoWarn);CA1707</NoWarn>
   </PropertyGroup>
 </Project>

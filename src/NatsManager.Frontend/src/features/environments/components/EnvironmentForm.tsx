@@ -111,9 +111,15 @@ export function EnvironmentForm({ opened, onClose, environment }: EnvironmentFor
     },
   });
 
+  // Mantine's `form` object is a new reference on every render, so depending on it
+  // directly would re-run this effect continuously. Its mutators are stable, so we
+  // depend on those instead of suppressing the exhaustive-deps rule.
+  const { setValues, resetDirty, reset } = form;
+  const environmentId = environment?.id;
+
   useEffect(() => {
-    if (environment && envDetail) {
-      form.setValues({
+    if (environmentId && envDetail) {
+      setValues({
         name: envDetail.name,
         description: envDetail.description ?? '',
         serverUrl: envDetail.serverUrl,
@@ -128,12 +134,11 @@ export function EnvironmentForm({ opened, onClose, environment }: EnvironmentFor
         monitoringUrl: envDetail.monitoringUrl ?? '',
         monitoringPollingIntervalSeconds: envDetail.monitoringPollingIntervalSeconds ?? '',
       });
-      form.resetDirty();
-    } else if (!environment) {
-      form.reset();
+      resetDirty();
+    } else if (!environmentId) {
+      reset();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [environment?.id, envDetail]);
+  }, [environmentId, envDetail, setValues, resetDirty, reset]);
 
   function buildCredential(values: FormValues): string | undefined {
     switch (values.credentialType) {

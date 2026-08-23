@@ -2,8 +2,6 @@ using Aspire.Hosting;
 using Aspire.Hosting.Testing;
 using NatsManager.E2E.Tests.Infrastructure;
 
-#pragma warning disable CS8602 // Aspire configureBuilder parameters are non-null at runtime
-
 [assembly: CollectionBehavior(DisableTestParallelization = true)]
 [assembly: AssemblyFixture(typeof(AppHostFixture))]
 
@@ -50,7 +48,7 @@ public sealed class AppHostFixture : IAsyncLifetime
         var appHost = await DistributedApplicationTestingBuilder
             .CreateAsync<Projects.NatsManager_AppHost>(
                 args: [],
-                configureBuilder: (appOptions, _) => appOptions.DisableDashboard = true);
+                configureBuilder: (appOptions, _) => appOptions!.DisableDashboard = true);
 
         // Override the NATS resource to use session lifetime (not persistent)
         // so each test run gets a fresh NATS server
@@ -69,8 +67,21 @@ public sealed class AppHostFixture : IAsyncLifetime
             context.EnvironmentVariables["BootstrapAdmin__Username"] = BootstrapAdminUsername;
             context.EnvironmentVariables["BootstrapAdmin__Password"] = BootstrapAdminPassword;
             context.EnvironmentVariables["Encryption__Key"] = EncryptionKey;
-            // Disable rate limiting and antiforgery in E2E test runs (see Program.cs guards).
             context.EnvironmentVariables["ASPNETCORE_ENVIRONMENT"] = "Testing";
+
+            // Antiforgery stays ON: this suite is the only place the double-submit
+            // token flow is exercised against a real browser, and both the harness
+            // (E2ETestBase.InitializeAntiforgeryAsync) and the SPA's axios client are
+            // already wired for it.
+            //
+            // Rate limiting is the one protection this suite cannot run with: the login
+            // policy permits 5 attempts per minute per client IP, and every test here
+            // authenticates at least once from the same address. It is covered instead by
+            // WebSecurityPipelineTests.LoginEndpoint_AfterExceedingPermitLimit_ShouldReturn429.
+            context.EnvironmentVariables["Security__EnableRateLimiting"] = "false";
+
+            // The Aspire test host serves the backend over plain HTTP.
+            context.EnvironmentVariables["Security__EnableHttpsRedirection"] = "false";
         }));
 
         this.app = await appHost.BuildAsync();

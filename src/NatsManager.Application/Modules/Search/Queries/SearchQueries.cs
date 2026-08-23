@@ -14,6 +14,13 @@ public sealed record SearchResult(
 
 public sealed record SearchQuery(Guid UserId, string Query, Guid? EnvironmentId = null, ResourceType? ResourceType = null);
 
+/// <summary>
+/// Searches the calling user's bookmarks. This is deliberately narrower than the
+/// cross-module resource discovery described in the functional spec (section 9.10) —
+/// it holds no port onto environments, streams, KV buckets or services, so nothing
+/// that has not been bookmarked can be found here. The UI is labelled to match.
+/// Broadening it means adding those ports, not relaxing this filter.
+/// </summary>
 public sealed class SearchQueryHandler(IBookmarkRepository repository) : IUseCase<SearchQuery, IReadOnlyList<SearchResult>>
 {
     public async Task ExecuteAsync(

@@ -41,7 +41,7 @@ describe('GlobalSearch', () => {
 
   it('renders search input', () => {
     renderWithProviders(<GlobalSearch />);
-    expect(screen.getByPlaceholderText('Search resources...')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Search bookmarks...')).toBeInTheDocument();
   });
 
   it('shows an empty-state message when a search has no matches', async () => {
@@ -54,9 +54,9 @@ describe('GlobalSearch', () => {
 
     renderWithProviders(<GlobalSearch />);
 
-    await user.type(screen.getByPlaceholderText('Search resources...'), 'or');
+    await user.type(screen.getByPlaceholderText('Search bookmarks...'), 'or');
 
-    expect(await screen.findByText('No results found')).toBeInTheDocument();
+    expect(await screen.findByText('No bookmarks match')).toBeInTheDocument();
   });
 
   it('navigates to the matching resource when a result is selected', async () => {
@@ -76,7 +76,7 @@ describe('GlobalSearch', () => {
 
     renderWithProviders(<GlobalSearch />);
 
-    await user.type(screen.getByPlaceholderText('Search resources...'), 'or');
+    await user.type(screen.getByPlaceholderText('Search bookmarks...'), 'or');
     await user.click(await screen.findByRole('button', { name: /orders\/1\.json/i }));
 
     expect(navigate).toHaveBeenCalledWith('/objectstore/buckets/orders-bucket/objects/incoming%2Forders%2F1.json');

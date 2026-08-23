@@ -82,7 +82,6 @@ describe('EnvironmentForm', () => {
           id: 'env-1',
           name: 'Production',
           description: 'Prod cluster',
-          serverUrl: 'nats://prod:4222',
           connectionStatus: 'Available',
           isProduction: true,
           isEnabled: true,

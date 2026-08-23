@@ -25,7 +25,7 @@ vi.mock('@mantine/core', async () => {
       const { label, ...rest } = props;
       return (
         <div>
-          {label && <label>{String(label)}</label>}
+          {label ? <label>{String(label)}</label> : null}
           <textarea aria-label={String(label ?? '')} {...rest} />
         </div>
       );
@@ -64,7 +64,7 @@ describe('KvKeyEditor', () => {
     } as unknown as ReturnType<typeof usePutKvKey>);
 
     renderWithProviders(<KvKeyEditor {...defaultProps} />);
-    const keyInput = screen.getAllByRole('textbox')[0];
+    const keyInput = screen.getAllByRole('textbox')[0]!;
 
     // Whitespace-only key trims to empty and should be rejected
     await user.type(keyInput, '   ');

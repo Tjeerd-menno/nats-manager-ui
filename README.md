@@ -180,6 +180,22 @@ See [`docs/database.md`](./docs/database.md) for full details: provider selectio
 migration commands per provider (each provider owns its own migration set under
 `Persistence/Migrations/{Sqlite,Postgres}/`), and provider-specific notes.
 
+### Request pipeline protections
+
+Antiforgery validation, rate limiting and HTTPS redirection are all **on by default** — a
+deployment that configures nothing runs fully protected, and none of them is keyed off the
+hosting environment name. They exist as switches only so automated tests can opt out
+explicitly, one at a time:
+
+```bash
+Security__EnableAntiforgery=false        # skip X-XSRF-TOKEN validation on unsafe /api calls
+Security__EnableRateLimiting=false       # skip the login limiter (5 attempts/min per IP)
+Security__EnableHttpsRedirection=false   # serve plain HTTP (already off in Development)
+```
+
+Turning any of these off in a real deployment removes a protection. `WebSecurityPipelineTests`
+covers the shipping defaults, so flipping one accidentally fails the build.
+
 ## Project Structure
 
 ```text
@@ -225,14 +241,23 @@ cd src/NatsManager.Frontend && npm run build
 ### Test
 
 ```bash
-# Backend unit + integration tests
+# Every backend suite, including integration and E2E
 dotnet test
 
 # Frontend unit tests
 cd src/NatsManager.Frontend
 npm test
 npm run test:coverage
+
+# Type-check src *and* the test files (what `npm run build` runs first)
+npm run typecheck
 ```
+
+`NatsManager.Integration.Tests` and `NatsManager.E2E.Tests` start the Aspire AppHost with a
+real NATS container (E2E also drives a Playwright browser), so they need Docker running.
+They fail rather than skip when it is unavailable. `DatabaseInitializerPostgresTests` is the
+one suite that skips without Docker — except under CI, where it fails instead, so missing
+coverage is never reported as a pass.
 
 ### Lint & format
 
@@ -240,6 +265,8 @@ npm run test:coverage
 dotnet format
 cd src/NatsManager.Frontend && npm run lint
 ```
+
+Both are enforced in CI (`.github/workflows/pr-actions.yml`) alongside the test suites.
 
 ### Production container
 

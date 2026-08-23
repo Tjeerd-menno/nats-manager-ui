@@ -27,14 +27,13 @@ public sealed partial class NatsClusterMonitoringHttpAdapter(
         var baseUrl = environment.MonitoringUrl.TrimEnd('/');
         var observedAt = DateTimeOffset.UtcNow;
 
-        var healthzTask = SafeFetchAsync(() => FetchHealthzAsync(baseUrl, ct), MonitoringEndpoint.Healthz);
         var varzTask = SafeFetchAsync(() => FetchVarzAsync(baseUrl, ct), MonitoringEndpoint.Varz);
         var jszTask = SafeFetchAsync(() => FetchJszAsync(baseUrl, ct), MonitoringEndpoint.Jsz);
         var routezTask = SafeFetchAsync(() => FetchRoutezAsync(baseUrl, ct), MonitoringEndpoint.Routez);
         var gatewayzTask = SafeFetchAsync(() => FetchGatewayzAsync(baseUrl, ct), MonitoringEndpoint.Gatewayz);
         var leafzTask = SafeFetchAsync(() => FetchLeafzAsync(baseUrl, ct), MonitoringEndpoint.Leafz);
 
-        await Task.WhenAll(healthzTask, varzTask, jszTask, routezTask, gatewayzTask, leafzTask);
+        await Task.WhenAll(varzTask, jszTask, routezTask, gatewayzTask, leafzTask);
 
         var varz = varzTask.Result;
         var jsz = jszTask.Result;
@@ -265,7 +264,6 @@ public sealed partial class NatsClusterMonitoringHttpAdapter(
     [LoggerMessage(Level = LogLevel.Warning, Message = "NATS cluster monitoring endpoint failed: {Endpoint} — {Reason}")]
     private partial void LogEndpointFailed(string endpoint, string reason);
 
-#pragma warning disable CS8618
     private sealed class HealthzRaw { public string? Status { get; set; } }
     private sealed class VarzRaw
     {
@@ -317,5 +315,4 @@ public sealed partial class NatsClusterMonitoringHttpAdapter(
         [JsonPropertyName("in_msgs")] public long InMsgs { get; set; }
         [JsonPropertyName("out_msgs")] public long OutMsgs { get; set; }
     }
-#pragma warning restore CS8618
 }

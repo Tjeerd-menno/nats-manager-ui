@@ -206,14 +206,15 @@ public sealed class CoreNatsTests(AppHostFixture fixture) : E2ETestBase(fixture)
         }
     }
 
-    [Fact(Skip = "Flaky: NATS server may expose non-user subscriptions; subject filter still under investigation")]
-    public async Task GetSubjectsViaApi_ReturnsEmptyList()
+    [Fact]
+    public async Task GetSubjectsViaApi_OmitsSubjectsWithNoSubscriber()
     {
         var (httpClient, handler) = await CreateAuthenticatedHttpClientAsync();
         using (httpClient) using (handler)
         {
             var envName = $"e2e-{Guid.NewGuid():N}"[..16];
             var envId = await RegisterNatsEnvironmentAsync(httpClient, envName);
+            var unsubscribedSubject = $"test.e2e.no.subscriber.{Guid.NewGuid():N}";
 
             var response = await httpClient.GetAsync($"/api/environments/{envId}/core-nats/subjects");
             response.EnsureSuccessStatusCode();
@@ -221,7 +222,13 @@ public sealed class CoreNatsTests(AppHostFixture fixture) : E2ETestBase(fixture)
             var body = await response.Content.ReadAsStringAsync();
             var doc = JsonDocument.Parse(body);
             Assert.Equal(JsonValueKind.Array, doc.RootElement.ValueKind);
-            Assert.Equal(0, doc.RootElement.GetArrayLength());
+
+            // This previously asserted an empty array, which was flaky: the NATS server
+            // legitimately reports subscriptions the manager's own connection holds, and
+            // only the $SYS-style internal ones are filtered out. The invariant that
+            // actually matters is that a subject nobody subscribed to is not listed.
+            Assert.DoesNotContain(doc.RootElement.EnumerateArray(), item =>
+                item.GetProperty("subject").GetString() == unsubscribedSubject);
         }
     }
 

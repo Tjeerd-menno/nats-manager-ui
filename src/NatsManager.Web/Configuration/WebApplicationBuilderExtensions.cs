@@ -201,6 +201,9 @@ public static class WebApplicationBuilderExtensions
         var allowedOrigins = configuration.GetAllowedCorsOrigins();
         var crossOriginEnabled = allowedOrigins.Length > 0;
 
+        // Pipeline protection switches. These default to enabled; see WebSecurityOptions.
+        services.Configure<WebSecurityOptions>(configuration.GetSection(WebSecurityOptions.SectionName));
+
         // Session — sliding 30-minute idle window. Abandoned browser tabs or stolen session
         // cookies are invalidated far sooner than the previous 8-hour window.
         services.AddDistributedMemoryCache();

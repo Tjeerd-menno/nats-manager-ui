@@ -154,8 +154,8 @@ it('duplicate header keys show validation errors', async () => {
   await user.click(screen.getByRole('button', { name: /add header/i }));
 
   const keyInputs = screen.getAllByPlaceholderText(/key/i);
-  await user.type(keyInputs[0], 'X-Test');
-  await user.type(keyInputs[1], ' x-test ');
+  await user.type(keyInputs[0]!, 'X-Test');
+  await user.type(keyInputs[1]!, ' x-test ');
 
   expect(screen.getAllByText(/duplicate key/i)).toHaveLength(2);
   expect(screen.getByRole('button', { name: /publish/i })).toBeDisabled();

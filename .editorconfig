@@ -38,13 +38,14 @@ csharp_prefer_braces = when_multiline:suggestion
 dotnet_style_prefer_simplified_boolean_expressions = true:suggestion
 dotnet_diagnostic.IDE0046.severity = suggestion
 
+# Documentation — GenerateDocumentationFile is set deliberately in Directory.Build.props
+# (see the comment there), so the analyzer suggestion to enable it is redundant.
+dotnet_diagnostic.EnableGenerateDocumentationFile.severity = none
+
 [**/Migrations/**/*.cs]
 # Generated migration code — suppress all style diagnostics
 generated_code = true
 dotnet_diagnostic.CA1861.severity = none
-
-# Documentation
-dotnet_diagnostic.EnableGenerateDocumentationFile.severity = none
 
 [*.{json,yml,yaml}]
 indent_size = 2

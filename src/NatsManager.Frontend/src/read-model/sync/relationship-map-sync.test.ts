@@ -19,13 +19,14 @@ describe('relationship map read-model sync', () => {
 
   it('removes stale evidence records when an edge is resynced with fewer evidence items', () => {
     const map = createMap();
+    const edge = seedEdge(map);
     syncRelationshipMap({
       ...map,
       edges: [
         {
-          ...map.edges[0],
+          ...edge,
           evidence: [
-            ...map.edges[0].evidence,
+            ...edge.evidence,
             {
               sourceModule: 'Search',
               evidenceType: 'SearchResult',
@@ -45,6 +46,15 @@ describe('relationship map read-model sync', () => {
     expect(relationshipEvidenceCollection.get('edge-1:1')).toBeUndefined();
   });
 });
+
+/** The single edge seeded by `createMap`, failing loudly if that fixture changes shape. */
+function seedEdge(map: RelationshipMap): RelationshipMap['edges'][number] {
+  const [edge] = map.edges;
+  if (!edge) {
+    throw new Error('createMap() is expected to seed exactly one edge.');
+  }
+  return edge;
+}
 
 function createMap(): RelationshipMap {
   return {
