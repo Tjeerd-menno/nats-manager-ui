@@ -95,6 +95,13 @@ public sealed class AppHostFixture : IAsyncLifetime
 
             // The Aspire test host serves the backend over plain HTTP.
             context.EnvironmentVariables["Security__EnableHttpsRedirection"] = "false";
+
+            // Quieten the backend. At Information the EF command logger emits every SQL
+            // statement, which produced >10,000 lines of captured stdout on the first CI
+            // run — enough to push the actual test failures out of the retrievable log.
+            context.EnvironmentVariables["Logging__LogLevel__Default"] = "Warning";
+            context.EnvironmentVariables["Logging__LogLevel__Microsoft.AspNetCore"] = "Warning";
+            context.EnvironmentVariables["Logging__LogLevel__Microsoft.EntityFrameworkCore"] = "Warning";
         }));
 
         this.app = await appHost.BuildAsync();
