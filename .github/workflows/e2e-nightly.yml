@@ -1,0 +1,85 @@
+name: E2E (nightly)
+
+# The Playwright E2E suite runs on its own cadence rather than gating pull requests.
+#
+# It had never been executed in CI before 2026-08-23. Its first real run was 30 passing
+# and 55 failing — a pre-existing backlog in a suite that was built but never run, not a
+# regression. Blocking every PR on that backlog would help nobody, and making it a
+# non-blocking PR job would just be a gate that does not gate. So it runs nightly and on
+# demand, where the failures are visible and can be worked down without stalling anyone.
+#
+# Move this back into pr-actions.yml once the suite is green.
+
+on:
+  schedule:
+    # 03:00 UTC daily.
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-nightly-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: End-to-end tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      DOTNET_NOLOGO: true
+      CI: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/NatsManager.Frontend/package-lock.json
+
+      - name: Restore Aspire workload
+        run: dotnet workload restore NatsManager.slnx
+
+      - name: Restore .NET dependencies
+        run: dotnet restore NatsManager.slnx
+
+      # The E2E suite drives the Vite dev server through the Aspire AppHost, so the
+      # frontend dependencies must be installed even though nothing is bundled here.
+      - name: Install frontend dependencies
+        working-directory: src/NatsManager.Frontend
+        run: npm ci --ignore-scripts
+
+      - name: Build .NET solution
+        run: dotnet build NatsManager.slnx --configuration Release --no-restore
+
+      # Playwright drives a real browser; the suite exercises the antiforgery
+      # double-submit flow end to end (see E2EFixture).
+      - name: Run E2E tests
+        run: dotnet test --project tests/NatsManager.E2E.Tests/NatsManager.E2E.Tests.csproj --configuration Release --no-restore --verbosity minimal
+
+      # `playwright-report/` is the JS runner's layout and never exists here; the .NET
+      # runner writes under TestResults/, and the fixture's Serilog file sink writes logs/.
+      - name: Upload E2E artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: e2e-artifacts
+          path: |
+            tests/NatsManager.E2E.Tests/**/TestResults/**
+            tests/NatsManager.E2E.Tests/**/logs/**
+            **/*.trx
+          if-no-files-found: ignore
+          retention-days: 7

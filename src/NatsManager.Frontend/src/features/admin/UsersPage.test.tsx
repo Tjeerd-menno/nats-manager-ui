@@ -81,8 +81,8 @@ describe('UsersPage', () => {
     const passwordInput = document.querySelector('input[type="password"]');
 
     expect(passwordInput).toBeInstanceOf(HTMLInputElement);
-    await user.type(textInputs[0], 'operator');
-    await user.type(textInputs[1], 'Operator');
+    await user.type(textInputs[0]!, 'operator');
+    await user.type(textInputs[1]!, 'Operator');
     await user.type(passwordInput as HTMLInputElement, 'short');
     await user.click(screen.getByRole('button', { name: 'Create' }));
 

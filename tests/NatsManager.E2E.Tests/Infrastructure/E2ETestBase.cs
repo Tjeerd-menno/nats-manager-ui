@@ -11,6 +11,9 @@ namespace NatsManager.E2E.Tests.Infrastructure;
 /// </summary>
 public abstract class E2ETestBase : IAsyncLifetime
 {
+    /// <summary>Pause between login attempts while the Aspire backend finishes warming up.</summary>
+    private static readonly TimeSpan ColdStartRetryDelay = TimeSpan.FromSeconds(1);
+
     private IPlaywright? playwright;
     private IBrowser? browser;
     private IBrowserContext? context;
@@ -89,21 +92,7 @@ public abstract class E2ETestBase : IAsyncLifetime
         };
         using var httpClient = new HttpClient(handler) { BaseAddress = new Uri(Fixture.BackendUrl) };
 
-        // Retry login a few times to handle cold-start transient failures
-        HttpResponseMessage loginResponse = null!;
-        for (int attempt = 0; attempt < 3; attempt++)
-        {
-            loginResponse = await httpClient.PostAsync("/api/auth/login",
-                new StringContent(
-                    $$"""{"username":"{{AppHostFixture.BootstrapAdminUsername}}","password":"{{AppHostFixture.BootstrapAdminPassword}}"}""",
-                    Encoding.UTF8,
-                    "application/json"));
-            if (loginResponse.IsSuccessStatusCode) break;
-            await Task.Delay(1000);
-        }
-        loginResponse.EnsureSuccessStatusCode();
-
-        await InitializeAntiforgeryAsync(httpClient, handler.CookieContainer);
+        await LoginAsync(httpClient, handler.CookieContainer);
 
         await CopyBackendCookiesToBrowserAsync(handler.CookieContainer);
 
@@ -122,19 +111,7 @@ public abstract class E2ETestBase : IAsyncLifetime
         };
         var httpClient = new HttpClient(handler) { BaseAddress = new Uri(Fixture.BackendUrl) };
 
-        HttpResponseMessage loginResponse = null!;
-        for (int attempt = 0; attempt < 3; attempt++)
-        {
-            loginResponse = await httpClient.PostAsync("/api/auth/login",
-                new StringContent(
-                    $$"""{"username":"{{AppHostFixture.BootstrapAdminUsername}}","password":"{{AppHostFixture.BootstrapAdminPassword}}"}""",
-                    Encoding.UTF8,
-                    "application/json"));
-            if (loginResponse.IsSuccessStatusCode) break;
-            await Task.Delay(1000);
-        }
-        loginResponse.EnsureSuccessStatusCode();
-        await InitializeAntiforgeryAsync(httpClient, handler.CookieContainer);
+        await LoginAsync(httpClient, handler.CookieContainer);
 
         return (httpClient, handler);
     }
@@ -196,20 +173,56 @@ public abstract class E2ETestBase : IAsyncLifetime
         await searchInput.FillAsync(searchTerm);
     }
 
-    private async Task InitializeAntiforgeryAsync(HttpClient httpClient, CookieContainer cookieContainer)
+    /// <summary>
+    /// Authenticate <paramref name="httpClient"/> as the bootstrap admin and prime it with an
+    /// antiforgery header. Login is retried a few times to absorb cold-start failures while the
+    /// Aspire backend finishes warming up; a non-transient failure still throws.
+    /// </summary>
+    private static async Task LoginAsync(HttpClient httpClient, CookieContainer cookieContainer)
     {
-        var meResponse = await httpClient.GetAsync("/api/auth/me");
+        const int maxAttempts = 3;
+        var credentials = $$"""{"username":"{{AppHostFixture.BootstrapAdminUsername}}","password":"{{AppHostFixture.BootstrapAdminPassword}}"}""";
+
+        HttpResponseMessage? loginResponse = null;
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            loginResponse = await httpClient.PostAsync(
+                "/api/auth/login",
+                new StringContent(credentials, Encoding.UTF8, "application/json"),
+                TestContext.Current.CancellationToken);
+
+            if (loginResponse.IsSuccessStatusCode)
+            {
+                break;
+            }
+
+            if (attempt < maxAttempts)
+            {
+                await Task.Delay(ColdStartRetryDelay, TestContext.Current.CancellationToken);
+            }
+        }
+
+        loginResponse!.EnsureSuccessStatusCode();
+
+        await InitializeAntiforgeryAsync(httpClient, cookieContainer);
+    }
+
+    private static async Task InitializeAntiforgeryAsync(HttpClient httpClient, CookieContainer cookieContainer)
+    {
+        var meResponse = await httpClient.GetAsync("/api/auth/me", TestContext.Current.CancellationToken);
         meResponse.EnsureSuccessStatusCode();
 
-        // In the Testing environment the backend disables antiforgery middleware and never
-        // issues the XSRF-TOKEN cookie, so we skip the header setup gracefully.
+        // Antiforgery is enabled for E2E runs, so the GET above must have issued the
+        // double-submit cookie. If it did not, the protection has been switched off or
+        // regressed — fail here rather than letting every unsafe request 400 later.
         // Use GetAllCookies() to avoid URL-matching issues with CookieContainer.
-        var xsrfCookie = cookieContainer.GetAllCookies().FirstOrDefault(c => c.Name == "XSRF-TOKEN");
-        if (xsrfCookie is not null)
-        {
-            httpClient.DefaultRequestHeaders.Remove("X-XSRF-TOKEN");
-            httpClient.DefaultRequestHeaders.Add("X-XSRF-TOKEN", xsrfCookie.Value);
-        }
+        var xsrfCookie = cookieContainer.GetAllCookies().FirstOrDefault(c => c.Name == "XSRF-TOKEN")
+            ?? throw new InvalidOperationException(
+                "No XSRF-TOKEN cookie was issued by GET /api/auth/me. Antiforgery is expected "
+                + "to be enabled for E2E runs (see E2EFixture).");
+
+        httpClient.DefaultRequestHeaders.Remove("X-XSRF-TOKEN");
+        httpClient.DefaultRequestHeaders.Add("X-XSRF-TOKEN", xsrfCookie.Value);
 
         httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
     }

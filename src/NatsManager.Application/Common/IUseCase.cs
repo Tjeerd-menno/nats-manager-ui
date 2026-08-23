@@ -7,7 +7,6 @@ public interface IUseCase<in TRequest, TResult> where TRequest : notnull
 
 public readonly record struct Unit
 {
-#pragma warning disable CA1805 // Do not initialize unnecessarily
-    public static readonly Unit Value = new();
-#pragma warning restore CA1805
+    /// <summary>The single <see cref="Unit"/> value.</summary>
+    public static Unit Value => default;
 }

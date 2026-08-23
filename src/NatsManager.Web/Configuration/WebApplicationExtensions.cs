@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.Extensions.Options;
 using NatsManager.Web.Endpoints;
 using NatsManager.Web.Hubs;
 using NatsManager.Web.Middleware;
@@ -12,15 +13,17 @@ namespace NatsManager.Web.Configuration;
 /// </summary>
 public static class WebApplicationExtensions
 {
-    /// <summary>Configures the middleware pipeline. Ordering is significant and mirrors
-    /// the previous inline configuration exactly.</summary>
+    /// <summary>Configures the middleware pipeline. Ordering is significant. The
+    /// protections that tests sometimes need to opt out of are gated by
+    /// <see cref="WebSecurityOptions"/>, never by the hosting environment name.</summary>
     public static WebApplication UseNatsManagerPipeline(this WebApplication app)
     {
         var crossOriginEnabled = app.Configuration.GetAllowedCorsOrigins().Length > 0;
+        var security = app.Services.GetRequiredService<IOptions<WebSecurityOptions>>().Value;
 
         app.UseExceptionHandler();
 
-        if (!app.Environment.IsDevelopment() && !app.Environment.IsEnvironment("Testing"))
+        if (!app.Environment.IsDevelopment() && security.EnableHttpsRedirection)
         {
             app.UseHttpsRedirection();
             app.UseHsts();
@@ -40,12 +43,12 @@ public static class WebApplicationExtensions
 
         // Enable rate limiting after authentication so that authenticated users
         // get their own partition.
-        if (!app.Environment.IsEnvironment("Testing"))
+        if (security.EnableRateLimiting)
         {
             app.UseRateLimiter();
         }
 
-        if (!app.Environment.IsEnvironment("Testing"))
+        if (security.EnableAntiforgery)
         {
             app.UseAntiforgery();
             app.UseApiAntiforgeryTokens(crossOriginEnabled);

@@ -55,9 +55,24 @@ public sealed class DatabaseInitializerPostgresTests : IAsyncLifetime
             || ex is InvalidOperationException
             || ex is ResourceReaperException)
         {
+            // On a developer machine a missing Docker daemon is a legitimate reason to skip.
+            // On CI it is not: silently converting this suite into green skips would hide the
+            // loss of provider-specific migration coverage behind a passing build.
+            if (IsContinuousIntegration)
+            {
+                throw new InvalidOperationException(
+                    "PostgreSQL integration tests require a working Docker daemon, and CI is set. "
+                    + "Refusing to skip so the missing coverage is not reported as a pass.",
+                    ex);
+            }
+
             _skipReason = $"Docker is not available ({ex.GetType().Name}: {ex.Message}); skipping PostgreSQL integration tests.";
         }
     }
+
+    /// <summary>True when running under a CI provider, where a skip must not stand in for a pass.</summary>
+    private static bool IsContinuousIntegration =>
+        !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("CI"));
 
     public async ValueTask DisposeAsync()
     {

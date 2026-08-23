@@ -49,6 +49,13 @@ jobs:
         working-directory: src/NatsManager.Frontend
         run: npm ci --ignore-scripts
 
+      # Lint and format are listed as contribution gates in the README; they are enforced
+      # here so the documented gate and the enforced gate are the same thing.
+      - name: Lint frontend
+        working-directory: src/NatsManager.Frontend
+        run: npm run lint
+
+      # Type-checks src and the test files (tsconfig.test.json), then bundles.
       - name: Build frontend
         working-directory: src/NatsManager.Frontend
         run: npm run build
@@ -56,6 +63,17 @@ jobs:
       - name: Run frontend tests
         working-directory: src/NatsManager.Frontend
         run: npm test
+
+      # Formatting only. The third `dotnet format` pass, `analyzers`, is deliberately not
+      # part of this gate: it auto-applies fixes for any analyzer diagnostic at warning
+      # level, which currently means rewriting ~159 test call sites for xUnit1051. That
+      # rule is intentionally visible rather than silenced (see tests/Directory.Build.props),
+      # and migrating those call sites is its own change — not something a formatting gate
+      # should block on.
+      - name: Verify .NET formatting
+        run: |
+          dotnet format whitespace NatsManager.slnx --verify-no-changes
+          dotnet format style NatsManager.slnx --verify-no-changes
 
       - name: Build .NET solution
         run: dotnet build NatsManager.slnx --configuration Release --no-restore
@@ -66,3 +84,9 @@ jobs:
           dotnet test --project tests/NatsManager.Application.Tests/NatsManager.Application.Tests.csproj --configuration Release --no-restore --verbosity minimal
           dotnet test --project tests/NatsManager.Infrastructure.Tests/NatsManager.Infrastructure.Tests.csproj --configuration Release --no-restore --verbosity minimal
           dotnet test --project tests/NatsManager.Web.Tests/NatsManager.Web.Tests.csproj --configuration Release --no-restore --verbosity minimal
+
+      # NatsManager.Integration.Tests starts the Aspire AppHost and a real NATS container.
+      # It fails loudly rather than skipping when the container cannot start, so a green
+      # run here means the adapters were genuinely exercised against a NATS server.
+      - name: Run .NET integration tests
+        run: dotnet test --project tests/NatsManager.Integration.Tests/NatsManager.Integration.Tests.csproj --configuration Release --no-restore --verbosity minimal

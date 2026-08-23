@@ -2,8 +2,6 @@ using Aspire.Hosting;
 using Aspire.Hosting.Testing;
 using NatsManager.E2E.Tests.Infrastructure;
 
-#pragma warning disable CS8602 // Aspire configureBuilder parameters are non-null at runtime
-
 [assembly: CollectionBehavior(DisableTestParallelization = true)]
 [assembly: AssemblyFixture(typeof(AppHostFixture))]
 
@@ -18,7 +16,11 @@ public sealed class AppHostFixture : IAsyncLifetime
     private static readonly TimeSpan ResourceTimeout = TimeSpan.FromMinutes(5);
     private const string UsernameParameter = "Parameters__bootstrap-admin-username";
     private const string PasswordParameter = "Parameters__bootstrap-admin-password";
+    private const string NatsUsernameParameter = "Parameters__nats-username";
+    private const string NatsPasswordParameter = "Parameters__nats-password";
     private const string EncryptionKeyParameter = "Parameters__backend-encryption-key";
+    private const string NatsUsername = "nats";
+    private const string NatsPassword = "Nats123!";
     public const string BootstrapAdminUsername = "admin";
     public const string BootstrapAdminPassword = "Admin123!";
     public const string EncryptionKey = "JFar2auhLPoLfMvwy62dhRltrwY3EEPmFJ1svc17pn0=";
@@ -28,6 +30,8 @@ public sealed class AppHostFixture : IAsyncLifetime
     private string? _dbPath;
     private string? _originalUsernameParameter;
     private string? _originalPasswordParameter;
+    private string? _originalNatsUsernameParameter;
+    private string? _originalNatsPasswordParameter;
     private string? _originalEncryptionKeyParameter;
 
     public string FrontendUrl { get; private set; } = string.Empty;
@@ -41,16 +45,23 @@ public sealed class AppHostFixture : IAsyncLifetime
 
         _originalUsernameParameter = Environment.GetEnvironmentVariable(UsernameParameter);
         _originalPasswordParameter = Environment.GetEnvironmentVariable(PasswordParameter);
+        _originalNatsUsernameParameter = Environment.GetEnvironmentVariable(NatsUsernameParameter);
+        _originalNatsPasswordParameter = Environment.GetEnvironmentVariable(NatsPasswordParameter);
         _originalEncryptionKeyParameter = Environment.GetEnvironmentVariable(EncryptionKeyParameter);
 
         Environment.SetEnvironmentVariable(UsernameParameter, BootstrapAdminUsername);
         Environment.SetEnvironmentVariable(PasswordParameter, BootstrapAdminPassword);
+        // The AppHost declares nats-username/nats-password as parameters with no default,
+        // so the NATS resource cannot start unless they are supplied here. Without these the
+        // whole application graph fails at startup (nats -> backend -> frontend).
+        Environment.SetEnvironmentVariable(NatsUsernameParameter, NatsUsername);
+        Environment.SetEnvironmentVariable(NatsPasswordParameter, NatsPassword);
         Environment.SetEnvironmentVariable(EncryptionKeyParameter, EncryptionKey);
 
         var appHost = await DistributedApplicationTestingBuilder
             .CreateAsync<Projects.NatsManager_AppHost>(
                 args: [],
-                configureBuilder: (appOptions, _) => appOptions.DisableDashboard = true);
+                configureBuilder: (appOptions, _) => appOptions!.DisableDashboard = true);
 
         // Override the NATS resource to use session lifetime (not persistent)
         // so each test run gets a fresh NATS server
@@ -69,8 +80,28 @@ public sealed class AppHostFixture : IAsyncLifetime
             context.EnvironmentVariables["BootstrapAdmin__Username"] = BootstrapAdminUsername;
             context.EnvironmentVariables["BootstrapAdmin__Password"] = BootstrapAdminPassword;
             context.EnvironmentVariables["Encryption__Key"] = EncryptionKey;
-            // Disable rate limiting and antiforgery in E2E test runs (see Program.cs guards).
             context.EnvironmentVariables["ASPNETCORE_ENVIRONMENT"] = "Testing";
+
+            // Antiforgery stays ON: this suite is the only place the double-submit
+            // token flow is exercised against a real browser, and both the harness
+            // (E2ETestBase.InitializeAntiforgeryAsync) and the SPA's axios client are
+            // already wired for it.
+            //
+            // Rate limiting is the one protection this suite cannot run with: the login
+            // policy permits 5 attempts per minute per client IP, and every test here
+            // authenticates at least once from the same address. It is covered instead by
+            // WebSecurityPipelineTests.LoginEndpoint_AfterExceedingPermitLimit_ShouldReturn429.
+            context.EnvironmentVariables["Security__EnableRateLimiting"] = "false";
+
+            // The Aspire test host serves the backend over plain HTTP.
+            context.EnvironmentVariables["Security__EnableHttpsRedirection"] = "false";
+
+            // Quieten the backend. At Information the EF command logger emits every SQL
+            // statement, which produced >10,000 lines of captured stdout on the first CI
+            // run — enough to push the actual test failures out of the retrievable log.
+            context.EnvironmentVariables["Logging__LogLevel__Default"] = "Warning";
+            context.EnvironmentVariables["Logging__LogLevel__Microsoft.AspNetCore"] = "Warning";
+            context.EnvironmentVariables["Logging__LogLevel__Microsoft.EntityFrameworkCore"] = "Warning";
         }));
 
         this.app = await appHost.BuildAsync();
@@ -122,6 +153,8 @@ public sealed class AppHostFixture : IAsyncLifetime
 
         Environment.SetEnvironmentVariable(UsernameParameter, _originalUsernameParameter);
         Environment.SetEnvironmentVariable(PasswordParameter, _originalPasswordParameter);
+        Environment.SetEnvironmentVariable(NatsUsernameParameter, _originalNatsUsernameParameter);
+        Environment.SetEnvironmentVariable(NatsPasswordParameter, _originalNatsPasswordParameter);
         Environment.SetEnvironmentVariable(EncryptionKeyParameter, _originalEncryptionKeyParameter);
 
         GC.SuppressFinalize(this);

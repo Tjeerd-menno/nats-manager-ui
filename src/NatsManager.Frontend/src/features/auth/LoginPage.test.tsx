@@ -39,7 +39,7 @@ describe('LoginPage', () => {
     renderWithProviders(<LoginPage />);
 
     await user.type(screen.getByLabelText(/username/i), 'admin');
-    await user.type(screen.getAllByLabelText(/password/i)[0], 'pass123');
+    await user.type(screen.getAllByLabelText(/password/i)[0]!, 'pass123');
     await user.click(screen.getByRole('button', { name: /sign in/i }));
 
     expect(mockLogin).toHaveBeenCalledWith({ username: 'admin', password: 'pass123' });
@@ -52,7 +52,7 @@ describe('LoginPage', () => {
     renderWithProviders(<LoginPage />);
 
     await user.type(screen.getByLabelText(/username/i), 'wrong');
-    await user.type(screen.getAllByLabelText(/password/i)[0], 'wrong');
+    await user.type(screen.getAllByLabelText(/password/i)[0]!, 'wrong');
     await user.click(screen.getByRole('button', { name: /sign in/i }));
 
     expect(await screen.findByText(/login failed/i)).toBeInTheDocument();

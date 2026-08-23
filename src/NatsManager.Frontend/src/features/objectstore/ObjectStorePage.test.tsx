@@ -112,7 +112,7 @@ describe('ObjectStorePage', () => {
 
     await user.click(screen.getByRole('button', { name: 'Create Bucket' }));
     await waitFor(() => expect(screen.getByText('Create Object Bucket')).toBeInTheDocument());
-    await user.type(screen.getAllByRole('textbox')[0], 'bad bucket');
+    await user.type(screen.getAllByRole('textbox')[0]!, 'bad bucket');
     await user.click(screen.getByRole('button', { name: 'Create' }));
 
     expect(await screen.findByText('Bucket name can only contain letters, numbers, dots, hyphens, and underscores')).toBeInTheDocument();

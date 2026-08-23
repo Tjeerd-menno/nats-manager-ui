@@ -180,6 +180,22 @@ See [`docs/database.md`](./docs/database.md) for full details: provider selectio
 migration commands per provider (each provider owns its own migration set under
 `Persistence/Migrations/{Sqlite,Postgres}/`), and provider-specific notes.
 
+### Request pipeline protections
+
+Antiforgery validation, rate limiting and HTTPS redirection are all **on by default** — a
+deployment that configures nothing runs fully protected, and none of them is keyed off the
+hosting environment name. They exist as switches only so automated tests can opt out
+explicitly, one at a time:
+
+```bash
+Security__EnableAntiforgery=false        # skip X-XSRF-TOKEN validation on unsafe /api calls
+Security__EnableRateLimiting=false       # skip the login limiter (5 attempts/min per IP)
+Security__EnableHttpsRedirection=false   # serve plain HTTP (already off in Development)
+```
+
+Turning any of these off in a real deployment removes a protection. `WebSecurityPipelineTests`
+covers the shipping defaults, so flipping one accidentally fails the build.
+
 ## Project Structure
 
 ```text
@@ -225,21 +241,45 @@ cd src/NatsManager.Frontend && npm run build
 ### Test
 
 ```bash
-# Backend unit + integration tests
+# Every backend suite, including integration and E2E
 dotnet test
 
 # Frontend unit tests
 cd src/NatsManager.Frontend
 npm test
 npm run test:coverage
+
+# Type-check src *and* the test files (what `npm run build` runs first)
+npm run typecheck
 ```
+
+`NatsManager.Integration.Tests` and `NatsManager.E2E.Tests` start the Aspire AppHost with a
+real NATS container (E2E also drives a Playwright browser), so they need Docker running.
+They fail rather than skip when it is unavailable. `DatabaseInitializerPostgresTests` is the
+one suite that skips without Docker — except under CI, where it fails instead, so missing
+coverage is never reported as a pass.
+
+**Which suites gate a PR.** `pr-actions.yml` runs the four unit suites plus
+`Integration.Tests`. `E2E.Tests` runs nightly instead
+([`e2e-nightly.yml`](.github/workflows/e2e-nightly.yml)), and can be triggered by hand from
+the Actions tab. It is not a PR gate yet: the suite had never been executed in CI before
+2026-08-23, and its first run was 30 passing / 55 failing — a backlog from being built but
+never run. Move it back into `pr-actions.yml` once it is green.
 
 ### Lint & format
 
 ```bash
-dotnet format
+dotnet format whitespace && dotnet format style
 cd src/NatsManager.Frontend && npm run lint
 ```
+
+Both are enforced in CI (`.github/workflows/pr-actions.yml`) alongside the test suites.
+
+Plain `dotnet format` additionally runs an `analyzers` pass that auto-applies fixes for
+every analyzer diagnostic at warning level. That is useful to run by hand, but it is not
+part of the CI gate: it would currently rewrite ~159 test call sites for `xUnit1051`
+(pass `TestContext.Current.CancellationToken`). That rule is deliberately left visible
+rather than silenced, and migrating those call sites is its own change.
 
 ### Production container
 
