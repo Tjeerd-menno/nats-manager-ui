@@ -80,52 +80,52 @@ public sealed class PasswordHasher : IPasswordHasher
             switch (parts.Length)
             {
                 case 4:
-                {
-                    var algorithm = PrfToAlgorithm(parts[0]);
-                    if (algorithm is null)
                     {
-                        return false;
-                    }
+                        var algorithm = PrfToAlgorithm(parts[0]);
+                        if (algorithm is null)
+                        {
+                            return false;
+                        }
 
-                    if (!int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var iterations)
-                        || iterations < 1)
-                    {
-                        return false;
-                    }
+                        if (!int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var iterations)
+                            || iterations < 1)
+                        {
+                            return false;
+                        }
 
-                    var salt = Convert.FromBase64String(parts[2]);
-                    var hash = Convert.FromBase64String(parts[3]);
-                    if (!HasExpectedSizes(salt, hash))
-                    {
-                        return false;
-                    }
+                        var salt = Convert.FromBase64String(parts[2]);
+                        var hash = Convert.FromBase64String(parts[3]);
+                        if (!HasExpectedSizes(salt, hash))
+                        {
+                            return false;
+                        }
 
-                    parsed = new ParsedHash(
-                        salt,
-                        hash,
-                        iterations,
-                        algorithm.Value,
-                        IsCurrentFormat: true);
-                    return true;
-                }
+                        parsed = new ParsedHash(
+                            salt,
+                            hash,
+                            iterations,
+                            algorithm.Value,
+                            IsCurrentFormat: true);
+                        return true;
+                    }
 
                 case 2:
-                {
-                    var salt = Convert.FromBase64String(parts[0]);
-                    var hash = Convert.FromBase64String(parts[1]);
-                    if (!HasExpectedSizes(salt, hash))
                     {
-                        return false;
-                    }
+                        var salt = Convert.FromBase64String(parts[0]);
+                        var hash = Convert.FromBase64String(parts[1]);
+                        if (!HasExpectedSizes(salt, hash))
+                        {
+                            return false;
+                        }
 
-                    parsed = new ParsedHash(
-                        salt,
-                        hash,
-                        LegacyIterations,
-                        LegacyAlgorithm,
-                        IsCurrentFormat: false);
-                    return true;
-                }
+                        parsed = new ParsedHash(
+                            salt,
+                            hash,
+                            LegacyIterations,
+                            LegacyAlgorithm,
+                            IsCurrentFormat: false);
+                        return true;
+                    }
 
                 default:
                     return false;

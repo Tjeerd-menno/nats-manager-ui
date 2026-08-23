@@ -66,8 +66,9 @@ public sealed class NatsManagerWebAppFactory : WebApplicationFactory<Program>
 
                 // Endpoint tests drive the API directly with an HttpClient, so the
                 // browser-oriented protections are opted out of here — explicitly, and
-                // only for this factory. Tests that need them on switch them back on via
-                // WithAntiforgery()/WithRateLimiting(); see WebSecurityOptions.
+                // only for this factory. A test that needs one of them on switches it back
+                // on with WithSecurityOptions(...) (see WebSecurityPipelineTests), which
+                // layers configuration over this factory rather than changing the default.
                 [$"{WebSecurityOptions.SectionName}:EnableAntiforgery"] = "false",
                 [$"{WebSecurityOptions.SectionName}:EnableRateLimiting"] = "false",
                 [$"{WebSecurityOptions.SectionName}:EnableHttpsRedirection"] = "false"

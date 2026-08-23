@@ -16,7 +16,11 @@ public sealed class AppHostFixture : IAsyncLifetime
     private static readonly TimeSpan ResourceTimeout = TimeSpan.FromMinutes(5);
     private const string UsernameParameter = "Parameters__bootstrap-admin-username";
     private const string PasswordParameter = "Parameters__bootstrap-admin-password";
+    private const string NatsUsernameParameter = "Parameters__nats-username";
+    private const string NatsPasswordParameter = "Parameters__nats-password";
     private const string EncryptionKeyParameter = "Parameters__backend-encryption-key";
+    private const string NatsUsername = "nats";
+    private const string NatsPassword = "Nats123!";
     public const string BootstrapAdminUsername = "admin";
     public const string BootstrapAdminPassword = "Admin123!";
     public const string EncryptionKey = "JFar2auhLPoLfMvwy62dhRltrwY3EEPmFJ1svc17pn0=";
@@ -26,6 +30,8 @@ public sealed class AppHostFixture : IAsyncLifetime
     private string? _dbPath;
     private string? _originalUsernameParameter;
     private string? _originalPasswordParameter;
+    private string? _originalNatsUsernameParameter;
+    private string? _originalNatsPasswordParameter;
     private string? _originalEncryptionKeyParameter;
 
     public string FrontendUrl { get; private set; } = string.Empty;
@@ -39,10 +45,17 @@ public sealed class AppHostFixture : IAsyncLifetime
 
         _originalUsernameParameter = Environment.GetEnvironmentVariable(UsernameParameter);
         _originalPasswordParameter = Environment.GetEnvironmentVariable(PasswordParameter);
+        _originalNatsUsernameParameter = Environment.GetEnvironmentVariable(NatsUsernameParameter);
+        _originalNatsPasswordParameter = Environment.GetEnvironmentVariable(NatsPasswordParameter);
         _originalEncryptionKeyParameter = Environment.GetEnvironmentVariable(EncryptionKeyParameter);
 
         Environment.SetEnvironmentVariable(UsernameParameter, BootstrapAdminUsername);
         Environment.SetEnvironmentVariable(PasswordParameter, BootstrapAdminPassword);
+        // The AppHost declares nats-username/nats-password as parameters with no default,
+        // so the NATS resource cannot start unless they are supplied here. Without these the
+        // whole application graph fails at startup (nats -> backend -> frontend).
+        Environment.SetEnvironmentVariable(NatsUsernameParameter, NatsUsername);
+        Environment.SetEnvironmentVariable(NatsPasswordParameter, NatsPassword);
         Environment.SetEnvironmentVariable(EncryptionKeyParameter, EncryptionKey);
 
         var appHost = await DistributedApplicationTestingBuilder
@@ -133,6 +146,8 @@ public sealed class AppHostFixture : IAsyncLifetime
 
         Environment.SetEnvironmentVariable(UsernameParameter, _originalUsernameParameter);
         Environment.SetEnvironmentVariable(PasswordParameter, _originalPasswordParameter);
+        Environment.SetEnvironmentVariable(NatsUsernameParameter, _originalNatsUsernameParameter);
+        Environment.SetEnvironmentVariable(NatsPasswordParameter, _originalNatsPasswordParameter);
         Environment.SetEnvironmentVariable(EncryptionKeyParameter, _originalEncryptionKeyParameter);
 
         GC.SuppressFinalize(this);

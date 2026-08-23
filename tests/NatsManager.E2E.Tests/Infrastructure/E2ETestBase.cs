@@ -188,7 +188,8 @@ public abstract class E2ETestBase : IAsyncLifetime
         {
             loginResponse = await httpClient.PostAsync(
                 "/api/auth/login",
-                new StringContent(credentials, Encoding.UTF8, "application/json"));
+                new StringContent(credentials, Encoding.UTF8, "application/json"),
+                TestContext.Current.CancellationToken);
 
             if (loginResponse.IsSuccessStatusCode)
             {
@@ -197,7 +198,7 @@ public abstract class E2ETestBase : IAsyncLifetime
 
             if (attempt < maxAttempts)
             {
-                await Task.Delay(ColdStartRetryDelay);
+                await Task.Delay(ColdStartRetryDelay, TestContext.Current.CancellationToken);
             }
         }
 
@@ -208,7 +209,7 @@ public abstract class E2ETestBase : IAsyncLifetime
 
     private static async Task InitializeAntiforgeryAsync(HttpClient httpClient, CookieContainer cookieContainer)
     {
-        var meResponse = await httpClient.GetAsync("/api/auth/me");
+        var meResponse = await httpClient.GetAsync("/api/auth/me", TestContext.Current.CancellationToken);
         meResponse.EnsureSuccessStatusCode();
 
         // Antiforgery is enabled for E2E runs, so the GET above must have issued the

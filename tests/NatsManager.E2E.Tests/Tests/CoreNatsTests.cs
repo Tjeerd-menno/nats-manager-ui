@@ -207,29 +207,80 @@ public sealed class CoreNatsTests(AppHostFixture fixture) : E2ETestBase(fixture)
     }
 
     [Fact]
-    public async Task GetSubjectsViaApi_OmitsSubjectsWithNoSubscriber()
+    public async Task GetSubjectsViaApi_OmitsSubjectAfterItsSubscriberDisconnects()
     {
+        // The original form of this test asserted that /subjects returned an empty array,
+        // which was flaky: the NATS server legitimately reports subscriptions the manager's
+        // own connection holds, and only $SYS-style internal ones are filtered out. The
+        // invariant that actually matters is the transition — a subject is listed while it
+        // has a subscriber and stops being listed once that subscriber goes away. Asserting
+        // only the absence of a never-subscribed subject would pass against an endpoint that
+        // never drops anything, so both halves are checked here.
         var (httpClient, handler) = await CreateAuthenticatedHttpClientAsync();
         using (httpClient) using (handler)
         {
             var envName = $"e2e-{Guid.NewGuid():N}"[..16];
             var envId = await RegisterNatsEnvironmentAsync(httpClient, envName);
-            var unsubscribedSubject = $"test.e2e.no.subscriber.{Guid.NewGuid():N}";
+            var subject = $"test.e2e.unsubscribe.{Guid.NewGuid():N}";
+            var subjectsUrl = $"/api/environments/{envId}/core-nats/subjects";
 
-            var response = await httpClient.GetAsync($"/api/environments/{envId}/core-nats/subjects");
-            response.EnsureSuccessStatusCode();
+            using var streamCts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
 
-            var body = await response.Content.ReadAsStringAsync();
-            var doc = JsonDocument.Parse(body);
-            Assert.Equal(JsonValueKind.Array, doc.RootElement.ValueKind);
+            var streamTask = httpClient.GetAsync(
+                $"/api/environments/{envId}/core-nats/stream?subject={Uri.EscapeDataString(subject)}",
+                HttpCompletionOption.ResponseHeadersRead,
+                streamCts.Token);
+            await Task.Delay(500, streamCts.Token);
+            await httpClient.PostAsync(
+                $"/api/environments/{envId}/core-nats/publish",
+                JsonContent($$"""{"subject":"{{subject}}","payload":"wake subscriber"}"""),
+                streamCts.Token);
 
-            // This previously asserted an empty array, which was flaky: the NATS server
-            // legitimately reports subscriptions the manager's own connection holds, and
-            // only the $SYS-style internal ones are filtered out. The invariant that
-            // actually matters is that a subject nobody subscribed to is not listed.
-            Assert.DoesNotContain(doc.RootElement.EnumerateArray(), item =>
-                item.GetProperty("subject").GetString() == unsubscribedSubject);
+            var streamResponse = await streamTask.WaitAsync(streamCts.Token);
+            streamResponse.EnsureSuccessStatusCode();
+
+            Assert.True(
+                await SubjectIsListedAsync(httpClient, subjectsUrl, subject, streamCts.Token),
+                $"Subject '{subject}' should be listed while its subscriber is connected.");
+
+            // Drop the only subscriber.
+            await streamCts.CancelAsync();
+            streamResponse.Dispose();
+
+            // The server tears the subscription down asynchronously, so poll to a deadline
+            // rather than asserting once on a race.
+            var ct = TestContext.Current.CancellationToken;
+            var deadline = DateTimeOffset.UtcNow + SubscriptionTeardownTimeout;
+            bool stillListed;
+            do
+            {
+                await Task.Delay(250, ct);
+                stillListed = await SubjectIsListedAsync(httpClient, subjectsUrl, subject, ct);
+            }
+            while (stillListed && DateTimeOffset.UtcNow < deadline);
+
+            Assert.False(
+                stillListed,
+                $"Subject '{subject}' was still listed {SubscriptionTeardownTimeout.TotalSeconds:0}s "
+                + "after its only subscriber disconnected.");
         }
+    }
+
+    private static async Task<bool> SubjectIsListedAsync(
+        HttpClient httpClient,
+        string subjectsUrl,
+        string subject,
+        CancellationToken cancellationToken)
+    {
+        var response = await httpClient.GetAsync(subjectsUrl, cancellationToken);
+        response.EnsureSuccessStatusCode();
+
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        using var doc = JsonDocument.Parse(body);
+        Assert.Equal(JsonValueKind.Array, doc.RootElement.ValueKind);
+
+        return doc.RootElement.EnumerateArray()
+            .Any(item => item.GetProperty("subject").GetString() == subject);
     }
 
     [Fact]
@@ -447,6 +498,9 @@ public sealed class CoreNatsTests(AppHostFixture fixture) : E2ETestBase(fixture)
         LiveMessagesTable()
             .GetByRole(AriaRole.Row)
             .Filter(new() { HasText = subject });
+
+    /// <summary>How long to wait for the server to drop a subscription after its client disconnects.</summary>
+    private static readonly TimeSpan SubscriptionTeardownTimeout = TimeSpan.FromSeconds(15);
 
     private static StringContent JsonContent(string json) => new(json, Encoding.UTF8, "application/json");
 }
