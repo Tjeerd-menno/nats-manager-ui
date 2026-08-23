@@ -259,6 +259,13 @@ They fail rather than skip when it is unavailable. `DatabaseInitializerPostgresT
 one suite that skips without Docker — except under CI, where it fails instead, so missing
 coverage is never reported as a pass.
 
+**Which suites gate a PR.** `pr-actions.yml` runs the four unit suites plus
+`Integration.Tests`. `E2E.Tests` runs nightly instead
+([`e2e-nightly.yml`](.github/workflows/e2e-nightly.yml)), and can be triggered by hand from
+the Actions tab. It is not a PR gate yet: the suite had never been executed in CI before
+2026-08-23, and its first run was 30 passing / 55 failing — a backlog from being built but
+never run. Move it back into `pr-actions.yml` once it is green.
+
 ### Lint & format
 
 ```bash
