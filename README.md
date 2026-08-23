@@ -262,11 +262,17 @@ coverage is never reported as a pass.
 ### Lint & format
 
 ```bash
-dotnet format
+dotnet format whitespace && dotnet format style
 cd src/NatsManager.Frontend && npm run lint
 ```
 
 Both are enforced in CI (`.github/workflows/pr-actions.yml`) alongside the test suites.
+
+Plain `dotnet format` additionally runs an `analyzers` pass that auto-applies fixes for
+every analyzer diagnostic at warning level. That is useful to run by hand, but it is not
+part of the CI gate: it would currently rewrite ~159 test call sites for `xUnit1051`
+(pass `TestContext.Current.CancellationToken`). That rule is deliberately left visible
+rather than silenced, and migrating those call sites is its own change.
 
 ### Production container
 
