@@ -36,7 +36,21 @@ public sealed class AppHostFixture : IAsyncLifetime
 
     public string FrontendUrl { get; private set; } = string.Empty;
     public string BackendUrl { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// The Aspire NATS endpoint with any embedded credentials removed, e.g.
+    /// <c>nats://localhost:34735</c>. The backend rejects server URLs that carry
+    /// credentials in the userinfo component (see <c>ServerUrlValidation</c>), so this is the
+    /// form both the API harness and the Playwright "Server URL" form fills must use.
+    /// </summary>
     public string NatsUrl { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// The credentials Aspire configured on the NATS container, in the
+    /// <c>user:password</c> form the backend stores for <c>CredentialType.UserPassword</c>.
+    /// Null when the container runs without authentication.
+    /// </summary>
+    public string? NatsCredential { get; private set; }
 
     public async ValueTask InitializeAsync()
     {
@@ -127,10 +141,12 @@ public sealed class AppHostFixture : IAsyncLifetime
         FrontendUrl = frontendClient.BaseAddress?.ToString().TrimEnd('/')
             ?? throw new InvalidOperationException("Frontend URL not found.");
 
-        // Resolve NATS connection URL for test environment registration
+        // Resolve NATS connection URL for test environment registration. Aspire hands back
+        // `nats://<user>:<password>@host:port`, but the backend refuses to store a server URL
+        // with embedded credentials, so split it into the URL and a UserPassword credential.
         var natsConnectionString = await this.app.GetConnectionStringAsync("nats")
             ?? throw new InvalidOperationException("NATS connection string not found.");
-        NatsUrl = natsConnectionString;
+        (NatsUrl, NatsCredential) = SplitNatsConnectionString(natsConnectionString);
 
         // Poll until the Vite dev server is actually serving content
         await WaitForFrontendReadyAsync(cts.Token);
@@ -158,6 +174,37 @@ public sealed class AppHostFixture : IAsyncLifetime
         Environment.SetEnvironmentVariable(EncryptionKeyParameter, _originalEncryptionKeyParameter);
 
         GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Split an Aspire NATS connection string into a credential-free server URL and the
+    /// <c>user:password</c> credential it carried, if any.
+    /// </summary>
+    internal static (string Url, string? Credential) SplitNatsConnectionString(string connectionString)
+    {
+        if (!Uri.TryCreate(connectionString, UriKind.Absolute, out var uri))
+        {
+            throw new InvalidOperationException(
+                $"NATS connection string '{connectionString}' is not an absolute URI.");
+        }
+
+        var url = $"{uri.Scheme}://{uri.GetComponents(UriComponents.HostAndPort, UriFormat.UriEscaped)}";
+
+        if (string.IsNullOrEmpty(uri.UserInfo))
+        {
+            return (url, null);
+        }
+
+        // NatsAuthHelper splits the stored credential on the first ':', matching the userinfo
+        // layout. Unescape so a password containing reserved characters round-trips.
+        var separatorIndex = uri.UserInfo.IndexOf(':');
+        var credential = separatorIndex < 0
+            ? Uri.UnescapeDataString(uri.UserInfo)
+            : Uri.UnescapeDataString(uri.UserInfo[..separatorIndex])
+              + ":"
+              + Uri.UnescapeDataString(uri.UserInfo[(separatorIndex + 1)..]);
+
+        return (url, credential);
     }
 
     private async Task WaitForFrontendReadyAsync(CancellationToken ct)

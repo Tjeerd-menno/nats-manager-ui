@@ -68,18 +68,16 @@ jobs:
       # Playwright drives a real browser; the suite exercises the antiforgery
       # double-submit flow end to end (see E2EFixture).
       - name: Run E2E tests
-        run: dotnet test --project tests/NatsManager.E2E.Tests/NatsManager.E2E.Tests.csproj --configuration Release --no-restore --verbosity minimal
+        run: dotnet test --project tests/NatsManager.E2E.Tests/NatsManager.E2E.Tests.csproj --configuration Release --no-restore --verbosity minimal -- --report-xunit-trx
 
-      # `playwright-report/` is the JS runner's layout and never exists here; the .NET
-      # runner writes under TestResults/, and the fixture's Serilog file sink writes logs/.
+      # `playwright-report/` is the JS runner's layout and never exists here. xUnit's MTP
+      # runner only writes a TRX when asked (`--report-xunit-trx` above), and drops it in
+      # TestResults/ next to the test binary.
       - name: Upload E2E artifacts on failure
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: e2e-artifacts
-          path: |
-            tests/NatsManager.E2E.Tests/**/TestResults/**
-            tests/NatsManager.E2E.Tests/**/logs/**
-            **/*.trx
+          path: tests/NatsManager.E2E.Tests/**/TestResults/**
           if-no-files-found: ignore
           retention-days: 7
