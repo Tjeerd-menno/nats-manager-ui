@@ -1,6 +1,6 @@
 # Workflow Security Baseline
 
-Last updated: 2026-05-12
+Last updated: 2026-08-24
 Owner: Repository maintainers (`@Tjeerd-menno`)
 
 ## 1) Scope and target workflow set
@@ -12,25 +12,19 @@ Target set is all executable workflow files in:
 Current target files:
 
 - `.github/workflows/pr-actions.yml`
+- `.github/workflows/e2e-nightly.yml`
 - `.github/workflows/release.yml`
 - `.github/workflows/dependabot-auto-merge.yml`
-- `.github/workflows/squad-heartbeat.yml`
-- `.github/workflows/sync-squad-labels.yml`
-- `.github/workflows/squad-issue-assign.yml`
-- `.github/workflows/squad-triage.yml`
 - `.github/workflows/workflow-security-policy.yml`
-- `.github/workflows/daily-repo-status.lock.yml` (generated)
 
-Generated lock artifacts are excluded from manual edits and must be changed through their source/compile flow.
-Non-executable workflow template mirrors under `.squad/templates/workflows/` are kept in sync when related workflows change, but they are not part of the required policy-enforcement scope because the remediation target is executable `.github/workflows/*.yml` files.
+Non-executable workflow template mirrors under `.squad/templates/workflows/` are not part of the required policy-enforcement scope because the remediation target is executable `.github/workflows/*.yml` files.
 
 ## 2) Generated lock workflow handling
 
-- Generated lock workflow: `.github/workflows/daily-repo-status.lock.yml`
-- Source: `.github/workflows/daily-repo-status.md`
-- Regeneration command: `gh aw compile`
-- Dependabot is configured to ignore direct updates to `github/gh-aw-actions` for the lock artifact.
-- CI policy enforces that lock changes require corresponding source changes.
+No generated lock workflows remain in `.github/workflows/`. The agentic workflows that produced them
+(the gh-aw `daily-repo-status` pair and the squad orchestration workflows) were removed on 2026-08-24.
+The policy gate still enforces the lock/source drift rule, so any future `*.lock.yml` must be changed
+only through its source/compile flow.
 
 ## 3) Baseline findings (initial posture)
 
@@ -38,7 +32,7 @@ Non-executable workflow template mirrors under `.squad/templates/workflows/` are
 |---|---|---|---|---|---|
 | WF-001 | Floating action tags in non-generated workflows | High | Repo maintainers | Open | Closed |
 | WF-002 | Checkout steps without explicit `persist-credentials: false` in non-push jobs | Medium | Repo maintainers | Open | Closed |
-| WF-003 | PAT fallback to `GITHUB_TOKEN` in privileged assignment path | High | Repo maintainers | Open | Closed |
+| WF-003 | PAT fallback to `GITHUB_TOKEN` in privileged assignment path | High | Repo maintainers | Open | Closed (workflow removed) |
 | WF-004 | Dependabot auto-merge lacked explicit policy labels and required-check gating | High | Repo maintainers | Open | Closed |
 | WF-005 | No CI policy gate for workflow pinning/credential persistence/forbidden patterns | High | Repo maintainers | Open | Closed |
 | WF-006 | Manual drift risk for generated lock workflow artifacts | Medium | Repo maintainers | Open | Closed |
@@ -47,7 +41,6 @@ Non-executable workflow template mirrors under `.squad/templates/workflows/` are
 
 - Non-generated workflows use SHA-pinned actions.
 - Checkout steps in non-push workflows explicitly set `persist-credentials: false`.
-- Privileged Copilot assignment requires `COPILOT_ASSIGN_TOKEN` and no fallback.
 - Dependabot auto-merge is constrained to approved ecosystems (`github-actions`, `nuget`, `npm`), explicit label, branch protection, and successful required checks.
 - `workflow-security-policy.yml` enforces:
   - SHA pinning for actions in non-generated workflows
