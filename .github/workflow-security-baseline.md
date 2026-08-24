@@ -17,12 +17,11 @@ Current target files:
 - `.github/workflows/dependabot-auto-merge.yml`
 - `.github/workflows/workflow-security-policy.yml`
 
-Non-executable workflow template mirrors under `.squad/templates/workflows/` are not part of the required policy-enforcement scope because the remediation target is executable `.github/workflows/*.yml` files.
-
 ## 2) Generated lock workflow handling
 
 No generated lock workflows remain in `.github/workflows/`. The agentic workflows that produced them
-(the gh-aw `daily-repo-status` pair and the squad orchestration workflows) were removed on 2026-08-24.
+(the gh-aw `daily-repo-status` pair and the squad orchestration workflows) were removed on 2026-08-24,
+along with the squad tooling under `.squad/` and `.copilot/` that supplied their template mirrors.
 The policy gate still enforces the lock/source drift rule, so any future `*.lock.yml` must be changed
 only through its source/compile flow.
 
