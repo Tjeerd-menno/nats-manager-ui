@@ -122,8 +122,27 @@ public abstract class E2ETestBase : IAsyncLifetime
     /// </summary>
     protected async Task<string> RegisterNatsEnvironmentAsync(HttpClient httpClient, string envName)
     {
+        // The Aspire NATS container requires authentication, so register the credential
+        // alongside the URL. Without it every request that opens a connection - and the
+        // health check behind the Available status - fails to authenticate.
+        var payload = Fixture.NatsCredential is null
+            ? new
+            {
+                name = envName,
+                serverUrl = Fixture.NatsUrl,
+                credentialType = "None",
+                credential = (string?)null,
+            }
+            : new
+            {
+                name = envName,
+                serverUrl = Fixture.NatsUrl,
+                credentialType = "UserPassword",
+                credential = Fixture.NatsCredential,
+            };
+
         var response = await httpClient.PostAsync("/api/environments",
-            new StringContent($$"""{"name":"{{envName}}","serverUrl":"{{Fixture.NatsUrl}}","credentialType":"None"}""",
+            new StringContent(System.Text.Json.JsonSerializer.Serialize(payload),
                 System.Text.Encoding.UTF8, "application/json"));
         response.EnsureSuccessStatusCode();
 
