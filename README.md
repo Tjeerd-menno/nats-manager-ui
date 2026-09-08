@@ -137,6 +137,11 @@ npm run dev
 ```
 
 Vite dev server at `http://localhost:5173`.
+
+Builds and type checks use TypeScript 7 through the `@typescript/native` npm alias.
+The `typescript` alias supplies the TypeScript 6 JavaScript API required by
+typescript-eslint, following Microsoft's [side-by-side setup](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/#running-side-by-side-with-typescript-6.0).
+Keep both aliases when updating TypeScript; `tsc` runs the native compiler and `tsc6` runs the compatibility compiler.
 </details>
 
 <details>

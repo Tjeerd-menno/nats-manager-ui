@@ -32,9 +32,17 @@ updates:
     schedule:
       interval: "daily"
     groups:
+      # Keep test runner and coverage provider on matching versions.
+      vitest:
+        patterns: ["vitest", "@vitest/*"]
+      # Update the native compiler and JavaScript API compatibility package together.
+      typescript:
+        patterns: ["typescript", "@typescript/*"]
       npm-major:
         patterns: ["*"]
+        exclude-patterns: ["vitest", "@vitest/*", "typescript", "@typescript/*"]
         update-types: ["major"]
       npm-minor-patch:
         patterns: ["*"]
+        exclude-patterns: ["vitest", "@vitest/*", "typescript", "@typescript/*"]
         update-types: ["minor", "patch"]
