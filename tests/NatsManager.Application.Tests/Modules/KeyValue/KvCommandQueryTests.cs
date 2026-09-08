@@ -35,7 +35,7 @@ public sealed class GetKvBucketsQueryTests
         await _handler.ExecuteAsync(new GetKvBucketsQuery(envId), outputPort, CancellationToken.None);
 
         outputPort.IsSuccess.ShouldBeTrue();
-        outputPort.Value.Count().ShouldBe(2);
+        outputPort.Value!.Count.ShouldBe(2);
         outputPort.Value![0].BucketName.ShouldBe("config");
     }
 }
@@ -65,7 +65,7 @@ public sealed class GetKvKeysQueryTests
         await _handler.ExecuteAsync(new GetKvKeysQuery(envId, "bucket", null), outputPort, CancellationToken.None);
 
         outputPort.IsSuccess.ShouldBeTrue();
-        outputPort.Value.Count().ShouldBe(1);
+        outputPort.Value!.Count.ShouldBe(1);
         outputPort.Value![0].Key.ShouldBe("key1");
     }
 }

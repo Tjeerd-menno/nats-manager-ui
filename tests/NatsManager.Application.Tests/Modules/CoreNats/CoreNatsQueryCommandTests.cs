@@ -110,7 +110,7 @@ public sealed class GetClientsQueryTests
         await _handler.ExecuteAsync(new GetClientsQuery(envId), outputPort, CancellationToken.None);
 
         outputPort.IsSuccess.ShouldBeTrue();
-        outputPort.Value.Count().ShouldBe(1);
+        outputPort.Value!.Count.ShouldBe(1);
         outputPort.Value![0].Name.ShouldBe("client-app");
     }
 }

@@ -35,6 +35,16 @@ export default defineConfig({
         secure: false,
         ws: true,
       },
+      '/signin-oidc': {
+        target: backendTarget,
+        changeOrigin: true,
+        secure: false,
+      },
+      '/signout-callback-oidc': {
+        target: backendTarget,
+        changeOrigin: true,
+        secure: false,
+      },
     },
   },
   build: {

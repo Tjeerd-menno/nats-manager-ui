@@ -35,7 +35,7 @@ public sealed class GetServicesQueryTests
         await _handler.ExecuteAsync(new GetServicesQuery(envId), outputPort, CancellationToken.None);
 
         outputPort.IsSuccess.ShouldBeTrue();
-        outputPort.Value.Count().ShouldBe(1);
+        outputPort.Value!.Count.ShouldBe(1);
         outputPort.Value![0].Name.ShouldBe("orders-api");
     }
 }
