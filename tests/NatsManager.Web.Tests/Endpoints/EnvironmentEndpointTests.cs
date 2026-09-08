@@ -108,7 +108,7 @@ public sealed class EnvironmentEndpointTests : IClassFixture<NatsManagerWebAppFa
             .EnumerateArray()
             .Single()
             .GetString();
-        serverUrlError.ShouldBe("ServerUrl must be an absolute URL using one of the allowed schemes: nats://, tls://, ws://, wss://.");
+        serverUrlError.ShouldBe("ServerUrl must be an absolute URL using one of the allowed schemes: nats://, tls://, ws://, wss://, and must not include embedded credentials.");
         await _factory.EnvironmentRepository.DidNotReceive().AddAsync(Arg.Any<Environment>(), Arg.Any<CancellationToken>());
     }
 

@@ -70,7 +70,8 @@ public sealed class MonitoringRelationshipSource(IMonitoringMetricsStore metrics
             var parts = nodeId.Split(':', 3);
             if (parts.Length != 3) continue;
 
-            if (parts[1] == "jetsreamaccount" && latest?.JetStream != null)
+            if (Enum.TryParse<ResourceType>(parts[1], ignoreCase: true, out var nodeType)
+                && nodeType == ResourceType.JetStreamAccount && latest?.JetStream != null)
             {
                 nodes.Add(new ResourceNode(
                     NodeId: nodeId,

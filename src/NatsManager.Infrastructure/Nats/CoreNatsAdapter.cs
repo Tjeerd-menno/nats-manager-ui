@@ -65,6 +65,11 @@ public sealed partial class CoreNatsAdapter(
                     JetStreamEnabled: si.JetStreamAvailable);
             }
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Propagate genuine caller cancellation; HTTP/monitoring timeouts fall through to graceful degradation.
+            throw;
+        }
         catch (Exception ex)
         {
             LogServerInfoError(environmentId, ex);
@@ -111,6 +116,10 @@ public sealed partial class CoreNatsAdapter(
 
             return new ListSubjectsResult(subjects, IsMonitoringAvailable: true);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             LogSubjectsUnavailable(environmentId, ex);
@@ -144,6 +153,10 @@ public sealed partial class CoreNatsAdapter(
                 .EnumerateArray()
                 .Select(ParseClientInfo)
                 .OrderBy(client => client.Id)];
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -179,6 +192,11 @@ public sealed partial class CoreNatsAdapter(
             Uptime: TimeSpan.FromSeconds(uptimeSeconds));
     }
 
+    private static string? GetString(JsonElement element, string name) =>
+        element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : null;
+
     private static string? GetString(JsonElement element, params string[] names)
     {
         foreach (var name in names)
@@ -192,8 +210,16 @@ public sealed partial class CoreNatsAdapter(
         return null;
     }
 
+    private static int GetInt32(JsonElement element, string name) =>
+        (int)GetInt64(element, name);
+
     private static int GetInt32(JsonElement element, params string[] names) =>
         (int)GetInt64(element, names);
+
+    private static long GetInt64(JsonElement element, string name) =>
+        element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out var number)
+            ? number
+            : 0;
 
     private static long GetInt64(JsonElement element, params string[] names)
     {
@@ -272,8 +298,9 @@ public sealed partial class CoreNatsAdapter(
             var uri = new Uri(opts.Url ?? "nats://localhost:4222");
             return uri.Host;
         }
-        catch
+        catch (UriFormatException)
         {
+            // Multi-server URLs and other non-URI forms fall through to ServerInfo below.
         }
 
         var serverInfo = connection.ServerInfo;

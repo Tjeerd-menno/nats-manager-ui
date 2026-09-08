@@ -1,3 +1,4 @@
+using NatsManager.Application.Common;
 using NatsManager.Application.Modules.Monitoring.Models.ClusterObservability;
 using NatsManager.Application.Modules.Monitoring.Ports.ClusterObservability;
 
@@ -8,8 +9,19 @@ public sealed record GetClusterOverviewQuery(Guid EnvironmentId);
 
 /// <summary>Handler for GetClusterOverviewQuery.</summary>
 public sealed class GetClusterOverviewQueryHandler(
-    IClusterObservationStore store)
+    IClusterObservationStore store) : IUseCase<GetClusterOverviewQuery, ClusterObservation>
 {
-    public ClusterObservation? Handle(GetClusterOverviewQuery query) =>
-        store.GetLatest(query.EnvironmentId);
+    public Task ExecuteAsync(
+        GetClusterOverviewQuery request,
+        IOutputPort<ClusterObservation> outputPort,
+        CancellationToken cancellationToken = default)
+    {
+        var observation = store.GetLatest(request.EnvironmentId);
+        if (observation is null)
+            outputPort.Unavailable("No cluster observation data is available. All monitoring endpoints may be unavailable.");
+        else
+            outputPort.Success(observation);
+
+        return Task.CompletedTask;
+    }
 }

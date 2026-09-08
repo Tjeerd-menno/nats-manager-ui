@@ -52,11 +52,7 @@ public sealed class RegisterEnvironmentCommandHandler(
             return;
         }
 
-        string? credentialRef = null;
-        if (request.CredentialType != CredentialType.None && !string.IsNullOrEmpty(request.Credential))
-        {
-            credentialRef = encryptionService.Encrypt(request.Credential);
-        }
+        var credentialRef = encryptionService.EncryptCredential(request.CredentialType, request.Credential);
 
         var environment = Environment.Create(
             name: request.Name,

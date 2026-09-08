@@ -38,7 +38,9 @@ describe('ClusterServerList', () => {
         }),
       ],
       isLoading: false,
-    } as ReturnType<typeof useClusterServers>);
+      isError: false,
+      error: null,
+    });
 
     renderWithProviders(<ClusterServerList envId="env-1" />);
 
@@ -60,7 +62,9 @@ describe('ClusterServerList', () => {
     mockUseClusterServers.mockReturnValue({
       servers: [],
       isLoading: false,
-    } as ReturnType<typeof useClusterServers>);
+      isError: false,
+      error: null,
+    });
 
     renderWithProviders(<ClusterServerList envId="env-1" />);
 

@@ -12,4 +12,10 @@ public interface IOutputPort<in TResult>
     /// Maps to HTTP 403.
     /// </summary>
     void Forbidden(string message);
+
+    /// <summary>
+    /// The result could not be produced because an upstream dependency is currently unavailable.
+    /// Maps to HTTP 503.
+    /// </summary>
+    void Unavailable(string message);
 }

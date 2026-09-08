@@ -12,12 +12,6 @@ updates:
       github-actions-minor-patch:
         patterns: ["*"]
         update-types: ["minor", "patch"]
-    ignore:
-      # The daily-repo-status.lock.yml is a compiled artifact from gh-aw.
-      # Its gh-aw-actions/setup version must stay pinned to the compiler version
-      # it was built with; bumping it independently breaks copilot_driver.cjs.
-      # Update the lock file by running `gh aw compile` instead.
-      - dependency-name: "github/gh-aw-actions"
 
   # NuGet (.NET backend)
   - package-ecosystem: "nuget"
@@ -38,9 +32,17 @@ updates:
     schedule:
       interval: "daily"
     groups:
+      # Keep test runner and coverage provider on matching versions.
+      vitest:
+        patterns: ["vitest", "@vitest/*"]
+      # Update the native compiler and JavaScript API compatibility package together.
+      typescript:
+        patterns: ["typescript", "@typescript/*"]
       npm-major:
         patterns: ["*"]
+        exclude-patterns: ["vitest", "@vitest/*", "typescript", "@typescript/*"]
         update-types: ["major"]
       npm-minor-patch:
         patterns: ["*"]
+        exclude-patterns: ["vitest", "@vitest/*", "typescript", "@typescript/*"]
         update-types: ["minor", "patch"]

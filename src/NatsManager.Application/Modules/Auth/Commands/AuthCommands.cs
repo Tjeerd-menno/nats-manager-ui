@@ -63,6 +63,13 @@ public sealed class LoginCommandHandler(
         }
 
         user.RecordLogin();
+
+        // Opportunistically upgrade the stored hash when it was produced with outdated parameters.
+        if (passwordHasher.NeedsRehash(user.PasswordHash))
+        {
+            user.UpdatePassword(passwordHasher.Hash(request.Password));
+        }
+
         await userRepository.UpdateAsync(user, cancellationToken);
 
         await auditTrail.RecordAsync(

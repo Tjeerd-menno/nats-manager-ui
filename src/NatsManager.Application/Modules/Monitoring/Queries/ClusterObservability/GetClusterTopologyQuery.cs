@@ -1,3 +1,4 @@
+using NatsManager.Application.Common;
 using NatsManager.Application.Modules.Monitoring.Models.ClusterObservability;
 using NatsManager.Application.Modules.Monitoring.Ports.ClusterObservability;
 
@@ -13,14 +14,26 @@ public sealed record GetClusterTopologyQuery(
 
 /// <summary>Handler for GetClusterTopologyQuery.</summary>
 public sealed class GetClusterTopologyQueryHandler(
-    IClusterObservationStore store)
+    IClusterObservationStore store) : IUseCase<GetClusterTopologyQuery, ClusterTopologyGraphResult>
 {
-    public ClusterTopologyGraphResult? Handle(GetClusterTopologyQuery query)
+    public Task ExecuteAsync(
+        GetClusterTopologyQuery request,
+        IOutputPort<ClusterTopologyGraphResult> outputPort,
+        CancellationToken cancellationToken = default)
     {
-        var observation = store.GetLatest(query.EnvironmentId);
+        var observation = store.GetLatest(request.EnvironmentId);
         if (observation is null)
-            return null;
+        {
+            outputPort.Unavailable("No topology data is available. Monitoring endpoints may be unavailable.");
+            return Task.CompletedTask;
+        }
 
+        outputPort.Success(BuildGraph(request, observation));
+        return Task.CompletedTask;
+    }
+
+    private static ClusterTopologyGraphResult BuildGraph(GetClusterTopologyQuery query, ClusterObservation observation)
+    {
         var maxNodes = Math.Min(Math.Max(query.MaxNodes, 1), 1000);
 
         var allRelationships = observation.Topology.ToList();

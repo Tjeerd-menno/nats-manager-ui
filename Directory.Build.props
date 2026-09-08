@@ -4,6 +4,12 @@
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <!--
+      GenerateDocumentationFile is on because IDE0005 (remove unnecessary usings) is only
+      reported during build when it is; CS1591 is then suppressed because the project does
+      not require XML docs on every public member. This pair is the documented workaround
+      for https://github.com/dotnet/roslyn/issues/41640, not a silenced documentation rule.
+    -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn>
     <AnalysisLevel>latest-recommended</AnalysisLevel>

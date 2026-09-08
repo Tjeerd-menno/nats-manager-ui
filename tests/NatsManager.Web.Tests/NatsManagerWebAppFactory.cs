@@ -12,6 +12,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
 using NSubstitute;
 using NatsManager.Domain.Modules.Auth;
+using NatsManager.Web.Configuration;
 using NatsManager.Web.Security;
 using NatsManager.Application.Modules.Audit.Ports;
 using NatsManager.Application.Modules.CoreNats.Ports;
@@ -31,7 +32,7 @@ public sealed class NatsManagerWebAppFactory : WebApplicationFactory<Program>
     private readonly SqliteConnection _connection = new("DataSource=:memory:");
 
     public IEnvironmentRepository EnvironmentRepository { get; } = Substitute.For<IEnvironmentRepository>();
-    public IJetStreamAdapter JetStreamAdapter { get; } = Substitute.For<IJetStreamAdapter>();
+    public IJetStreamAdapter JetStreamReadAdapter { get; } = Substitute.For<IJetStreamAdapter>();
     public IJetStreamWriteAdapter JetStreamWriteAdapter { get; } = Substitute.For<IJetStreamWriteAdapter>();
     public IKvStoreAdapter KvStoreAdapter { get; } = Substitute.For<IKvStoreAdapter>();
     public IObjectStoreAdapter ObjectStoreAdapter { get; } = Substitute.For<IObjectStoreAdapter>();
@@ -61,7 +62,16 @@ public sealed class NatsManagerWebAppFactory : WebApplicationFactory<Program>
                 ["Encryption:Key"] = EncryptionKey,
                 ["PermissionManifest:ExposureMode"] = "Public",
                 ["PermissionManifest:ApplicationId"] = "nats-manager",
-                ["PermissionManifest:ApplicationName"] = "NATS Manager"
+                ["PermissionManifest:ApplicationName"] = "NATS Manager",
+
+                // Endpoint tests drive the API directly with an HttpClient, so the
+                // browser-oriented protections are opted out of here — explicitly, and
+                // only for this factory. A test that needs one of them on switches it back
+                // on with WithSecurityOptions(...) (see WebSecurityPipelineTests), which
+                // layers configuration over this factory rather than changing the default.
+                [$"{WebSecurityOptions.SectionName}:EnableAntiforgery"] = "false",
+                [$"{WebSecurityOptions.SectionName}:EnableRateLimiting"] = "false",
+                [$"{WebSecurityOptions.SectionName}:EnableHttpsRedirection"] = "false"
             });
         });
 
@@ -88,7 +98,7 @@ public sealed class NatsManagerWebAppFactory : WebApplicationFactory<Program>
 
             // Replace NATS adapters with substitutes
             ReplaceService<IEnvironmentRepository>(services, EnvironmentRepository);
-            ReplaceService<IJetStreamAdapter>(services, JetStreamAdapter);
+            ReplaceService<IJetStreamAdapter>(services, JetStreamReadAdapter);
             ReplaceService<IJetStreamWriteAdapter>(services, JetStreamWriteAdapter);
             ReplaceService<IKvStoreAdapter>(services, KvStoreAdapter);
             ReplaceService<IObjectStoreAdapter>(services, ObjectStoreAdapter);

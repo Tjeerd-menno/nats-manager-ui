@@ -58,7 +58,7 @@ This report is maintained during exploratory testing against the specification d
 - **Spec source**: `nats-management-functional-spec.md` section 9.10 and the relationship-map planning notes describe cross-module Search as an application-level resource discovery surface.
 - **Observed behavior**: After creating `qa-bucket`, typing `qa-bucket` into the global "Search resources..." box returned `No results found`.
 - **Implementation evidence**: `/api/search?q=qa-bucket` returned `[]`; `SearchQueryHandler` searches only the current user's bookmarks via `IBookmarkRepository`, not live environments, streams, KV buckets/keys, object buckets/objects, services, or audit-visible resources.
-- **Status**: Open inconsistency. Bookmark search works, but the global search label and spec imply cross-resource discovery.
+- **Status**: Open inconsistency, no longer misrepresented in the UI. The control is now labelled "Search bookmarks..." with a matching empty state, and `SearchQueryHandler` documents that its scope is bookmarks only. Cross-module discovery remains unimplemented and still requires new ports onto the resource modules.
 
 ### 9. Governance/settings routes from specs are not implemented
 

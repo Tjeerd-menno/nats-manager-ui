@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Options;
+using NatsManager.Application.Modules.Environments.Ports;
 using NatsManager.Application.Modules.Monitoring;
 using NatsManager.Application.Modules.Monitoring.Models.ClusterObservability;
 using NatsManager.Application.Modules.Monitoring.Ports.ClusterObservability;
@@ -11,7 +12,8 @@ namespace NatsManager.Infrastructure.Monitoring.ClusterObservability;
 /// Freshness transitions are managed here per the data-model state machine.
 /// No payload, JWT, or credential data is retained.
 /// </summary>
-public sealed class ClusterObservationStore(IOptions<MonitoringOptions> options) : IClusterObservationStore
+public sealed class ClusterObservationStore(IOptions<MonitoringOptions> options)
+    : IClusterObservationStore, IEnvironmentScopedStore
 {
     private readonly ConcurrentDictionary<Guid, EnvironmentObservationBuffer> _store = new();
 
@@ -29,6 +31,8 @@ public sealed class ClusterObservationStore(IOptions<MonitoringOptions> options)
         _store.TryGetValue(environmentId, out var buffer)
             ? buffer.GetAll()
             : [];
+
+    public void EvictEnvironment(Guid environmentId) => _store.TryRemove(environmentId, out _);
 }
 
 internal sealed class EnvironmentObservationBuffer(int maxCapacity)

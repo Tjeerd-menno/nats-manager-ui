@@ -21,17 +21,14 @@ export function AuthProvider({
   const [authConfig, setAuthConfig] = useState<AuthConfig>(defaultAuthConfig);
   const [isLoading, setIsLoading] = useState(() => !skipCurrentUserBootstrap);
 
+  // `skipCurrentUserBootstrap` is a fixed composition-time flag, so the initial
+  // `isLoading` value above already covers both paths; the effect only owns the fetch.
   useEffect(() => {
-    let isDisposed = false;
-
     if (skipCurrentUserBootstrap) {
-      setIsLoading(false);
-      return () => {
-        isDisposed = true;
-      };
+      return;
     }
 
-    setIsLoading(true);
+    let isDisposed = false;
 
     async function loadAuthState() {
       const [configResult, userResult] = await Promise.allSettled([

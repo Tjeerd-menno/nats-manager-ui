@@ -255,4 +255,32 @@ public sealed class UserRoleAssignmentTests
 
         assignment.EnvironmentId.ShouldBeNull();
     }
+
+    [Fact]
+    public void Create_WithEmptyUserId_ShouldThrow()
+    {
+        var act = () => UserRoleAssignment.Create(Guid.Empty, Guid.NewGuid(), null, Guid.NewGuid());
+        Should.Throw<ArgumentException>(act);
+    }
+
+    [Fact]
+    public void Create_WithEmptyRoleId_ShouldThrow()
+    {
+        var act = () => UserRoleAssignment.Create(Guid.NewGuid(), Guid.Empty, null, Guid.NewGuid());
+        Should.Throw<ArgumentException>(act);
+    }
+
+    [Fact]
+    public void Create_WithEmptyAssignedBy_ShouldThrow()
+    {
+        var act = () => UserRoleAssignment.Create(Guid.NewGuid(), Guid.NewGuid(), null, Guid.Empty);
+        Should.Throw<ArgumentException>(act);
+    }
+
+    [Fact]
+    public void Create_WithEmptyEnvironmentId_ShouldThrow()
+    {
+        var act = () => UserRoleAssignment.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.Empty, Guid.NewGuid());
+        Should.Throw<ArgumentException>(act);
+    }
 }

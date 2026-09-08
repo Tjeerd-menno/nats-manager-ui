@@ -28,7 +28,7 @@ public sealed class TestNatsConnectionFactory(string natsUrl) : INatsConnectionF
         return _connection;
     }
 
-    public Task<ConnectionStatus> TestConnectionAsync(string serverUrl, string? credentialReference, CancellationToken cancellationToken = default)
+    public Task<ConnectionStatus> TestConnectionAsync(string serverUrl, CancellationToken cancellationToken = default)
         => Task.FromResult(ConnectionStatus.Available);
 
     public async Task RemoveConnectionAsync(Guid environmentId, CancellationToken cancellationToken = default)

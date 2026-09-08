@@ -33,11 +33,43 @@ specs/                           # SpecKit feature artifacts
 
 ## Commands
 
-npm test; npm run lint
+### Frontend
+```bash
+cd src/NatsManager.Frontend
+npm test        # Vitest unit tests
+npm run lint    # ESLint
+```
+
+### Backend — Build
+```bash
+# Solution file is NatsManager.slnx (XML solution format — no .sln exists)
+dotnet build NatsManager.slnx -c Debug
+
+# dotnet build only accepts ONE project path at a time (MSB1008 with multiple paths)
+dotnet build src/NatsManager.Web/NatsManager.Web.csproj -c Debug
+```
+
+### Backend — Run Tests
+Plain `dotnet test` from the repository root is not the supported all-backend test command with xUnit v3 + Microsoft Testing Platform v2. Run unit test projects explicitly (as CI does):
+```bash
+dotnet test --project tests/NatsManager.Domain.Tests/NatsManager.Domain.Tests.csproj --configuration Debug
+dotnet test --project tests/NatsManager.Application.Tests/NatsManager.Application.Tests.csproj --configuration Debug
+dotnet test --project tests/NatsManager.Infrastructure.Tests/NatsManager.Infrastructure.Tests.csproj --configuration Debug
+dotnet test --project tests/NatsManager.Web.Tests/NatsManager.Web.Tests.csproj --configuration Debug
+```
+
+### Backend — Warnings-as-errors
+`src/` projects have warnings-as-errors enabled; test projects do not. Common build-breaking warnings:
+- **CA1859** — use `ConfigurationManager` (concrete type) instead of `IConfiguration` when the concrete type flows in
+- **CA1725** — parameter names on overrides/implementations must exactly match the interface
+- **Unused `using` directives** — remove after refactoring endpoint files
 
 ## Code Style
 
 C# / .NET 10 (backend), TypeScript (frontend): Follow standard conventions
+
+### File editing gotcha
+The `create` tool **cannot overwrite existing files**. To replace an existing file from scratch, create a `.new` temp file then use `Move-Item -Force`. Use the `edit` tool for all partial edits to existing files.
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->

@@ -12,6 +12,8 @@ public sealed class UserPreference
 
     public static UserPreference Create(Guid userId, string key, string value)
     {
+        if (userId == Guid.Empty)
+            throw new ArgumentException("User id is required.", nameof(userId));
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
 
         return new UserPreference

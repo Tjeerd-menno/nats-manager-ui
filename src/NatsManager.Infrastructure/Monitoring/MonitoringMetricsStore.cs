@@ -1,12 +1,14 @@
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Options;
+using NatsManager.Application.Modules.Environments.Ports;
 using NatsManager.Application.Modules.Monitoring;
 using NatsManager.Application.Modules.Monitoring.Models;
 using NatsManager.Application.Modules.Monitoring.Ports;
 
 namespace NatsManager.Infrastructure.Monitoring;
 
-public sealed class MonitoringMetricsStore(IOptions<MonitoringOptions> options) : IMonitoringMetricsStore
+public sealed class MonitoringMetricsStore(IOptions<MonitoringOptions> options)
+    : IMonitoringMetricsStore, IEnvironmentScopedStore
 {
     private readonly ConcurrentDictionary<Guid, EnvironmentMetricsBuffer> _store = new();
 
@@ -24,6 +26,8 @@ public sealed class MonitoringMetricsStore(IOptions<MonitoringOptions> options) 
 
     public MonitoringSnapshot? GetLatest(Guid environmentId) =>
         _store.TryGetValue(environmentId, out var buffer) ? buffer.GetLatest() : null;
+
+    public void EvictEnvironment(Guid environmentId) => _store.TryRemove(environmentId, out _);
 }
 
 internal sealed class EnvironmentMetricsBuffer(int maxCapacity)

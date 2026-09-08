@@ -30,16 +30,19 @@ export function KvKeyEditor({ opened, onClose, bucketName, editKey, editValue, e
     },
   });
 
+  // Mantine's `form` object is a new reference on every render; its mutators are
+  // stable, so depend on those rather than suppressing the exhaustive-deps rule.
+  const { setValues } = form;
+
   // Reset form values when modal opens
   useEffect(() => {
     if (opened) {
-      form.setValues({
+      setValues({
         key: editKey ?? '',
         value: editValue ?? '',
       });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opened, editKey, editValue]);
+  }, [opened, editKey, editValue, setValues]);
 
   const handleSubmit = form.onSubmit((values) => {
     putKey.mutate(

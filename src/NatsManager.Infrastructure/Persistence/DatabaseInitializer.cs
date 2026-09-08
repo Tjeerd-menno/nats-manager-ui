@@ -30,22 +30,32 @@ public sealed partial class DatabaseInitializer(
 
     private async Task SeedRolesAsync(CancellationToken cancellationToken)
     {
-        if (await context.Roles.AnyAsync(cancellationToken))
+        var predefinedRoles = new (string Name, string Description)[]
+        {
+            (Role.PredefinedNames.ReadOnly, "View all resources, no state-changing actions"),
+            (Role.PredefinedNames.Operator, "View and modify resources, destructive actions blocked in production"),
+            (Role.PredefinedNames.Administrator, "Full access including destructive actions and user management"),
+            (Role.PredefinedNames.Auditor, "View resources and audit history, no modifications")
+        };
+
+        var existingNames = await context.Roles
+            .Select(r => r.Name)
+            .ToListAsync(cancellationToken);
+        var existing = new HashSet<string>(existingNames, StringComparer.Ordinal);
+
+        var missingRoles = predefinedRoles
+            .Where(role => !existing.Contains(role.Name))
+            .Select(role => Role.Create(role.Name, role.Description))
+            .ToList();
+
+        if (missingRoles.Count == 0)
         {
             return;
         }
 
-        var roles = new[]
-        {
-            Role.Create(Role.PredefinedNames.ReadOnly, "View all resources, no state-changing actions"),
-            Role.Create(Role.PredefinedNames.Operator, "View and modify resources, destructive actions blocked in production"),
-            Role.Create(Role.PredefinedNames.Administrator, "Full access including destructive actions and user management"),
-            Role.Create(Role.PredefinedNames.Auditor, "View resources and audit history, no modifications")
-        };
-
-        context.Roles.AddRange(roles);
+        context.Roles.AddRange(missingRoles);
         await context.SaveChangesAsync(cancellationToken);
-        LogRolesSeeded(roles.Length);
+        LogRolesSeeded(missingRoles.Count);
     }
 
     private async Task SeedDefaultAdminAsync(CancellationToken cancellationToken)

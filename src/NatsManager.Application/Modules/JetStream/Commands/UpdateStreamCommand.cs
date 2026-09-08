@@ -39,7 +39,18 @@ public sealed class UpdateStreamCommandHandler(
 {
     public async Task ExecuteAsync(UpdateStreamCommand request, IOutputPort<Unit> outputPort, CancellationToken cancellationToken)
     {
-        await writeAdapter.UpdateStreamAsync(request, cancellationToken);
+        await writeAdapter.UpdateStreamAsync(
+            new UpdateStreamSpec
+            {
+                EnvironmentId = request.EnvironmentId,
+                Name = request.Name,
+                Description = request.Description,
+                Subjects = request.Subjects,
+                MaxMessages = request.MaxMessages,
+                MaxBytes = request.MaxBytes,
+                Replicas = request.Replicas,
+            },
+            cancellationToken);
         await auditTrail.RecordAsync(request, cancellationToken);
         outputPort.Success(Unit.Value);
     }

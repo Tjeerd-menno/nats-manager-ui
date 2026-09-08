@@ -41,16 +41,12 @@ public static class AccessControlEndpoints
 
     private static async Task<IResult> UpdateUser(Guid userId, UpdateUserRequest request, IUseCase<UpdateUserCommand, Unit> useCase, CancellationToken cancellationToken)
     {
-        var presenter = new Presenter<Unit>();
-        await useCase.ExecuteAsync(new UpdateUserCommand { UserId = userId, DisplayName = request.DisplayName }, presenter, cancellationToken);
-        return presenter.ToNoContentResult();
+        return await useCase.ExecuteToNoContentResultAsync(new UpdateUserCommand { UserId = userId, DisplayName = request.DisplayName }, cancellationToken);
     }
 
     private static async Task<IResult> DeactivateUser(Guid userId, IUseCase<DeactivateUserCommand, Unit> useCase, CancellationToken cancellationToken)
     {
-        var presenter = new Presenter<Unit>();
-        await useCase.ExecuteAsync(new DeactivateUserCommand { UserId = userId }, presenter, cancellationToken);
-        return presenter.ToNoContentResult();
+        return await useCase.ExecuteToNoContentResultAsync(new DeactivateUserCommand { UserId = userId }, cancellationToken);
     }
 
     private static async Task<IResult> GetUserRoles(Guid userId, IUseCase<GetUserRolesQuery, IReadOnlyList<UserRoleDto>> useCase, CancellationToken cancellationToken)
@@ -81,9 +77,7 @@ public static class AccessControlEndpoints
 
     private static async Task<IResult> RevokeRole(Guid userId, Guid assignmentId, IUseCase<RevokeRoleCommand, Unit> useCase, CancellationToken cancellationToken)
     {
-        var presenter = new Presenter<Unit>();
-        await useCase.ExecuteAsync(new RevokeRoleCommand { UserId = userId, AssignmentId = assignmentId }, presenter, cancellationToken);
-        return presenter.ToNoContentResult();
+        return await useCase.ExecuteToNoContentResultAsync(new RevokeRoleCommand { UserId = userId, AssignmentId = assignmentId }, cancellationToken);
     }
 
     private static async Task<IResult> GetRoles(IUseCase<GetRolesQuery, IReadOnlyList<RoleDto>> useCase, CancellationToken cancellationToken)

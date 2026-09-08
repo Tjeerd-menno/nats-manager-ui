@@ -35,7 +35,7 @@ public sealed partial class NatsMonitoringHttpAdapter(
             return NatsMonitoringStateFactory.CreateSnapshot(environment.Id, MonitoringStatus.Degraded, MonitoringStatus.Unavailable);
         }
 
-        var jszResult = await client.GetJsonWithHandlingAsync<NatsJszResponse>(
+        var jszTask = client.GetJsonWithHandlingAsync<NatsJszResponse>(
             $"{baseUrl}/jsz",
             ct,
             async (response, cancellationToken) =>
@@ -50,13 +50,7 @@ public sealed partial class NatsMonitoringHttpAdapter(
                 return await response.ReadJsonOrFailureAsync<NatsJszResponse>(cancellationToken);
             });
 
-        var degraded = jszResult.FailureKind != MonitoringFailureKind.None;
-        if (jszResult.FailureKind != MonitoringFailureKind.None)
-        {
-            LogFetchFailed($"{baseUrl}/jsz", jszResult.ErrorMessage ?? UnknownError);
-        }
-
-        var healthzResult = await client.GetJsonWithHandlingAsync<NatsHealthzResponse>(
+        var healthzTask = client.GetJsonWithHandlingAsync<NatsHealthzResponse>(
             $"{baseUrl}/healthz",
             ct,
             async (response, cancellationToken) =>
@@ -68,6 +62,17 @@ public sealed partial class NatsMonitoringHttpAdapter(
 
                 return await response.ReadJsonOrFailureAsync<NatsHealthzResponse>(cancellationToken);
             });
+
+        await Task.WhenAll(jszTask, healthzTask);
+
+        var jszResult = await jszTask;
+        var healthzResult = await healthzTask;
+
+        var degraded = jszResult.FailureKind != MonitoringFailureKind.None;
+        if (jszResult.FailureKind != MonitoringFailureKind.None)
+        {
+            LogFetchFailed($"{baseUrl}/jsz", jszResult.ErrorMessage ?? UnknownError);
+        }
 
         var healthStatus = GetHealthStatus(healthzResult);
 

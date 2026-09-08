@@ -14,6 +14,10 @@ public sealed class Bookmark
 
     public static Bookmark Create(Guid userId, Guid environmentId, ResourceType resourceType, string resourceId, string displayName)
     {
+        if (userId == Guid.Empty)
+            throw new ArgumentException("User id is required.", nameof(userId));
+        if (environmentId == Guid.Empty)
+            throw new ArgumentException("Environment id is required.", nameof(environmentId));
         ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
         ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
 

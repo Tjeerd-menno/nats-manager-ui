@@ -75,7 +75,7 @@ export function GlobalSearch() {
     <Popover opened={opened && query.length >= 2} onChange={setOpened} width={400} position="bottom-start">
       <Popover.Target>
         <TextInput
-          placeholder="Search resources..."
+          placeholder="Search bookmarks..."
           value={query}
           onChange={(e) => {
             setQuery(e.currentTarget.value);
@@ -110,7 +110,7 @@ export function GlobalSearch() {
             </Stack>
           ) : (
             <Text size="sm" c="dimmed" ta="center" py="md">
-              {debouncedQuery.length >= 2 ? 'No results found' : 'Type to search...'}
+              {debouncedQuery.length >= 2 ? 'No bookmarks match' : 'Type to search bookmarks...'}
             </Text>
           )}
         </ScrollArea.Autosize>

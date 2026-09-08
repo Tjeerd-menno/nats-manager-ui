@@ -32,7 +32,9 @@ public sealed class CreateStreamCommandTests
         await _handler.ExecuteAsync(command, outputPort, CancellationToken.None);
 
         outputPort.IsSuccess.ShouldBeTrue();
-        await _writeAdapter.Received(1).CreateStreamAsync(command, Arg.Any<CancellationToken>());
+        await _writeAdapter.Received(1).CreateStreamAsync(
+            Arg.Is<CreateStreamSpec>(s => s.EnvironmentId == command.EnvironmentId && s.Name == command.Name && s.Subjects == command.Subjects),
+            Arg.Any<CancellationToken>());
     }
 }
 
@@ -169,7 +171,9 @@ public sealed class CreateConsumerCommandTests
         await _handler.ExecuteAsync(command, outputPort, CancellationToken.None);
 
         outputPort.IsSuccess.ShouldBeTrue();
-        await _writeAdapter.Received(1).CreateConsumerAsync(command, Arg.Any<CancellationToken>());
+        await _writeAdapter.Received(1).CreateConsumerAsync(
+            Arg.Is<CreateConsumerSpec>(s => s.EnvironmentId == command.EnvironmentId && s.StreamName == command.StreamName && s.Name == command.Name),
+            Arg.Any<CancellationToken>());
     }
 }
 
@@ -229,7 +233,9 @@ public sealed class UpdateStreamCommandTests
         await _handler.ExecuteAsync(command, outputPort, CancellationToken.None);
 
         outputPort.IsSuccess.ShouldBeTrue();
-        await _writeAdapter.Received(1).UpdateStreamAsync(command, Arg.Any<CancellationToken>());
+        await _writeAdapter.Received(1).UpdateStreamAsync(
+            Arg.Is<UpdateStreamSpec>(s => s.EnvironmentId == command.EnvironmentId && s.Name == command.Name && s.Subjects == command.Subjects),
+            Arg.Any<CancellationToken>());
     }
 }
 

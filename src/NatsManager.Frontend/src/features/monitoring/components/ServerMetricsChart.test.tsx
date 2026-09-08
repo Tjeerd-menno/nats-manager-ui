@@ -15,7 +15,7 @@ type ServerChartDataPoint = {
 
 function getChartTestIdFromSeriesNames(children: ReactNode): string {
   const names = Children.toArray(children)
-    .map((child) => (isValidElement(child) ? child.props.name as string | undefined : undefined))
+    .map((child) => (isValidElement<{ name?: string }>(child) ? child.props.name : undefined))
     .filter((name): name is string => !!name);
 
   if (names.includes('In bytes/s')) {

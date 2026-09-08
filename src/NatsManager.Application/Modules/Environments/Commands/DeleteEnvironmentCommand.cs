@@ -29,6 +29,7 @@ public sealed class DeleteEnvironmentCommandValidator : AbstractValidator<Delete
 public sealed class DeleteEnvironmentCommandHandler(
     IEnvironmentRepository environmentRepository,
     INatsConnectionFactory natsConnectionFactory,
+    IEnumerable<IEnvironmentScopedStore> environmentScopedStores,
     IAuditTrail auditTrail) : IUseCase<DeleteEnvironmentCommand, Unit>
 {
     public async Task ExecuteAsync(DeleteEnvironmentCommand request, IOutputPort<Unit> outputPort, CancellationToken cancellationToken)
@@ -43,6 +44,12 @@ public sealed class DeleteEnvironmentCommandHandler(
         request.ResolvedName = environment.Name;
         await natsConnectionFactory.RemoveConnectionAsync(request.Id, cancellationToken);
         await environmentRepository.DeleteAsync(environment, cancellationToken);
+
+        foreach (var store in environmentScopedStores)
+        {
+            store.EvictEnvironment(request.Id);
+        }
+
         await auditTrail.RecordAsync(request, cancellationToken);
         outputPort.Success(Unit.Value);
     }

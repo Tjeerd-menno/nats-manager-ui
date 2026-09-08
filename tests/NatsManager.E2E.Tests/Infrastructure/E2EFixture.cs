@@ -2,8 +2,6 @@ using Aspire.Hosting;
 using Aspire.Hosting.Testing;
 using NatsManager.E2E.Tests.Infrastructure;
 
-#pragma warning disable CS8602 // Aspire configureBuilder parameters are non-null at runtime
-
 [assembly: CollectionBehavior(DisableTestParallelization = true)]
 [assembly: AssemblyFixture(typeof(AppHostFixture))]
 
@@ -18,8 +16,12 @@ public sealed class AppHostFixture : IAsyncLifetime
     private static readonly TimeSpan ResourceTimeout = TimeSpan.FromMinutes(5);
     private const string UsernameParameter = "Parameters__bootstrap-admin-username";
     private const string PasswordParameter = "Parameters__bootstrap-admin-password";
+    private const string NatsUsernameParameter = "Parameters__nats-username";
+    private const string NatsPasswordParameter = "Parameters__nats-password";
     private const string EncryptionKeyParameter = "Parameters__backend-encryption-key";
     private const string OpenIdentityStackEnabled = "OPENIDENTITYSTACK_ENABLED";
+    private const string NatsUsername = "nats";
+    private const string NatsPassword = "Nats123!";
     public const string BootstrapAdminUsername = "admin";
     public const string BootstrapAdminPassword = "Admin123!";
     public const string EncryptionKey = "JFar2auhLPoLfMvwy62dhRltrwY3EEPmFJ1svc17pn0=";
@@ -29,12 +31,28 @@ public sealed class AppHostFixture : IAsyncLifetime
     private string? _dbPath;
     private string? _originalUsernameParameter;
     private string? _originalPasswordParameter;
+    private string? _originalNatsUsernameParameter;
+    private string? _originalNatsPasswordParameter;
     private string? _originalEncryptionKeyParameter;
     private string? _originalOpenIdentityStackEnabled;
 
     public string FrontendUrl { get; private set; } = string.Empty;
     public string BackendUrl { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// The Aspire NATS endpoint with any embedded credentials removed, e.g.
+    /// <c>nats://localhost:34735</c>. The backend rejects server URLs that carry
+    /// credentials in the userinfo component (see <c>ServerUrlValidation</c>), so this is the
+    /// form both the API harness and the Playwright "Server URL" form fills must use.
+    /// </summary>
     public string NatsUrl { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// The credentials Aspire configured on the NATS container, in the
+    /// <c>user:password</c> form the backend stores for <c>CredentialType.UserPassword</c>.
+    /// Null when the container runs without authentication.
+    /// </summary>
+    public string? NatsCredential { get; private set; }
 
     public async ValueTask InitializeAsync()
     {
@@ -43,18 +61,25 @@ public sealed class AppHostFixture : IAsyncLifetime
 
         _originalUsernameParameter = Environment.GetEnvironmentVariable(UsernameParameter);
         _originalPasswordParameter = Environment.GetEnvironmentVariable(PasswordParameter);
+        _originalNatsUsernameParameter = Environment.GetEnvironmentVariable(NatsUsernameParameter);
+        _originalNatsPasswordParameter = Environment.GetEnvironmentVariable(NatsPasswordParameter);
         _originalEncryptionKeyParameter = Environment.GetEnvironmentVariable(EncryptionKeyParameter);
         _originalOpenIdentityStackEnabled = Environment.GetEnvironmentVariable(OpenIdentityStackEnabled);
 
         Environment.SetEnvironmentVariable(UsernameParameter, BootstrapAdminUsername);
         Environment.SetEnvironmentVariable(PasswordParameter, BootstrapAdminPassword);
+        // The AppHost declares nats-username/nats-password as parameters with no default,
+        // so the NATS resource cannot start unless they are supplied here. Without these the
+        // whole application graph fails at startup (nats -> backend -> frontend).
+        Environment.SetEnvironmentVariable(NatsUsernameParameter, NatsUsername);
+        Environment.SetEnvironmentVariable(NatsPasswordParameter, NatsPassword);
         Environment.SetEnvironmentVariable(EncryptionKeyParameter, EncryptionKey);
         Environment.SetEnvironmentVariable(OpenIdentityStackEnabled, "false");
 
         var appHost = await DistributedApplicationTestingBuilder
             .CreateAsync<Projects.NatsManager_AppHost>(
                 args: [],
-                configureBuilder: (appOptions, _) => appOptions.DisableDashboard = true);
+                configureBuilder: (appOptions, _) => appOptions!.DisableDashboard = true);
 
         // Override the NATS resource to use session lifetime (not persistent)
         // so each test run gets a fresh NATS server
@@ -73,8 +98,28 @@ public sealed class AppHostFixture : IAsyncLifetime
             context.EnvironmentVariables["BootstrapAdmin__Username"] = BootstrapAdminUsername;
             context.EnvironmentVariables["BootstrapAdmin__Password"] = BootstrapAdminPassword;
             context.EnvironmentVariables["Encryption__Key"] = EncryptionKey;
-            // Disable rate limiting and antiforgery in E2E test runs (see Program.cs guards).
             context.EnvironmentVariables["ASPNETCORE_ENVIRONMENT"] = "Testing";
+
+            // Antiforgery stays ON: this suite is the only place the double-submit
+            // token flow is exercised against a real browser, and both the harness
+            // (E2ETestBase.InitializeAntiforgeryAsync) and the SPA's axios client are
+            // already wired for it.
+            //
+            // Rate limiting is the one protection this suite cannot run with: the login
+            // policy permits 5 attempts per minute per client IP, and every test here
+            // authenticates at least once from the same address. It is covered instead by
+            // WebSecurityPipelineTests.LoginEndpoint_AfterExceedingPermitLimit_ShouldReturn429.
+            context.EnvironmentVariables["Security__EnableRateLimiting"] = "false";
+
+            // The Aspire test host serves the backend over plain HTTP.
+            context.EnvironmentVariables["Security__EnableHttpsRedirection"] = "false";
+
+            // Quieten the backend. At Information the EF command logger emits every SQL
+            // statement, which produced >10,000 lines of captured stdout on the first CI
+            // run — enough to push the actual test failures out of the retrievable log.
+            context.EnvironmentVariables["Logging__LogLevel__Default"] = "Warning";
+            context.EnvironmentVariables["Logging__LogLevel__Microsoft.AspNetCore"] = "Warning";
+            context.EnvironmentVariables["Logging__LogLevel__Microsoft.EntityFrameworkCore"] = "Warning";
         }));
 
         this.app = await appHost.BuildAsync();
@@ -100,10 +145,12 @@ public sealed class AppHostFixture : IAsyncLifetime
         FrontendUrl = frontendClient.BaseAddress?.ToString().TrimEnd('/')
             ?? throw new InvalidOperationException("Frontend URL not found.");
 
-        // Resolve NATS connection URL for test environment registration
+        // Resolve NATS connection URL for test environment registration. Aspire hands back
+        // `nats://<user>:<password>@host:port`, but the backend refuses to store a server URL
+        // with embedded credentials, so split it into the URL and a UserPassword credential.
         var natsConnectionString = await this.app.GetConnectionStringAsync("nats")
             ?? throw new InvalidOperationException("NATS connection string not found.");
-        NatsUrl = natsConnectionString;
+        (NatsUrl, NatsCredential) = SplitNatsConnectionString(natsConnectionString);
 
         // Poll until the Vite dev server is actually serving content
         await WaitForFrontendReadyAsync(cts.Token);
@@ -126,10 +173,43 @@ public sealed class AppHostFixture : IAsyncLifetime
 
         Environment.SetEnvironmentVariable(UsernameParameter, _originalUsernameParameter);
         Environment.SetEnvironmentVariable(PasswordParameter, _originalPasswordParameter);
+        Environment.SetEnvironmentVariable(NatsUsernameParameter, _originalNatsUsernameParameter);
+        Environment.SetEnvironmentVariable(NatsPasswordParameter, _originalNatsPasswordParameter);
         Environment.SetEnvironmentVariable(EncryptionKeyParameter, _originalEncryptionKeyParameter);
         Environment.SetEnvironmentVariable(OpenIdentityStackEnabled, _originalOpenIdentityStackEnabled);
 
         GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Split an Aspire NATS connection string into a credential-free server URL and the
+    /// <c>user:password</c> credential it carried, if any.
+    /// </summary>
+    internal static (string Url, string? Credential) SplitNatsConnectionString(string connectionString)
+    {
+        if (!Uri.TryCreate(connectionString, UriKind.Absolute, out var uri))
+        {
+            throw new InvalidOperationException(
+                $"NATS connection string '{connectionString}' is not an absolute URI.");
+        }
+
+        var url = $"{uri.Scheme}://{uri.GetComponents(UriComponents.HostAndPort, UriFormat.UriEscaped)}";
+
+        if (string.IsNullOrEmpty(uri.UserInfo))
+        {
+            return (url, null);
+        }
+
+        // NatsAuthHelper splits the stored credential on the first ':', matching the userinfo
+        // layout. Unescape so a password containing reserved characters round-trips.
+        var separatorIndex = uri.UserInfo.IndexOf(':');
+        var credential = separatorIndex < 0
+            ? Uri.UnescapeDataString(uri.UserInfo)
+            : Uri.UnescapeDataString(uri.UserInfo[..separatorIndex])
+              + ":"
+              + Uri.UnescapeDataString(uri.UserInfo[(separatorIndex + 1)..]);
+
+        return (url, credential);
     }
 
     private async Task WaitForFrontendReadyAsync(CancellationToken ct)

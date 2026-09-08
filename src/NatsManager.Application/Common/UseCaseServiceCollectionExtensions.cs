@@ -12,7 +12,8 @@ public static class UseCaseServiceCollectionExtensions
         var useCaseType = typeof(IUseCase<,>);
 
         var implementations = assembly.GetTypes()
-            .Where(t => t is { IsClass: true, IsAbstract: false })
+            .Where(t => t is { IsClass: true, IsAbstract: false, IsGenericTypeDefinition: false }
+                && t != typeof(ValidatedUseCase<,>))
             .SelectMany(t => t.GetInterfaces()
                 .Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == useCaseType)
                 .Select(i => new { InterfaceType = i, ImplementationType = t }))

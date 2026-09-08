@@ -65,6 +65,17 @@ class MockEventSource {
   static reset() {
     MockEventSource.instances = [];
   }
+
+  /** The instance constructed at the given index, failing loudly if the hook never opened one. */
+  static instanceAt(index: number): MockEventSource {
+    const instance = MockEventSource.instances[index];
+    if (!instance) {
+      throw new Error(
+        `Expected an EventSource at index ${index}, but ${MockEventSource.instances.length} were constructed.`,
+      );
+    }
+    return instance;
+  }
 }
 
 function makeMsg(subject = 'test'): NatsLiveMessage {
@@ -209,8 +220,8 @@ describe('useLiveMessages', () => {
     });
 
     expect(MockEventSource.instances).toHaveLength(1);
-    expect(MockEventSource.instances[0].url).toContain('/api/environments/env-1/core-nats/stream');
-    expect(MockEventSource.instances[0].url).toContain('orders.%3E');
+    expect(MockEventSource.instanceAt(0).url).toContain('/api/environments/env-1/core-nats/stream');
+    expect(MockEventSource.instanceAt(0).url).toContain('orders.%3E');
     expect(result.current.activeSubject).toBe('orders.>');
     expect(result.current.subscriptionStatus).toBe('connecting');
   });
@@ -222,7 +233,7 @@ describe('useLiveMessages', () => {
     act(() => {
       result.current.subscribe('test.>');
     });
-    const es = MockEventSource.instances[0];
+    const es = MockEventSource.instanceAt(0);
     act(() => {
       es.emit('open');
     });
@@ -246,7 +257,7 @@ describe('useLiveMessages', () => {
       result.current.subscribe('orders.>');
     });
 
-    const es = MockEventSource.instances[0];
+    const es = MockEventSource.instanceAt(0);
     act(() => {
       es.emit('open');
     });
@@ -263,7 +274,7 @@ describe('useLiveMessages', () => {
       result.current.subscribe('orders.>');
     });
 
-    const es = MockEventSource.instances[0];
+    const es = MockEventSource.instanceAt(0);
     act(() => {
       es.emit('error');
     });
@@ -280,7 +291,7 @@ describe('useLiveMessages', () => {
     act(() => {
       result.current.subscribe('test.>');
     });
-    const es = MockEventSource.instances[0];
+    const es = MockEventSource.instanceAt(0);
 
     unmount();
 
@@ -294,7 +305,7 @@ describe('useLiveMessages', () => {
     act(() => {
       result.current.subscribe('test');
     });
-    const es = MockEventSource.instances[0];
+    const es = MockEventSource.instanceAt(0);
 
     act(() => {
       for (let i = 0; i < 120; i++) {
@@ -304,7 +315,7 @@ describe('useLiveMessages', () => {
 
     expect(result.current.messages.length).toBe(100);
     // Most recent message is first
-    expect(result.current.messages[0].subject).toBe('s119');
+    expect(result.current.messages[0]!.subject).toBe('s119');
   });
 
   it('pause buffers incoming messages and resume flushes them', () => {
@@ -314,7 +325,7 @@ describe('useLiveMessages', () => {
     act(() => {
       result.current.subscribe('test');
     });
-    const es = MockEventSource.instances[0];
+    const es = MockEventSource.instanceAt(0);
 
     // Receive one message before pausing
     act(() => {
@@ -349,7 +360,7 @@ describe('useLiveMessages', () => {
     act(() => {
       result.current.subscribe('test');
     });
-    const es = MockEventSource.instances[0];
+    const es = MockEventSource.instanceAt(0);
 
     act(() => {
       result.current.pause();
@@ -372,7 +383,7 @@ describe('useLiveMessages', () => {
     act(() => {
       result.current.subscribe('test');
     });
-    const es = MockEventSource.instances[0];
+    const es = MockEventSource.instanceAt(0);
 
     act(() => {
       es.emit('message', makeMsg());

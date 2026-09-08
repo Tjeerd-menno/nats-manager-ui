@@ -25,8 +25,9 @@ public static class ObjectStoreEndpoints
         group.MapPost("/buckets", CreateBucket).RequireAuthorization(AuthorizationPolicyNames.OperatorAccess);
         group.MapDelete("/buckets/{bucket}", DeleteBucket).RequireAuthorization(AuthorizationPolicyNames.OperatorAccess);
         group.MapGet("/buckets/{bucket}/objects", GetObjects);
-        group.MapGet("/buckets/{bucket}/objects/{objectName}", GetObjectDetail);
-        group.MapGet("/buckets/{bucket}/objects/{objectName}/download", DownloadObject);
+        group.MapGet("/buckets/{bucket}/objects/{objectName}", GetObjectDetail).RequireAuthorization(AuthorizationPolicyNames.OperatorAccess);
+        group.MapGet("/buckets/{bucket}/objects/{objectName}/download", DownloadObject)
+            .RequireAuthorization(AuthorizationPolicyNames.OperatorAccess);
         group.MapPost("/buckets/{bucket}/objects/{objectName}/upload", UploadObject)
             .RequireAuthorization(AuthorizationPolicyNames.OperatorAccess);
         group.MapDelete("/buckets/{bucket}/objects/{objectName}", DeleteObject).RequireAuthorization(AuthorizationPolicyNames.OperatorAccess);
@@ -43,9 +44,7 @@ public static class ObjectStoreEndpoints
 
     private static async Task<IResult> GetBucketDetail(Guid envId, string bucket, IUseCase<GetObjectBucketDetailQuery, ObjectBucketInfo> useCase, CancellationToken cancellationToken)
     {
-        var presenter = new Presenter<ObjectBucketInfo>();
-        await useCase.ExecuteAsync(new GetObjectBucketDetailQuery(envId, bucket), presenter, cancellationToken);
-        return presenter.ToResult();
+        return await useCase.ExecuteToResultAsync(new GetObjectBucketDetailQuery(envId, bucket), cancellationToken);
     }
 
     private static async Task<IResult> CreateBucket(
@@ -85,9 +84,7 @@ public static class ObjectStoreEndpoints
         if (!string.Equals(confirm, "true", StringComparison.OrdinalIgnoreCase))
             return ApiProblemResults.ConfirmationRequired("X-Confirm header must be 'true' for destructive operations.");
 
-        var presenter = new Presenter<Unit>();
-        await useCase.ExecuteAsync(new DeleteObjectBucketCommand { EnvironmentId = envId, BucketName = bucket }, presenter, cancellationToken);
-        return presenter.ToNoContentResult();
+        return await useCase.ExecuteToNoContentResultAsync(new DeleteObjectBucketCommand { EnvironmentId = envId, BucketName = bucket }, cancellationToken);
     }
 
     private static async Task<IResult> GetObjects(Guid envId, string bucket, IUseCase<GetObjectsQuery, IReadOnlyList<ObjectInfo>> useCase, CancellationToken cancellationToken)
@@ -99,17 +96,48 @@ public static class ObjectStoreEndpoints
 
     private static async Task<IResult> GetObjectDetail(Guid envId, string bucket, string objectName, IUseCase<GetObjectDetailQuery, ObjectInfo> useCase, CancellationToken cancellationToken)
     {
-        var presenter = new Presenter<ObjectInfo>();
-        await useCase.ExecuteAsync(new GetObjectDetailQuery(envId, bucket, objectName), presenter, cancellationToken);
-        return presenter.ToResult();
+        return await useCase.ExecuteToResultAsync(new GetObjectDetailQuery(envId, bucket, objectName), cancellationToken);
     }
 
-    private static async Task<IResult> DownloadObject(Guid envId, string bucket, string objectName, IUseCase<DownloadObjectQuery, byte[]?> useCase, CancellationToken cancellationToken)
+    private static async Task<IResult> DownloadObject(
+        Guid envId,
+        string bucket,
+        string objectName,
+        IOptions<ObjectStoreUploadOptions> transferOptions,
+        IUseCase<GetObjectDetailQuery, ObjectInfo> detailUseCase,
+        IUseCase<DownloadObjectQuery, byte[]?> downloadUseCase,
+        CancellationToken cancellationToken)
     {
+        var detailPresenter = new Presenter<ObjectInfo>();
+        await detailUseCase.ExecuteAsync(new GetObjectDetailQuery(envId, bucket, objectName), detailPresenter, cancellationToken);
+        if (!detailPresenter.IsSuccess)
+        {
+            return detailPresenter.ToResult();
+        }
+
+        var maxDownloadBytes = transferOptions.Value.MaxDownloadBytes;
+        if (detailPresenter.Value!.Size > maxDownloadBytes)
+        {
+            return Results.Problem(
+                title: "Object download too large",
+                detail: $"Object downloads are limited to {maxDownloadBytes} bytes.",
+                statusCode: StatusCodes.Status413PayloadTooLarge);
+        }
+
         var presenter = new Presenter<byte[]?>();
-        await useCase.ExecuteAsync(new DownloadObjectQuery(envId, bucket, objectName), presenter, cancellationToken);
+        await downloadUseCase.ExecuteAsync(new DownloadObjectQuery(envId, bucket, objectName), presenter, cancellationToken);
         if (presenter.IsSuccess && presenter.Value is not null)
+        {
+            if (presenter.Value.LongLength > maxDownloadBytes)
+            {
+                return Results.Problem(
+                    title: "Object download too large",
+                    detail: $"Object downloads are limited to {maxDownloadBytes} bytes.",
+                    statusCode: StatusCodes.Status413PayloadTooLarge);
+            }
+
             return Results.File(presenter.Value, "application/octet-stream", objectName);
+        }
         return presenter.ToResult();
     }
 
@@ -161,9 +189,7 @@ public static class ObjectStoreEndpoints
         if (!string.Equals(confirm, "true", StringComparison.OrdinalIgnoreCase))
             return ApiProblemResults.ConfirmationRequired("X-Confirm header must be 'true' for destructive operations.");
 
-        var presenter = new Presenter<Unit>();
-        await useCase.ExecuteAsync(new DeleteObjectCommand { EnvironmentId = envId, BucketName = bucket, ObjectName = objectName }, presenter, cancellationToken);
-        return presenter.ToNoContentResult();
+        return await useCase.ExecuteToNoContentResultAsync(new DeleteObjectCommand { EnvironmentId = envId, BucketName = bucket, ObjectName = objectName }, cancellationToken);
     }
 
     private static async Task<byte[]?> ReadBoundedBodyAsync(HttpRequest request, long maxBytes, CancellationToken cancellationToken)

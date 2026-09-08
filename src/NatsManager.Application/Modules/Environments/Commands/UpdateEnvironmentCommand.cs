@@ -1,4 +1,5 @@
 using FluentValidation;
+using FluentValidation.Results;
 using NatsManager.Application.Behaviors;
 using NatsManager.Application.Common;
 using NatsManager.Application.Modules.Environments.Ports;
@@ -35,6 +36,11 @@ public sealed class UpdateEnvironmentCommandValidator : AbstractValidator<Update
         RuleFor(x => x.ServerUrl).NotEmpty().MaximumLength(2048).MustBeValidNatsServerUrl();
         RuleFor(x => x.Description).MaximumLength(500);
 
+        // NOTE: The "credential required when CredentialType != None" rule is enforced in the
+        // handler (UpdateEnvironmentCommandHandler) rather than here, because an update may omit
+        // the secret to preserve the environment's already-stored credential reference. That
+        // distinction can only be made after loading the environment.
+
         When(x => !string.IsNullOrWhiteSpace(x.MonitoringUrl), () =>
             RuleFor(x => x.MonitoringUrl!)
                 .Must(url => Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri) &&
@@ -69,11 +75,22 @@ public sealed class UpdateEnvironmentCommandHandler(
             return;
         }
 
-        string? credentialRef = null;
-        if (request.CredentialType != CredentialType.None && !string.IsNullOrEmpty(request.Credential))
+        // A credentialed update may omit the secret to preserve the stored credential reference.
+        // Only reject when switching to/remaining a credentialed type with neither a new credential
+        // nor an existing stored reference to reuse.
+        if (request.CredentialType != CredentialType.None
+            && string.IsNullOrEmpty(request.Credential)
+            && string.IsNullOrEmpty(environment.CredentialReference))
         {
-            credentialRef = encryptionService.Encrypt(request.Credential);
+            throw new ValidationException(
+            [
+                new ValidationFailure(
+                    nameof(UpdateEnvironmentCommand.Credential),
+                    "Credential is required when CredentialType is not None and no credential is currently stored.")
+            ]);
         }
+
+        var credentialRef = encryptionService.EncryptCredential(request.CredentialType, request.Credential);
 
         environment.Update(
             name: request.Name,

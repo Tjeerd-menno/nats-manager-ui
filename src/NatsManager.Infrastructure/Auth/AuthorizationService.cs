@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using Microsoft.EntityFrameworkCore;
 using NatsManager.Application.Modules.Auth.Services;
 using NatsManager.Domain.Modules.Auth;
@@ -7,13 +8,13 @@ namespace NatsManager.Infrastructure.Auth;
 
 public sealed class AuthorizationService(AppDbContext context) : IAuthorizationService
 {
-    private static readonly Dictionary<string, int> RoleHierarchy = new()
+    private static readonly FrozenDictionary<string, int> RoleHierarchy = new Dictionary<string, int>
     {
         [Role.PredefinedNames.ReadOnly] = 0,
         [Role.PredefinedNames.Auditor] = 1,
         [Role.PredefinedNames.Operator] = 2,
         [Role.PredefinedNames.Administrator] = 3
-    };
+    }.ToFrozenDictionary();
 
     public async Task<bool> CanPerformActionAsync(
         Guid userId,

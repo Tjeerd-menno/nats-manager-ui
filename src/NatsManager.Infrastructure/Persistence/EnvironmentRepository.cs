@@ -14,12 +14,14 @@ public sealed class EnvironmentRepository(AppDbContext dbContext) : IEnvironment
     public async Task<Environment?> GetByNameAsync(string name, CancellationToken cancellationToken = default)
     {
         return await dbContext.Environments
+            .AsNoTracking()
             .FirstOrDefaultAsync(e => e.Name == name, cancellationToken);
     }
 
     public async Task<IReadOnlyList<Environment>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         return await dbContext.Environments
+            .AsNoTracking()
             .OrderBy(e => e.Name)
             .ToListAsync(cancellationToken);
     }
@@ -32,7 +34,7 @@ public sealed class EnvironmentRepository(AppDbContext dbContext) : IEnvironment
         bool sortDescending = false,
         CancellationToken cancellationToken = default)
     {
-        var query = dbContext.Environments.AsQueryable();
+        var query = dbContext.Environments.AsNoTracking().AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -88,6 +90,7 @@ public sealed class EnvironmentRepository(AppDbContext dbContext) : IEnvironment
     public async Task<IReadOnlyList<Environment>> GetEnabledAsync(CancellationToken cancellationToken = default)
     {
         return await dbContext.Environments
+            .AsNoTracking()
             .Where(e => e.IsEnabled)
             .OrderBy(e => e.Name)
             .ToListAsync(cancellationToken);

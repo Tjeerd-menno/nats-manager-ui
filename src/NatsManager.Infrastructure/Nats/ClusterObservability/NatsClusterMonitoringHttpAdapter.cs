@@ -27,14 +27,13 @@ public sealed partial class NatsClusterMonitoringHttpAdapter(
         var baseUrl = environment.MonitoringUrl.TrimEnd('/');
         var observedAt = DateTimeOffset.UtcNow;
 
-        var healthzTask = SafeFetchAsync(() => FetchHealthzAsync(baseUrl, ct), MonitoringEndpoint.Healthz);
         var varzTask = SafeFetchAsync(() => FetchVarzAsync(baseUrl, ct), MonitoringEndpoint.Varz);
         var jszTask = SafeFetchAsync(() => FetchJszAsync(baseUrl, ct), MonitoringEndpoint.Jsz);
         var routezTask = SafeFetchAsync(() => FetchRoutezAsync(baseUrl, ct), MonitoringEndpoint.Routez);
         var gatewayzTask = SafeFetchAsync(() => FetchGatewayzAsync(baseUrl, ct), MonitoringEndpoint.Gatewayz);
         var leafzTask = SafeFetchAsync(() => FetchLeafzAsync(baseUrl, ct), MonitoringEndpoint.Leafz);
 
-        await Task.WhenAll(healthzTask, varzTask, jszTask, routezTask, gatewayzTask, leafzTask);
+        await Task.WhenAll(varzTask, jszTask, routezTask, gatewayzTask, leafzTask);
 
         var varz = varzTask.Result;
         var jsz = jszTask.Result;
@@ -48,11 +47,11 @@ public sealed partial class NatsClusterMonitoringHttpAdapter(
             return NatsMonitoringStateFactory.CreateUnavailableClusterObservation(environmentId);
         }
 
-        var server = BuildServerObservation(environmentId, varz, observedAt);
-        var topology = BuildTopologyRelationships(environmentId, routez, gatewayz, leafz, observedAt);
+        var server = NatsClusterObservationMapper.BuildServerObservation(environmentId, varz, observedAt);
+        var topology = NatsClusterObservationMapper.BuildTopologyRelationships(environmentId, routez, gatewayz, leafz, observedAt);
 
         var servers = new List<ServerObservation> { server };
-        var warnings = DeriveWarnings(servers, options.Value);
+        var warnings = NatsClusterObservationMapper.DeriveWarnings(servers, options.Value);
         var clusterStatus = ClusterHealthDerivation.DeriveClusterStatus(servers);
         var freshness = ClusterHealthDerivation.DeriveFreshness(servers);
 
@@ -119,7 +118,7 @@ public sealed partial class NatsClusterMonitoringHttpAdapter(
             ? MonitoringHttpResult<ClusterVarzResponse>.Success(rawResult.Value is null ? null : new ClusterVarzResponse(
                 ServerId: rawResult.Value.ServerId,
                 ServerName: rawResult.Value.ServerName,
-                ClusterName: ExtractClusterName(rawResult.Value.Cluster),
+                ClusterName: NatsClusterObservationMapper.ExtractClusterName(rawResult.Value.Cluster),
                 Version: rawResult.Value.Version,
                 Uptime: rawResult.Value.Uptime,
                 UptimeSeconds: NatsMonitoringUptimeParser.ParseSeconds(rawResult.Value.Uptime),
@@ -132,22 +131,6 @@ public sealed partial class NatsClusterMonitoringHttpAdapter(
                 OutBytes: rawResult.Value.OutBytes,
                 Mem: rawResult.Value.Mem))
             : MonitoringHttpResult<ClusterVarzResponse>.Failure(rawResult.FailureKind, rawResult.ErrorMessage ?? "Unknown error");
-    }
-
-    private static string? ExtractClusterName(JsonElement? cluster)
-    {
-        if (cluster is null)
-        {
-            return null;
-        }
-
-        return cluster.Value.ValueKind switch
-        {
-            JsonValueKind.String => cluster.Value.GetString(),
-            JsonValueKind.Object when cluster.Value.TryGetProperty("name", out var name)
-                && name.ValueKind == JsonValueKind.String => name.GetString(),
-            _ => null
-        };
     }
 
     public async Task<ClusterJszResponse?> GetJszAsync(string baseUrl, CancellationToken ct)
@@ -270,7 +253,7 @@ public sealed partial class NatsClusterMonitoringHttpAdapter(
 
         var leafs = rawResult.Value?.Leafs?.Select(leaf => new SafeLeafInfo(
             Name: leaf.Name,
-            RemoteUrl: MaskUrl(leaf.RemoteUrl),
+            RemoteUrl: NatsClusterObservationMapper.MaskUrl(leaf.RemoteUrl),
             IsHub: leaf.IsHub,
             InMsgs: leaf.InMsgs,
             OutMsgs: leaf.OutMsgs)).ToList() ?? [];
@@ -278,147 +261,9 @@ public sealed partial class NatsClusterMonitoringHttpAdapter(
         return MonitoringHttpResult<ClusterLeafzResponse>.Success(new ClusterLeafzResponse(leafs));
     }
 
-    private static ServerObservation BuildServerObservation(Guid environmentId, ClusterVarzResponse varz, DateTimeOffset observedAt) =>
-        new(
-            EnvironmentId: environmentId,
-            ServerId: varz.ServerId ?? "unknown",
-            ServerName: varz.ServerName,
-            ClusterName: varz.ClusterName,
-            Version: varz.Version,
-            UptimeSeconds: varz.UptimeSeconds > 0 ? varz.UptimeSeconds : null,
-            Status: varz.SlowConsumers > 0 ? ServerStatus.Warning : ServerStatus.Healthy,
-            Freshness: ObservationFreshness.Live,
-            Connections: varz.Connections,
-            MaxConnections: varz.MaxConnections > 0 ? varz.MaxConnections : null,
-            SlowConsumers: varz.SlowConsumers,
-            MemoryBytes: varz.Mem > 0 ? varz.Mem : null,
-            StorageBytes: null,
-            InMsgsPerSecond: null,
-            OutMsgsPerSecond: null,
-            InBytesPerSecond: null,
-            OutBytesPerSecond: null,
-            LastObservedAt: observedAt,
-            MetricStates: [MetricState.Live]);
-
-    private static List<TopologyRelationship> BuildTopologyRelationships(
-        Guid environmentId,
-        ClusterRoutezResponse? routez,
-        ClusterGatewayzResponse? gatewayz,
-        ClusterLeafzResponse? leafz,
-        DateTimeOffset observedAt)
-    {
-        var relationships = new List<TopologyRelationship>();
-
-        if (routez is not null)
-        {
-            foreach (var route in routez.Routes)
-            {
-                var targetId = route.RemoteId ?? $"route-{Guid.NewGuid():N}";
-                relationships.Add(new TopologyRelationship(
-                    EnvironmentId: environmentId,
-                    RelationshipId: $"route__{targetId}",
-                    SourceNodeId: "local",
-                    TargetNodeId: targetId,
-                    Type: TopologyRelationshipType.Route,
-                    Direction: RelationshipDirection.Bidirectional,
-                    Status: RelationshipStatus.Healthy,
-                    Freshness: ObservationFreshness.Live,
-                    ObservedAt: observedAt,
-                    SourceEndpoint: MonitoringEndpoint.Routez,
-                    SafeLabel: route.RemoteName ?? targetId));
-            }
-        }
-
-        if (gatewayz is not null)
-        {
-            foreach (var gateway in gatewayz.Gateways)
-            {
-                var gatewayId = $"gateway-{gateway.Name ?? Guid.NewGuid().ToString("N")}";
-                relationships.Add(new TopologyRelationship(
-                    EnvironmentId: environmentId,
-                    RelationshipId: $"gateway__{gatewayId}",
-                    SourceNodeId: "local",
-                    TargetNodeId: gatewayId,
-                    Type: TopologyRelationshipType.Gateway,
-                    Direction: RelationshipDirection.Outbound,
-                    Status: gateway.Status is "CONNECTED" ? RelationshipStatus.Healthy : RelationshipStatus.Warning,
-                    Freshness: ObservationFreshness.Live,
-                    ObservedAt: observedAt,
-                    SourceEndpoint: MonitoringEndpoint.Gatewayz,
-                    SafeLabel: $"gateway: {gateway.Name ?? "unknown"}"));
-            }
-        }
-
-        if (leafz is not null)
-        {
-            foreach (var leaf in leafz.Leafs)
-            {
-                var leafId = $"leaf-{leaf.Name ?? Guid.NewGuid().ToString("N")}";
-                relationships.Add(new TopologyRelationship(
-                    EnvironmentId: environmentId,
-                    RelationshipId: $"leaf__{leafId}",
-                    SourceNodeId: "local",
-                    TargetNodeId: leafId,
-                    Type: TopologyRelationshipType.LeafNode,
-                    Direction: leaf.IsHub ? RelationshipDirection.Inbound : RelationshipDirection.Outbound,
-                    Status: RelationshipStatus.Healthy,
-                    Freshness: ObservationFreshness.Live,
-                    ObservedAt: observedAt,
-                    SourceEndpoint: MonitoringEndpoint.Leafz,
-                    SafeLabel: $"leaf: {leaf.Name ?? "unknown"}"));
-            }
-        }
-
-        return relationships;
-    }
-
-    private static List<ClusterWarning> DeriveWarnings(IReadOnlyList<ServerObservation> servers, MonitoringOptions opts)
-    {
-        var warnings = new List<ClusterWarning>();
-        foreach (var server in servers)
-        {
-            if (server.SlowConsumers >= opts.SlowConsumerWarningThreshold)
-            {
-                warnings.Add(new ClusterWarning("SlowConsumers", "Warning", $"{server.ServerId} has {server.SlowConsumers} slow consumer(s)", server.ServerId));
-            }
-
-            if (server.Freshness == ObservationFreshness.Stale)
-            {
-                warnings.Add(new ClusterWarning("StaleServer", "Warning", $"{server.ServerId} has not refreshed within the configured freshness window", server.ServerId));
-            }
-
-            if (server.Connections.HasValue && server.MaxConnections.HasValue && server.MaxConnections.Value > 0)
-            {
-                var pressure = server.Connections.Value * 100 / server.MaxConnections.Value;
-                if (pressure >= opts.ConnectionPressureWarningPercent)
-                {
-                    warnings.Add(new ClusterWarning("ConnectionPressure", "Warning", $"{server.ServerId} connection pressure at {pressure}%", server.ServerId));
-                }
-            }
-        }
-
-        return warnings;
-    }
-
-    private static string? MaskUrl(string? url)
-    {
-        if (url is null)
-        {
-            return null;
-        }
-
-        if (Uri.TryCreate(url, UriKind.Absolute, out var uri) && !string.IsNullOrEmpty(uri.UserInfo))
-        {
-            return $"{uri.Scheme}://***@{uri.Host}:{uri.Port}{uri.PathAndQuery}";
-        }
-
-        return url;
-    }
-
     [LoggerMessage(Level = LogLevel.Warning, Message = "NATS cluster monitoring endpoint failed: {Endpoint} — {Reason}")]
     private partial void LogEndpointFailed(string endpoint, string reason);
 
-#pragma warning disable CS8618
     private sealed class HealthzRaw { public string? Status { get; set; } }
     private sealed class VarzRaw
     {
@@ -470,5 +315,4 @@ public sealed partial class NatsClusterMonitoringHttpAdapter(
         [JsonPropertyName("in_msgs")] public long InMsgs { get; set; }
         [JsonPropertyName("out_msgs")] public long OutMsgs { get; set; }
     }
-#pragma warning restore CS8618
 }

@@ -39,8 +39,11 @@ public sealed partial class ObjectStoreAdapter(
                     TotalSize: (long)status.Info.State.Bytes,
                     Description: status.Info.Config.Description));
             }
-            catch
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
+                // A single unreadable bucket must not blank the whole listing, but it is
+                // not nothing either — the UI would otherwise show the bucket as absent.
+                LogBucketStatusUnavailable(bucketName, environmentId, ex);
             }
         }
 
@@ -60,8 +63,9 @@ public sealed partial class ObjectStoreAdapter(
                 TotalSize: (long)status.Info.State.Bytes,
                 Description: status.Info.Config.Description);
         }
-        catch
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
+            LogBucketStatusUnavailable(bucketName, environmentId, ex);
             return null;
         }
     }
@@ -126,8 +130,9 @@ public sealed partial class ObjectStoreAdapter(
             var info = await store.GetInfoAsync(objectName, cancellationToken: cancellationToken);
             return MapObjectInfo(info);
         }
-        catch
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
+            LogObjectInfoUnavailable(objectName, bucketName, environmentId, ex);
             return null;
         }
     }
@@ -191,4 +196,10 @@ public sealed partial class ObjectStoreAdapter(
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Deleted object {ObjectName} from bucket {BucketName} in environment {EnvironmentId}")]
     private partial void LogObjectDeleted(string objectName, string bucketName, Guid environmentId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Could not read status for object bucket {BucketName} in environment {EnvironmentId}")]
+    private partial void LogBucketStatusUnavailable(string bucketName, Guid environmentId, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Could not read info for object {ObjectName} in bucket {BucketName} in environment {EnvironmentId}")]
+    private partial void LogObjectInfoUnavailable(string objectName, string bucketName, Guid environmentId, Exception exception);
 }

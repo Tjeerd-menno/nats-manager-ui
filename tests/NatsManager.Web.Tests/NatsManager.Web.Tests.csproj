@@ -9,6 +9,18 @@
     <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <!--
+      xUnit1051 (pass TestContext.Current.CancellationToken to async calls) is enforced as an
+      error everywhere else. This project still has call sites predating the rule, so it is
+      demoted to a visible warning here rather than silenced repo-wide: new code is expected to
+      pass the token, and the remaining sites are tracked by the warning count, not hidden.
+      Because the rule is visible, `dotnet format`'s analyzers pass would try to rewrite those
+      call sites, so CI gates on `dotnet format whitespace`/`style` only (see pr-actions.yml).
+    -->
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);xUnit1051</WarningsNotAsErrors>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Shouldly" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />

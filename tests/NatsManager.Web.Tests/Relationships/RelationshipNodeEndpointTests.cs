@@ -34,11 +34,11 @@ public sealed class RelationshipNodeEndpointTests : IClassFixture<NatsManagerWeb
             0,
             DateTimeOffset.UtcNow,
             new StreamState(10, 1024, null, null, 1, 10));
-        _factory.JetStreamAdapter.GetStreamAsync(environmentId, "orders", Arg.Any<CancellationToken>())
+        _factory.JetStreamReadAdapter.GetStreamAsync(environmentId, "orders", Arg.Any<CancellationToken>())
             .Returns(stream);
-        _factory.JetStreamAdapter.ListStreamsAsync(environmentId, Arg.Any<CancellationToken>())
+        _factory.JetStreamReadAdapter.ListStreamsAsync(environmentId, Arg.Any<CancellationToken>())
             .Returns([stream]);
-        _factory.JetStreamAdapter.ListConsumersAsync(environmentId, "orders", Arg.Any<CancellationToken>())
+        _factory.JetStreamReadAdapter.ListConsumersAsync(environmentId, "orders", Arg.Any<CancellationToken>())
             .Returns([]);
         var nodeId = ResourceNode.BuildNodeId(environmentId, ResourceType.Stream, "orders");
 
