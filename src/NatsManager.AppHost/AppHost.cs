@@ -16,7 +16,7 @@ var nats = builder.AddNats("nats", userName: natsUsername, password: natsPasswor
     .WithEndpoint(targetPort: 8222, name: "monitoring", scheme: "http")
     .WithLifetime(ContainerLifetime.Persistent);
 
-var backend = builder.AddProject<Projects.NatsManager_Web>("backend")
+var backend = builder.AddDotnetProject("backend", "../NatsManager.Web/NatsManager.Web.csproj")
     .WithReference(nats)
     .WithEnvironment("BootstrapAdmin__Username", bootstrapAdminUsername)
     .WithEnvironment("BootstrapAdmin__Password", bootstrapAdminPassword)
