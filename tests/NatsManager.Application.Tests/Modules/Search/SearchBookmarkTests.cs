@@ -204,7 +204,7 @@ public sealed class GetBookmarksQueryTests
         await _handler.ExecuteAsync(new GetBookmarksQuery(userId), outputPort, CancellationToken.None);
 
         outputPort.IsSuccess.ShouldBeTrue();
-        outputPort.Value.Count().ShouldBe(1);
+        outputPort.Value!.Count.ShouldBe(1);
         outputPort.Value![0].ResourceId.ShouldBe("stream-1");
         outputPort.Value![0].DisplayName.ShouldBe("Orders");
     }
@@ -307,7 +307,7 @@ public sealed class GetUserPreferencesQueryTests
         await _handler.ExecuteAsync(new GetUserPreferencesQuery(userId), outputPort, CancellationToken.None);
 
         outputPort.IsSuccess.ShouldBeTrue();
-        outputPort.Value.Count().ShouldBe(2);
+        outputPort.Value!.Count.ShouldBe(2);
         outputPort.Value!["theme"].ShouldBe("dark");
         outputPort.Value!["lang"].ShouldBe("en");
     }

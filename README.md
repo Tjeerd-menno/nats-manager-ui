@@ -82,7 +82,7 @@ A modular monolith using Clean Architecture (Ports & Adapters):
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
 - [Node.js 22 LTS](https://nodejs.org/) (with npm)
-- [Docker](https://www.docker.com/) (for the Aspire-managed NATS container)
+- [Docker](https://www.docker.com/) (for Aspire-managed NATS and OpenIdentityStack sample IdP containers)
 - [Aspire CLI](https://aspire.dev/) (recommended — see install instructions below)
 
 **Install the Aspire CLI** (the recommended way to run the stack):
@@ -106,11 +106,14 @@ aspire run
 This launches:
 
 - A **NATS** container with JetStream enabled
+- **OpenIdentityStack** containers (PostgreSQL, db migrator, API, and AdminWeb) as a sample OpenID Connect identity provider
 - The **backend** ASP.NET Core API
 - The **frontend** Vite dev server
 - The **Aspire Dashboard** (logs, traces, metrics) — URL is printed to the console
 
 For local development, Aspire may assign the NATS host port dynamically. Use the NATS endpoint shown in the Aspire console output or dashboard rather than assuming `4222`. The Aspire-managed NATS resource also uses the `nats-username` and `nats-password` parameters, so use those same values when registering it as an environment in the app.
+
+OpenIdentityStack is enabled by default in the AppHost and is wired to the NATS Manager login page as an OpenID Connect provider. Its seeded development admin user is `admin@localhost.dev`; set the `openidentitystack-admin-password` Aspire parameter for that account. Set `OPENIDENTITYSTACK_ENABLED=false` to skip the sample IdP, or `OPENIDENTITYSTACK_IMAGE_TAG=<tag>` to override the default OpenIdentityStack container tag.
 ### Run components manually
 
 <details>

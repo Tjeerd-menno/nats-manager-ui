@@ -2,16 +2,24 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../test-utils';
 import { LoginPage } from './LoginPage';
+import type { AuthConfig } from './types';
 
 const mockLogin = vi.fn();
+const mockLoginWithOidc = vi.fn();
+let mockAuthConfig: AuthConfig = {
+  oidcEnabled: false,
+  oidcLoginPath: '/api/auth/oidc/login',
+};
 
 vi.mock('./useAuth', () => ({
   useAuth: vi.fn(() => ({
     login: mockLogin,
+    loginWithOidc: mockLoginWithOidc,
     logout: vi.fn(),
     user: null,
     isAuthenticated: false,
     isLoading: false,
+    authConfig: mockAuthConfig,
     hasRole: vi.fn(() => false),
   })),
 }));
@@ -23,6 +31,10 @@ vi.mock('../../api/client', () => ({
 describe('LoginPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockAuthConfig = {
+      oidcEnabled: false,
+      oidcLoginPath: '/api/auth/oidc/login',
+    };
   });
 
   it('renders login form', () => {
@@ -56,5 +68,30 @@ describe('LoginPage', () => {
     await user.click(screen.getByRole('button', { name: /sign in/i }));
 
     expect(await screen.findByText(/login failed/i)).toBeInTheDocument();
+  });
+
+  it('renders OIDC sign in when configured', () => {
+    mockAuthConfig = {
+      oidcEnabled: true,
+      oidcLoginPath: '/api/auth/oidc/login',
+    };
+
+    renderWithProviders(<LoginPage />);
+
+    expect(screen.getByRole('button', { name: /sign in with openid connect/i })).toBeInTheDocument();
+  });
+
+  it('starts OIDC sign in from the OIDC button', async () => {
+    mockAuthConfig = {
+      oidcEnabled: true,
+      oidcLoginPath: '/api/auth/oidc/login',
+    };
+    const user = userEvent.setup();
+
+    renderWithProviders(<LoginPage />);
+
+    await user.click(screen.getByRole('button', { name: /sign in with openid connect/i }));
+
+    expect(mockLoginWithOidc).toHaveBeenCalledTimes(1);
   });
 });

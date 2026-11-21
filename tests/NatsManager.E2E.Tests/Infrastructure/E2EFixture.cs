@@ -19,6 +19,7 @@ public sealed class AppHostFixture : IAsyncLifetime
     private const string NatsUsernameParameter = "Parameters__nats-username";
     private const string NatsPasswordParameter = "Parameters__nats-password";
     private const string EncryptionKeyParameter = "Parameters__backend-encryption-key";
+    private const string OpenIdentityStackEnabled = "OPENIDENTITYSTACK_ENABLED";
     private const string NatsUsername = "nats";
     private const string NatsPassword = "Nats123!";
     public const string BootstrapAdminUsername = "admin";
@@ -33,6 +34,7 @@ public sealed class AppHostFixture : IAsyncLifetime
     private string? _originalNatsUsernameParameter;
     private string? _originalNatsPasswordParameter;
     private string? _originalEncryptionKeyParameter;
+    private string? _originalOpenIdentityStackEnabled;
 
     public string FrontendUrl { get; private set; } = string.Empty;
     public string BackendUrl { get; private set; } = string.Empty;
@@ -62,6 +64,7 @@ public sealed class AppHostFixture : IAsyncLifetime
         _originalNatsUsernameParameter = Environment.GetEnvironmentVariable(NatsUsernameParameter);
         _originalNatsPasswordParameter = Environment.GetEnvironmentVariable(NatsPasswordParameter);
         _originalEncryptionKeyParameter = Environment.GetEnvironmentVariable(EncryptionKeyParameter);
+        _originalOpenIdentityStackEnabled = Environment.GetEnvironmentVariable(OpenIdentityStackEnabled);
 
         Environment.SetEnvironmentVariable(UsernameParameter, BootstrapAdminUsername);
         Environment.SetEnvironmentVariable(PasswordParameter, BootstrapAdminPassword);
@@ -71,6 +74,7 @@ public sealed class AppHostFixture : IAsyncLifetime
         Environment.SetEnvironmentVariable(NatsUsernameParameter, NatsUsername);
         Environment.SetEnvironmentVariable(NatsPasswordParameter, NatsPassword);
         Environment.SetEnvironmentVariable(EncryptionKeyParameter, EncryptionKey);
+        Environment.SetEnvironmentVariable(OpenIdentityStackEnabled, "false");
 
         var appHost = await DistributedApplicationTestingBuilder
             .CreateAsync<Projects.NatsManager_AppHost>(
@@ -172,6 +176,7 @@ public sealed class AppHostFixture : IAsyncLifetime
         Environment.SetEnvironmentVariable(NatsUsernameParameter, _originalNatsUsernameParameter);
         Environment.SetEnvironmentVariable(NatsPasswordParameter, _originalNatsPasswordParameter);
         Environment.SetEnvironmentVariable(EncryptionKeyParameter, _originalEncryptionKeyParameter);
+        Environment.SetEnvironmentVariable(OpenIdentityStackEnabled, _originalOpenIdentityStackEnabled);
 
         GC.SuppressFinalize(this);
     }

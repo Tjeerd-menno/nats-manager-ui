@@ -531,7 +531,7 @@ public sealed class GetUsersQueryTests
         await _handler.ExecuteAsync(new GetUsersQuery(), outputPort, CancellationToken.None);
 
         outputPort.IsSuccess.ShouldBeTrue();
-        outputPort.Value.Count().ShouldBe(1);
+        outputPort.Value!.Count.ShouldBe(1);
         outputPort.Value![0].Username.ShouldBe("admin");
         outputPort.Value![0].DisplayName.ShouldBe("Admin User");
         outputPort.Value![0].IsActive.ShouldBeTrue();
@@ -558,7 +558,7 @@ public sealed class GetRolesQueryTests
         await _handler.ExecuteAsync(new GetRolesQuery(), outputPort, CancellationToken.None);
 
         outputPort.IsSuccess.ShouldBeTrue();
-        outputPort.Value.Count().ShouldBe(1);
+        outputPort.Value!.Count.ShouldBe(1);
         outputPort.Value![0].Name.ShouldBe("Administrator");
         outputPort.Value![0].Description.ShouldBe("Full access");
     }
@@ -590,7 +590,7 @@ public sealed class GetUserRolesQueryTests
         await _handler.ExecuteAsync(new GetUserRolesQuery(userId), outputPort, CancellationToken.None);
 
         outputPort.IsSuccess.ShouldBeTrue();
-        outputPort.Value.Count().ShouldBe(1);
+        outputPort.Value!.Count.ShouldBe(1);
         outputPort.Value![0].RoleName.ShouldBe("Admin");
         outputPort.Value![0].RoleId.ShouldBe(role.Id);
     }
