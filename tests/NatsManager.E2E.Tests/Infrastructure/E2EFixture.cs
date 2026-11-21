@@ -2,7 +2,7 @@ using Aspire.Hosting;
 using Aspire.Hosting.Testing;
 using NatsManager.E2E.Tests.Infrastructure;
 
-[assembly: CollectionBehavior(DisableTestParallelization = true)]
+[assembly: Xunit.v3.Parallelization(Mode = Xunit.Sdk.ParallelMode.None)]
 [assembly: AssemblyFixture(typeof(AppHostFixture))]
 
 namespace NatsManager.E2E.Tests.Infrastructure;
